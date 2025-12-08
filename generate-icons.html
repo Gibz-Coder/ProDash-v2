@@ -1,0 +1,103 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Generate Robot Emoji Icons</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+        }
+        button {
+            background: #4CAF50;
+            color: white;
+            padding: 10px 20px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+            margin: 10px 5px;
+        }
+        button:hover {
+            background: #45a049;
+        }
+        canvas {
+            border: 1px solid #ddd;
+            margin: 10px;
+        }
+        .info {
+            background: #f0f0f0;
+            padding: 15px;
+            border-radius: 4px;
+            margin: 20px 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>🤖 Generate Robot Emoji Icons</h1>
+    
+    <div class="info">
+        <p>Click the buttons below to generate and download the icon files for your app.</p>
+        <p>Save them to the <code>public/</code> folder of your project.</p>
+    </div>
+
+    <button onclick="generateAppleTouchIcon()">Download apple-touch-icon.png (180x180)</button>
+    <button onclick="generateFavicon()">Download favicon.ico (32x32)</button>
+    <button onclick="generateIcon192()">Download icon-192.png (192x192)</button>
+    <button onclick="generateIcon512()">Download icon-512.png (512x512)</button>
+
+    <div id="canvasContainer"></div>
+
+    <script>
+        const emoji = '🎯';
+
+        function generateIcon(size, filename) {
+            const canvas = document.createElement('canvas');
+            canvas.width = size;
+            canvas.height = size;
+            const ctx = canvas.getContext('2d');
+            
+            // Transparent background (no fill)
+            
+            // Draw emoji
+            ctx.font = `${size * 0.75}px Arial`;
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+            ctx.fillText(emoji, size / 2, size / 2);
+            
+            // Show preview
+            document.getElementById('canvasContainer').appendChild(canvas);
+            
+            // Download
+            canvas.toBlob(blob => {
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = filename;
+                a.click();
+                URL.revokeObjectURL(url);
+            });
+        }
+
+        function generateAppleTouchIcon() {
+            generateIcon(180, 'apple-touch-icon.png');
+        }
+
+        function generateFavicon() {
+            generateIcon(32, 'favicon.png');
+            alert('Note: Save this as favicon.png, then convert to .ico format using an online tool like https://convertio.co/png-ico/ or use the SVG favicon which works in modern browsers.');
+        }
+
+        function generateIcon192() {
+            generateIcon(192, 'icon-192.png');
+        }
+
+        function generateIcon512() {
+            generateIcon(512, 'icon-512.png');
+        }
+    </script>
+</body>
+</html>
