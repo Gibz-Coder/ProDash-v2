@@ -105,7 +105,7 @@ class UserManagementController extends Controller
             'emp_no' => $validated['emp_no'],
             'position' => $validated['position'],
             'password' => Hash::make($validated['password']),
-            'role' => strtoupper($validated['role']), // Store as uppercase to match existing data
+            'role' => strtoupper(str_replace('-', ' ', $validated['role'])), // Convert slug to ENUM format (e.g., 'super-user' -> 'SUPER USER')
             'emp_verified_at' => now(),
         ]);
 
@@ -163,7 +163,7 @@ class UserManagementController extends Controller
         $user->emp_name = $validated['emp_name'];
         $user->emp_no = $validated['emp_no'];
         $user->position = $validated['position'];
-        $user->role = strtoupper($validated['role']); // Store as uppercase to match existing data
+        $user->role = strtoupper(str_replace('-', ' ', $validated['role'])); // Convert slug to ENUM format (e.g., 'super-user' -> 'SUPER USER')
 
         if (!empty($validated['password'])) {
             $user->password = Hash::make($validated['password']);
