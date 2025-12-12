@@ -100,15 +100,6 @@ const footerNavItems = computed(() => {
     
     const items: NavItem[] = [];
     
-    // System Settings - requires "Settings Manage" permission
-    if (hasPermission('Settings Manage')) {
-        items.push({
-            title: 'System Settings',
-            href: admin.systemSettings.url(),
-            icon: Settings,
-        });
-    }
-    
     // User Management - requires "Employees Manage" permission
     if (hasPermission('Employees Manage')) {
         items.push({
@@ -124,6 +115,15 @@ const footerNavItems = computed(() => {
             title: 'Role Management',
             href: admin.roleManagement.url(),
             icon: Shield,
+        });
+    }
+    
+    // System Settings - requires "Settings Manage" permission
+    if (hasPermission('Settings Manage')) {
+        items.push({
+            title: 'System Settings',
+            href: admin.systemSettings.url(),
+            icon: Settings,
         });
     }
     

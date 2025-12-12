@@ -11,15 +11,15 @@ const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Machine Escalation Reporting', href: '/escalation' },
 ];
 
-// Theme colors from COLOR_THEME_UPDATE.md
+// Theme colors aligned with reference image
 const colors = {
-    primary: '#35B5AA',
-    secondary: '#00C9FF',
-    success: '#32D484',
-    warning: '#FDAF22',
-    danger: '#FF6757',
-    info: '#FF49CD',
-    teal: '#985FFD',
+    primary: '#35B5AA',     // Teal for main elements
+    secondary: '#4ECDC4',   // Light teal for secondary
+    success: '#32D484',     // Green for success states
+    warning: '#FDAF22',     // Orange for warnings
+    danger: '#FF6757',      // Red for danger states
+    info: '#FF49CD',        // Pink for info
+    teal: '#35B5AA',        // Teal for accent
 };
 
 // Sample data - replace with actual API data
@@ -53,9 +53,9 @@ const dailyTrend = ref([
 ]);
 
 const perTeam = ref([
-    { name: 'Equipment', value: 249, color: colors.success },
-    { name: 'Technical', value: 180, color: colors.primary },
-    { name: 'AI', value: 243, color: colors.teal },
+    { name: 'Equipment', value: 249, color: '#32D484' },  // Green
+    { name: 'Technical', value: 180, color: '#35B5AA' },  // Teal
+    { name: 'AI', value: 243, color: '#4ECDC4' },         // Light teal
 ]);
 
 const perCategory = ref([
@@ -130,57 +130,109 @@ let completionChart: ApexCharts | null = null;
 let monthlyChart: ApexCharts | null = null;
 let weeklyChart: ApexCharts | null = null;
 let dailyChart: ApexCharts | null = null;
-let teamChart: ApexCharts | null = null;
+
 
 // Completion Chart (Radial Bar)
 const getCompletionChartOptions = () => ({
     series: [overallStatus.value.progress],
     chart: {
         type: 'radialBar',
-        height: 280,
+        height: 270,
         background: 'transparent',
-        sparkline: { enabled: true }
+        offsetY: 0
     },
     colors: [colors.primary],
     plotOptions: {
         radialBar: {
-            startAngle: -135,
-            endAngle: 135,
-            hollow: { size: '55%', background: 'transparent' },
+            startAngle: 0,
+            endAngle: 360,
+            hollow: {
+                margin: 0,
+                size: '50%',
+                background: 'transparent',
+            },
             track: {
-                background: isDarkMode.value ? '#374151' : '#e5e7eb',
-                strokeWidth: '100%',
-                dropShadow: { enabled: true, top: 2, left: 0, blur: 4, opacity: 0.1 }
+                background: isDarkMode.value ? '#1f2937' : '#e5e7eb',
+                strokeWidth: '120%',
+                margin: 5,
+                dropShadow: { enabled: false }
             },
             dataLabels: {
-                name: { show: true, fontSize: '11px', fontWeight: 500, color: isDarkMode.value ? '#9ca3af' : '#6b7280', offsetY: 22 },
-                value: { show: true, fontSize: '28px', fontWeight: 700, color: isDarkMode.value ? '#f3f4f6' : '#111827', offsetY: -12, formatter: (val: number) => val + '%' }
+                show: true,
+                name: {
+                    show: true,
+                    fontSize: '14px',
+                    fontWeight: 600,
+                    color: colors.primary,
+                    offsetY: 25,
+                },
+                value: {
+                    show: true,
+                    fontSize: '32px',
+                    fontWeight: 700,
+                    color: isDarkMode.value ? '#f3f4f6' : '#111827',
+                    offsetY: -10,
+                    formatter: (val: number) => val + '%'
+                }
             }
         }
     },
-    stroke: { lineCap: 'round' },
+    fill: {
+        type: 'gradient',
+        gradient: {
+            shade: 'dark',
+            shadeIntensity: 0.15,
+            inverseColors: false,
+            opacityFrom: 1,
+            opacityTo: 1,
+            stops: [0, 50, 65, 91]
+        },
+    },
+    stroke: { dashArray: 4 },
     labels: ['Completion'],
 });
 
-// Monthly Chart (Bar)
+// Monthly Chart (Bar + Line)
 const getMonthlyChartOptions = () => ({
-    series: [{ name: 'Reports', data: monthlyTrend.value.map(d => d.value) }],
+    series: [
+        {
+            name: 'Reports',
+            type: 'column',
+            data: monthlyTrend.value.map(d => d.value)
+        },
+        {
+            name: 'Trend',
+            type: 'line',
+            data: monthlyTrend.value.map(d => d.value)
+        }
+    ],
     chart: {
-        type: 'bar',
-        height: 240,
+        type: 'line',
+        height: 230,
         background: 'transparent',
         toolbar: { show: false },
         parentHeightOffset: 0
     },
-    colors: [colors.primary],
+    colors: ['#35B5AA', '#4ECDC4'],
     plotOptions: {
-        bar: { columnWidth: '55%', borderRadius: 6, borderRadiusApplication: 'end', distributed: false }
+        bar: { columnWidth: '55%', borderRadius: 6, borderRadiusApplication: 'end' }
     },
     dataLabels: {
         enabled: true,
+        enabledOnSeries: [0],
         formatter: (val: number) => val,
         style: { fontSize: '11px', fontWeight: 600, colors: [isDarkMode.value ? '#e5e7eb' : '#374151'] },
         offsetY: -20
+    },
+    stroke: {
+        width: [0, 3],
+        curve: 'straight'
+    },
+    markers: {
+        size: [0, 5],
+        colors: [colors.warning],
+        strokeColors: '#fff',
+        strokeWidth: 2
     },
     xaxis: {
         categories: monthlyTrend.value.map(d => d.month),
@@ -190,28 +242,51 @@ const getMonthlyChartOptions = () => ({
     },
     yaxis: { show: false },
     grid: { show: false, padding: { top: -10, bottom: -5, left: 0, right: 0 } },
-    tooltip: { enabled: true, theme: isDarkMode.value ? 'dark' : 'light' }
+    tooltip: { enabled: true, theme: isDarkMode.value ? 'dark' : 'light' },
+    legend: { show: false }
 });
 
-// Weekly Chart (Bar)
+// Weekly Chart (Bar + Line)
 const getWeeklyChartOptions = () => ({
-    series: [{ name: 'Reports', data: weeklyTrend.value.map(d => d.value) }],
+    series: [
+        {
+            name: 'Reports',
+            type: 'column',
+            data: weeklyTrend.value.map(d => d.value)
+        },
+        {
+            name: 'Trend',
+            type: 'line',
+            data: weeklyTrend.value.map(d => d.value)
+        }
+    ],
     chart: {
-        type: 'bar',
-        height: 240,
+        type: 'line',
+        height: 230,
         background: 'transparent',
         toolbar: { show: false },
         parentHeightOffset: 0
     },
-    colors: [colors.secondary],
+    colors: ['#35B5AA', '#4ECDC4'],
     plotOptions: {
         bar: { columnWidth: '55%', borderRadius: 6, borderRadiusApplication: 'end' }
     },
     dataLabels: {
         enabled: true,
+        enabledOnSeries: [0],
         formatter: (val: number) => val,
         style: { fontSize: '11px', fontWeight: 600, colors: [isDarkMode.value ? '#e5e7eb' : '#374151'] },
         offsetY: -20
+    },
+    stroke: {
+        width: [0, 3],
+        curve: 'straight'
+    },
+    markers: {
+        size: [0, 5],
+        colors: [colors.danger],
+        strokeColors: '#fff',
+        strokeWidth: 2
     },
     xaxis: {
         categories: weeklyTrend.value.map(d => d.week),
@@ -221,28 +296,53 @@ const getWeeklyChartOptions = () => ({
     },
     yaxis: { show: false },
     grid: { show: false, padding: { top: -10, bottom: -5, left: 0, right: 0 } },
-    tooltip: { enabled: true, theme: isDarkMode.value ? 'dark' : 'light' }
+    tooltip: { enabled: true, theme: isDarkMode.value ? 'dark' : 'light' },
+    legend: { show: false }
 });
 
-// Daily Chart (Area)
+// Daily Chart (Bar + Line)
 const getDailyChartOptions = () => ({
-    series: [{ name: 'Reports', data: dailyTrend.value.map(d => d.value) }],
+    series: [
+        {
+            name: 'Reports',
+            type: 'column',
+            data: dailyTrend.value.map(d => d.value)
+        },
+        {
+            name: 'Trend',
+            type: 'line',
+            data: dailyTrend.value.map(d => d.value)
+        }
+    ],
     chart: {
-        type: 'area',
-        height: 240,
+        type: 'line',
+        height: 230,
         background: 'transparent',
         toolbar: { show: false },
-        parentHeightOffset: 0,
-        sparkline: { enabled: false }
+        parentHeightOffset: 0
     },
-    colors: [colors.teal],
-    stroke: { width: 3, curve: 'smooth' },
-    fill: {
-        type: 'gradient',
-        gradient: { shadeIntensity: 1, opacityFrom: 0.4, opacityTo: 0.05, stops: [0, 95, 100] }
+    colors: ['#35B5AA', '#4ECDC4'],
+    plotOptions: {
+        bar: { columnWidth: '45%', borderRadius: 4, borderRadiusApplication: 'end' }
     },
-    dataLabels: { enabled: false },
-    markers: { size: 4, colors: [colors.teal], strokeColors: '#fff', strokeWidth: 2, hover: { size: 6 } },
+    dataLabels: {
+        enabled: true,
+        enabledOnSeries: [0],
+        formatter: (val: number) => val,
+        style: { fontSize: '10px', fontWeight: 600, colors: [isDarkMode.value ? '#e5e7eb' : '#374151'] },
+        offsetY: -15
+    },
+    stroke: {
+        width: [0, 3],
+        curve: 'straight'
+    },
+    markers: {
+        size: [0, 4],
+        colors: [colors.info],
+        strokeColors: '#fff',
+        strokeWidth: 2,
+        hover: { size: 6 }
+    },
     xaxis: {
         categories: dailyTrend.value.map(d => d.date),
         labels: { style: { colors: isDarkMode.value ? '#9ca3af' : '#6b7280', fontSize: '10px', fontWeight: 500 } },
@@ -250,45 +350,12 @@ const getDailyChartOptions = () => ({
         axisTicks: { show: false }
     },
     yaxis: { show: false },
-    grid: { show: false, padding: { top: 0, bottom: 0, left: 5, right: 5 } },
-    tooltip: { enabled: true, theme: isDarkMode.value ? 'dark' : 'light' }
+    grid: { show: false, padding: { top: -10, bottom: -5, left: 0, right: 0 } },
+    tooltip: { enabled: true, theme: isDarkMode.value ? 'dark' : 'light' },
+    legend: { show: false }
 });
 
-// Team Donut Chart
-const getTeamChartOptions = () => ({
-    series: perTeam.value.map(t => t.value),
-    chart: {
-        type: 'donut',
-        height: 180,
-        background: 'transparent'
-    },
-    colors: perTeam.value.map(t => t.color),
-    labels: perTeam.value.map(t => t.name),
-    plotOptions: {
-        pie: {
-            donut: {
-                size: '70%',
-                labels: {
-                    show: true,
-                    name: { show: true, fontSize: '12px', fontWeight: 500, color: isDarkMode.value ? '#9ca3af' : '#6b7280' },
-                    value: { show: true, fontSize: '18px', fontWeight: 700, color: isDarkMode.value ? '#f3f4f6' : '#111827' },
-                    total: {
-                        show: true,
-                        label: 'Total',
-                        fontSize: '11px',
-                        fontWeight: 500,
-                        color: isDarkMode.value ? '#9ca3af' : '#6b7280',
-                        formatter: () => totalTeamValue.value.toString()
-                    }
-                }
-            }
-        }
-    },
-    dataLabels: { enabled: false },
-    legend: { show: false },
-    stroke: { width: 2, colors: [isDarkMode.value ? '#1f2937' : '#ffffff'] },
-    tooltip: { enabled: true, theme: isDarkMode.value ? 'dark' : 'light' }
-});
+
 
 // Chart initialization
 const initCharts = () => {
@@ -296,7 +363,6 @@ const initCharts = () => {
     const monthlyEl = document.querySelector('#monthly-chart');
     const weeklyEl = document.querySelector('#weekly-chart');
     const dailyEl = document.querySelector('#daily-chart');
-    const teamEl = document.querySelector('#team-chart');
 
     if (completionEl) {
         completionChart = new ApexCharts(completionEl, getCompletionChartOptions());
@@ -314,10 +380,6 @@ const initCharts = () => {
         dailyChart = new ApexCharts(dailyEl, getDailyChartOptions());
         dailyChart.render();
     }
-    if (teamEl) {
-        teamChart = new ApexCharts(teamEl, getTeamChartOptions());
-        teamChart.render();
-    }
 };
 
 const destroyCharts = () => {
@@ -325,8 +387,7 @@ const destroyCharts = () => {
     monthlyChart?.destroy();
     weeklyChart?.destroy();
     dailyChart?.destroy();
-    teamChart?.destroy();
-    completionChart = monthlyChart = weeklyChart = dailyChart = teamChart = null;
+    completionChart = monthlyChart = weeklyChart = dailyChart = null;
 };
 
 const reinitializeCharts = () => {
@@ -384,46 +445,51 @@ watch(isDarkMode, reinitializeCharts);
     <Head title="Machine Escalation Reporting" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <div class="flex h-full flex-1 flex-col gap-5 overflow-auto bg-gray-50/50 p-5 dark:bg-gray-950">
-            <!-- Header Section -->
-            <div class="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
-                <div class="flex items-center gap-2">
-                    <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-1 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                        <span class="h-1.5 w-1.5 rounded-full bg-emerald-500"></span>
-                        Live Data
-                    </span>
+        <template #header>
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Machine Escalation Reporting</h1>
+                    <p class="text-sm text-gray-500 dark:text-gray-400">Accumulated Data as of November 2025</p>
                 </div>
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                    <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+                    Live Data
+                </span>
             </div>
+        </template>
 
+        <div class="flex h-full flex-1 flex-col gap-5 overflow-auto bg-gray-50/50 p-5 dark:bg-gray-950">
             <!-- Row 1: KPI Cards -->
-            <div class="grid grid-cols-12 gap-5">
+            <div class="grid grid-cols-11 gap-5">
                 <!-- Overall Completion Status -->
-                <div class="col-span-12 lg:col-span-3">
+                <div class="col-span-11 lg:col-span-3">
                     <div class="h-full rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
                         <div class="mb-2 flex items-center justify-between">
                             <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">Completion Status</h3>
-                            <span class="rounded-md bg-purple-100 px-2 py-0.5 text-[10px] font-semibold text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">MTD</span>
+                            <span class="rounded-md bg-purple-100 px-1.5 py-0.5 text-[9px] font-semibold text-purple-700 dark:bg-purple-900/30 dark:text-purple-400">MTD</span>
                         </div>
-                        <div id="completion-chart" class="flex justify-center"></div>
-                        <div class="mt-3 grid grid-cols-3 gap-3">
-                            <div class="rounded-xl bg-gray-50 p-3 text-center dark:bg-gray-800/50">
-                                <div class="text-xl font-bold text-gray-900 dark:text-white">{{ overallStatus.totalReport }}</div>
-                                <div class="text-[10px] font-medium text-gray-500 dark:text-gray-400">Total</div>
-                            </div>
-                            <div class="rounded-xl bg-emerald-50 p-3 text-center dark:bg-emerald-900/20">
-                                <div class="text-xl font-bold text-emerald-600 dark:text-emerald-400">{{ overallStatus.completed }}</div>
-                                <div class="text-[10px] font-medium text-emerald-600/80 dark:text-emerald-400/80">Done</div>
-                            </div>
-                            <div class="rounded-xl bg-amber-50 p-3 text-center dark:bg-amber-900/20">
-                                <div class="text-xl font-bold text-amber-600 dark:text-amber-400">{{ overallStatus.pending }}</div>
-                                <div class="text-[10px] font-medium text-amber-600/80 dark:text-amber-400/80">Pending</div>
+                        <div class="flex items-center gap-4">
+                            <div id="completion-chart" class="flex-shrink-0"></div>
+                            <div class="flex flex-col gap-2 flex-1">
+                                <div class="rounded-lg bg-gray-50 p-2 text-center dark:bg-gray-800/50">
+                                    <div class="text-lg font-bold text-gray-900 dark:text-white">{{ overallStatus.totalReport }}</div>
+                                    <div class="text-[9px] font-medium text-gray-500 dark:text-gray-400">Total</div>
+                                </div>
+                                <div class="rounded-lg bg-emerald-50 p-2 text-center dark:bg-emerald-900/20">
+                                    <div class="text-lg font-bold text-emerald-600 dark:text-emerald-400">{{ overallStatus.completed }}</div>
+                                    <div class="text-[9px] font-medium text-emerald-600/80 dark:text-emerald-400/80">Done</div>
+                                </div>
+                                <div class="rounded-lg bg-amber-50 p-2 text-center dark:bg-amber-900/20">
+                                    <div class="text-lg font-bold text-amber-600 dark:text-amber-400">{{ overallStatus.pending }}</div>
+                                    <div class="text-[9px] font-medium text-amber-600/80 dark:text-amber-400/80">Pending</div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Monthly Trend -->
-                <div class="col-span-12 md:col-span-6 lg:col-span-3">
+                <div class="col-span-11 md:col-span-6 lg:col-span-2">
                     <div class="h-full rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
                         <div class="mb-3 flex items-center justify-between">
                             <div class="flex items-center gap-2">
@@ -440,7 +506,7 @@ watch(isDarkMode, reinitializeCharts);
                 </div>
 
                 <!-- Weekly Trend -->
-                <div class="col-span-12 md:col-span-6 lg:col-span-3">
+                <div class="col-span-11 md:col-span-6 lg:col-span-2">
                     <div class="h-full rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
                         <div class="mb-3 flex items-center justify-between">
                             <div class="flex items-center gap-2">
@@ -457,7 +523,7 @@ watch(isDarkMode, reinitializeCharts);
                 </div>
 
                 <!-- Daily Trend -->
-                <div class="col-span-12 lg:col-span-3">
+                <div class="col-span-11 lg:col-span-4">
                     <div class="h-full rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
                         <div class="mb-3 flex items-center justify-between">
                             <div class="flex items-center gap-2">
@@ -476,48 +542,58 @@ watch(isDarkMode, reinitializeCharts);
 
 
             <!-- Row 2: Analytics Cards -->
-            <div class="grid grid-cols-12 gap-5">
-                <!-- Per Team (Donut Chart) -->
-                <div class="col-span-12 md:col-span-6 lg:col-span-3">
+            <div class="grid grid-cols-9 gap-5">
+                <!-- Per Team (Horizontal Bars) -->
+                <div class="col-span-9 md:col-span-4 lg:col-span-2">
                     <div class="h-full rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
                         <h3 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Reports by Team</h3>
-                        <div id="team-chart"></div>
-                        <div class="mt-3 flex justify-center gap-4">
-                            <div v-for="team in perTeam" :key="team.name" class="flex items-center gap-1.5">
-                                <span class="h-2.5 w-2.5 rounded-full" :style="{ backgroundColor: team.color }"></span>
-                                <span class="text-xs text-gray-600 dark:text-gray-400">{{ team.name }}</span>
+                        <div class="space-y-3">
+                            <div v-for="team in perTeam" :key="team.name" class="group">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-xs font-medium text-gray-600 dark:text-gray-400">{{ team.name }}</span>
+                                    <span class="text-xs font-bold text-gray-700 dark:text-gray-300">{{ team.value }}</span>
+                                </div>
+                                <div class="relative h-6 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                                    <div 
+                                        class="h-full rounded-full transition-all duration-300 group-hover:scale-105" 
+                                        :style="{ 
+                                            width: `${(team.value / perTeamMax) * 100}%`, 
+                                            backgroundColor: team.color 
+                                        }"
+                                    ></div>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Per Category -->
-                <div class="col-span-12 md:col-span-6 lg:col-span-3">
+                <div class="col-span-9 md:col-span-4 lg:col-span-2">
                     <div class="h-full rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
                         <h3 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Reports by Category</h3>
-                        <div class="space-y-2 max-h-[220px] overflow-y-auto pr-1">
-                            <div v-for="cat in perCategory" :key="cat.name" class="group flex items-center gap-3">
-                                <span class="w-24 truncate text-xs text-gray-600 dark:text-gray-400">{{ cat.name }}</span>
-                                <div class="relative h-5 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
+                        <div class="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
+                            <div v-for="cat in perCategory" :key="cat.name" class="group flex items-center gap-2.5">
+                                <span class="w-20 truncate text-xs text-gray-600 dark:text-gray-400">{{ cat.name }}</span>
+                                <div class="relative h-4 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                                     <div class="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-300" :style="{ width: `${(cat.value / perCategoryMax) * 100}%` }"></div>
                                 </div>
-                                <span class="w-8 text-right text-xs font-semibold text-gray-700 dark:text-gray-300">{{ cat.value }}</span>
+                                <span class="w-7 text-right text-xs font-semibold text-gray-700 dark:text-gray-300">{{ cat.value }}</span>
                             </div>
                         </div>
                     </div>
                 </div>
 
                 <!-- Per Machine Maker -->
-                <div class="col-span-12 md:col-span-6 lg:col-span-3">
+                <div class="col-span-9 md:col-span-4 lg:col-span-2">
                     <div class="h-full rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
                         <h3 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">By Machine Maker</h3>
-                        <div class="flex h-[180px] items-end justify-around gap-2 pt-4">
+                        <div class="flex h-[180px] items-end justify-around gap-2 pt-2">
                             <div v-for="maker in perMachineMaker" :key="maker.name" class="group flex flex-col items-center">
-                                <span class="mb-2 text-xs font-bold text-gray-700 opacity-0 transition-opacity group-hover:opacity-100 dark:text-gray-300">{{ maker.value }}</span>
-                                <div class="relative w-10 overflow-hidden rounded-t-lg transition-all duration-300 group-hover:scale-105" :style="{ height: `${Math.max((maker.value / machineMakerMax) * 120, 8)}px`, backgroundColor: maker.color }">
+                                <span class="mb-1 text-xs font-bold text-gray-700 opacity-0 transition-opacity group-hover:opacity-100 dark:text-gray-300">{{ maker.value }}</span>
+                                <div class="relative w-10 overflow-hidden rounded-t-lg transition-all duration-300 group-hover:scale-105" :style="{ height: `${Math.max((maker.value / machineMakerMax) * 140, 8)}px`, backgroundColor: maker.color }">
                                     <div class="absolute inset-x-0 top-0 h-full bg-gradient-to-b from-white/20 to-transparent"></div>
                                 </div>
-                                <span class="mt-2 text-[10px] font-medium text-gray-500 dark:text-gray-400">{{ maker.name }}</span>
+                                <span class="mt-1 text-[10px] font-medium text-gray-500 dark:text-gray-400">{{ maker.name }}</span>
                             </div>
                         </div>
                     </div>
@@ -525,16 +601,16 @@ watch(isDarkMode, reinitializeCharts);
 
 
                 <!-- Per Line -->
-                <div class="col-span-12 md:col-span-6 lg:col-span-3">
+                <div class="col-span-9 md:col-span-5 lg:col-span-3">
                     <div class="h-full rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
                         <h3 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">By Production Line</h3>
-                        <div class="flex h-[180px] items-end justify-around gap-1 pt-4">
+                        <div class="flex h-[180px] items-end justify-around gap-1 pt-2">
                             <div v-for="line in perLine" :key="line.name" class="group flex flex-col items-center">
                                 <span class="mb-1 text-[9px] font-bold text-gray-700 opacity-0 transition-opacity group-hover:opacity-100 dark:text-gray-300">{{ line.value }}</span>
-                                <div class="relative w-5 overflow-hidden rounded-t-md transition-all duration-300 group-hover:scale-110" :style="{ height: `${Math.max((line.value / perLineMax) * 110, 4)}px`, backgroundColor: line.color }">
+                                <div class="relative w-5 overflow-hidden rounded-t-md transition-all duration-300 group-hover:scale-110" :style="{ height: `${Math.max((line.value / perLineMax) * 140, 4)}px`, backgroundColor: line.color }">
                                     <div class="absolute inset-x-0 top-0 h-full bg-gradient-to-b from-white/20 to-transparent"></div>
                                 </div>
-                                <span class="mt-1.5 text-[10px] font-semibold text-gray-500 dark:text-gray-400">{{ line.name }}</span>
+                                <span class="mt-1 text-[10px] font-semibold text-gray-500 dark:text-gray-400">{{ line.name }}</span>
                             </div>
                         </div>
                     </div>
@@ -543,26 +619,10 @@ watch(isDarkMode, reinitializeCharts);
 
             <!-- Row 3: Escalation Report Table -->
             <div class="rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <div class="flex items-center justify-between border-b border-gray-200 px-5 py-4 dark:border-gray-800">
-                    <div class="flex items-center gap-3">
-                        <div class="flex h-9 w-9 items-center justify-center rounded-xl bg-gradient-to-br from-purple-500 to-pink-500">
-                            <svg class="h-4 w-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                            </svg>
-                        </div>
-                        <div>
-                            <h3 class="text-sm font-semibold text-gray-900 dark:text-white">Escalation Reports</h3>
-                            <p class="text-xs text-gray-500 dark:text-gray-400">Recent machine escalation entries</p>
-                        </div>
-                    </div>
-                    <span class="rounded-full bg-gray-100 px-3 py-1 text-xs font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-400">
-                        {{ escalationReports.length }} records
-                    </span>
-                </div>
                 <div class="overflow-x-auto">
                     <table class="w-full text-xs">
                         <thead>
-                            <tr class="bg-gradient-to-r from-purple-600 to-pink-500 text-white">
+                            <tr class="bg-gradient-to-r from-teal-600 to-cyan-500 text-white">
                                 <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">#</th>
                                 <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Week</th>
                                 <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Wall Time</th>
