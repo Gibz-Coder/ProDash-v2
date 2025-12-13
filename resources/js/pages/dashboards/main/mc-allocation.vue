@@ -16,6 +16,7 @@ import {
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
+import { usePage } from '@inertiajs/vue3';
 
 // ============================================================================
 // ECHARTS SETUP
@@ -90,14 +91,13 @@ interface Props {
         search?: string;
         capa_type?: string;
     };
-    auth: {
-        user: {
-            role?: string;
-        };
-    };
 }
 
 const props = defineProps<Props>();
+
+// Get auth from shared Inertia page props
+const page = usePage();
+const auth = computed(() => page.props.auth as { user: any; permissions: string[] });
 
 // ============================================================================
 // STATE
@@ -122,10 +122,11 @@ const editModalOpen = ref(false);
 const viewModalOpen = ref(false);
 const selectedAllocation = ref<Allocation | null>(null);
 
-// Role-based permissions
-const userRole = computed(() => props.auth?.user?.role?.toLowerCase() || 'user');
-const canEdit = computed(() => ['manager', 'admin'].includes(userRole.value));
-const canDelete = computed(() => userRole.value === 'admin');
+// Permission-based access control
+const userPermissions = computed(() => auth.value?.permissions || []);
+const hasPermission = (permission: string) => userPermissions.value.includes(permission);
+const canEdit = computed(() => hasPermission('MC Allocation Edit'));
+const canDelete = computed(() => hasPermission('MC Allocation Delete'));
 
 const currentFilters = ref({
     machine_type: props.filters.machine_type || 'ALL',

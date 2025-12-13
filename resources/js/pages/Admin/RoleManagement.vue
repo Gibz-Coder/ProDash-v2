@@ -309,18 +309,16 @@ const roleToDelete = ref(null);
 const deleting = ref(false);
 
 const allPermissions = [
-    { value: 'Employees Create', label: 'Create Employees' },
-    { value: 'Employees Read', label: 'View Employees' },
-    { value: 'Employees Update', label: 'Update Employees' },
-    { value: 'Employees Delete', label: 'Delete Employees' },
-    { value: 'Employees Manage', label: 'Manage All Employees' },
+    // Admin Permissions
+    { value: 'Employees Manage', label: 'Manage Users' },
     { value: 'Roles Manage', label: 'Manage Roles & Permissions' },
-    { value: 'Reports View', label: 'View Reports' },
-    { value: 'Reports Generate', label: 'Generate Reports' },
     { value: 'Settings Manage', label: 'Manage System Settings' },
-    { value: 'Audit View', label: 'View Audit Logs' },
-    { value: 'Departments Manage', label: 'Manage Departments' },
-    { value: 'Positions Manage', label: 'Manage Positions' },
+    // Dashboard Access Permissions
+    { value: 'Data Entry Access', label: 'Access Data Entry' },
+    { value: 'MC Allocation Edit', label: 'Edit MC Allocation' },
+    { value: 'MC Allocation Delete', label: 'Delete MC Allocation' },
+    { value: 'Endtime Manage', label: 'Manage Endtime Records' },
+    { value: 'Endtime Delete', label: 'Delete Endtime Records' },
 ];
 
 // Computed statistics

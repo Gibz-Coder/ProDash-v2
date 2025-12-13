@@ -28,7 +28,9 @@ class PermissionMiddleware
         }
 
         // Get user's role permissions
-        $roleDetails = \App\Models\Role::where('slug', $user->role)->first();
+        // Convert database role format (SUPER USER) to slug format (super-user)
+        $roleSlug = strtolower(str_replace(' ', '-', $user->role));
+        $roleDetails = \App\Models\Role::where('slug', $roleSlug)->first();
         $userPermissions = $roleDetails ? ($roleDetails->permissions ?? []) : [];
 
         // Check if user has any of the required permissions

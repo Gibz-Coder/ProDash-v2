@@ -99,19 +99,19 @@ Route::get('endtime/export', [App\Http\Controllers\EndtimeController::class, 'ex
     ->name('endtime.export');
 
 Route::get('endtime-add', [App\Http\Controllers\EndtimeController::class, 'lotEntry'])
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth', 'verified', 'permission:Endtime Manage'])
     ->name('endtime_add');
 
 Route::post('endtime/store', [App\Http\Controllers\EndtimeController::class, 'store'])
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth', 'verified', 'permission:Endtime Manage'])
     ->name('endtime.store');
 
 Route::put('endtime/{id}', [App\Http\Controllers\EndtimeController::class, 'update'])
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth', 'verified', 'permission:Endtime Manage'])
     ->name('endtime.update');
 
 Route::delete('endtime/{id}', [App\Http\Controllers\EndtimeController::class, 'destroy'])
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth', 'verified', 'permission:Endtime Delete'])
     ->name('endtime.destroy');
 
 Route::get('api/updatewip/lookup', [App\Http\Controllers\EndtimeController::class, 'lookupLot'])
@@ -139,12 +139,12 @@ Route::get('api/endtime/lookup-ongoing', [App\Http\Controllers\EndtimeController
     ->name('endtime.lookup_ongoing');
 
 Route::post('endtime/{id}/submit', [App\Http\Controllers\EndtimeController::class, 'submitLot'])
-    ->middleware(['auth', 'verified'])
+    ->middleware(['auth', 'verified', 'permission:Endtime Manage'])
     ->name('endtime.submit');
 
 Route::get('endtime-submit', function () {
     return Inertia::render('dashboards/subs/endtime-submit');
-})->middleware(['auth', 'verified'])->name('endtime_submit');
+})->middleware(['auth', 'verified', 'permission:Endtime Manage'])->name('endtime_submit');
 
 // UpdateWip routes
 Route::post('updatewip', [App\Http\Controllers\UpdateWipController::class, 'store'])

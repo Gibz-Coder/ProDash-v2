@@ -13,6 +13,9 @@ withDefaults(defineProps<Props>(), {
 
 <template>
     <AppLayout :breadcrumbs="breadcrumbs">
+        <template #center>
+            <slot name="center" />
+        </template>
         <template #filters>
             <slot name="filters" />
         </template>

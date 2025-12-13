@@ -3,7 +3,7 @@ import { ref, computed } from 'vue';
 import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
-import { Head, router } from '@inertiajs/vue3';
+import { Head, router, usePage } from '@inertiajs/vue3';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -68,12 +68,11 @@ const props = defineProps<{
         achievement: number;
     };
     areaOptions: string[];
-    auth?: {
-        user?: {
-            role?: string;
-        };
-    };
 }>();
+
+// Get auth from shared Inertia page props
+const page = usePage();
+const auth = computed(() => page.props.auth as { user: any; permissions: string[] });
 
 // ============================================================================
 // BREADCRUMBS
@@ -427,10 +426,11 @@ const getMachineList = (lot: typeof props.lots[0]): string => {
     return machines.length > 0 ? machines.join(', ') : '-';
 };
 
-const canDelete = computed(() => {
-    const role = props.auth?.user?.role?.toLowerCase();
-    return role === 'admin' || role === 'manager';
-});
+// Permission-based access control
+const userPermissions = computed(() => auth.value?.permissions || []);
+const hasPermission = (permission: string) => userPermissions.value.includes(permission);
+const canManage = computed(() => hasPermission('Endtime Manage'));
+const canDelete = computed(() => hasPermission('Endtime Delete'));
 
 const isSearchActive = computed(() => {
     return currentFilters.value.search && currentFilters.value.search.trim() !== '';
@@ -909,6 +909,7 @@ const handleExport = async () => {
                             </div>
                             
                             <Button 
+                                v-if="canManage"
                                 variant="default" 
                                 size="sm" 
                                 class="h-9 px-4 text-sm font-medium shadow-sm bg-blue-600 text-white hover:bg-blue-700"
@@ -918,6 +919,7 @@ const handleExport = async () => {
                             </Button>
                             
                             <Button 
+                                v-if="canManage"
                                 variant="default" 
                                 size="sm" 
                                 class="h-9 px-4 text-sm font-medium shadow-sm bg-primary text-primary-foreground hover:bg-primary/90"
@@ -927,6 +929,7 @@ const handleExport = async () => {
                             </Button>
                             
                             <Button 
+                                v-if="canManage"
                                 variant="default" 
                                 size="sm" 
                                 class="h-9 px-4 text-sm font-medium shadow-sm bg-emerald-600 text-white hover:bg-emerald-700"
@@ -1058,7 +1061,7 @@ const handleExport = async () => {
                                     <td class="p-3 text-center">
                                         <div class="flex items-center justify-center gap-1">
                                             <Button 
-                                                v-if="lot.status === 'Ongoing'"
+                                                v-if="lot.status === 'Ongoing' && canManage"
                                                 variant="ghost" 
                                                 size="icon" 
                                                 class="h-7 w-7 hover:bg-primary/10 hover:text-primary" 

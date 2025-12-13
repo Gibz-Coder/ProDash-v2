@@ -71,7 +71,9 @@ class HandleInertiaRequests extends Middleware
         $permissions = [];
         
         if ($user && $user->role) {
-            $roleDetails = \App\Models\Role::where('slug', $user->role)->first();
+            // Convert database role format (SUPER USER) to slug format (super-user)
+            $roleSlug = strtolower(str_replace(' ', '-', $user->role));
+            $roleDetails = \App\Models\Role::where('slug', $roleSlug)->first();
             $permissions = $roleDetails ? ($roleDetails->permissions ?? []) : [];
         }
 

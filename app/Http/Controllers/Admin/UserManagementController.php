@@ -36,9 +36,11 @@ class UserManagementController extends Controller
             });
         }
 
-        // Role filter (case-insensitive)
+        // Role filter (case-insensitive, handle slug format)
         if ($request->has('role') && $request->role) {
-            $query->whereRaw('LOWER(role) = ?', [strtolower($request->role)]);
+            // Convert slug format (super-user) to database format (SUPER USER)
+            $roleValue = strtoupper(str_replace('-', ' ', $request->role));
+            $query->whereRaw('UPPER(role) = ?', [$roleValue]);
         }
 
         $users = $query->orderBy('created_at', 'desc')
@@ -60,7 +62,9 @@ class UserManagementController extends Controller
 
         // Count users for each role (including 0 counts) - case-insensitive
         foreach ($allRoles as $roleSlug) {
-            $count = User::whereRaw('LOWER(role) = ?', [strtolower($roleSlug)])->count();
+            // Convert slug format (super-user) to database format (SUPER USER)
+            $roleValue = strtoupper(str_replace('-', ' ', $roleSlug));
+            $count = User::whereRaw('UPPER(role) = ?', [$roleValue])->count();
             
             // Convert role slug to plural form for stats key
             $statsKey = $roleSlug === 'user' ? 'regular_users' : $roleSlug . 's';

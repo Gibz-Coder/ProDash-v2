@@ -28,8 +28,10 @@ class RoleManagementController extends Controller
         $roles = $query->orderBy('created_at', 'desc')->get();
 
         // Manually add users count for each role
+        // Convert slug format (super-user) to database format (SUPER USER)
         foreach ($roles as $role) {
-            $role->users_count = \App\Models\User::where('role', $role->slug)->count();
+            $roleValue = strtoupper(str_replace('-', ' ', $role->slug));
+            $role->users_count = \App\Models\User::whereRaw('UPPER(role) = ?', [$roleValue])->count();
         }
 
         return response()->json($roles);
@@ -60,7 +62,9 @@ class RoleManagementController extends Controller
      */
     public function show(Role $role)
     {
-        $role->users_count = \App\Models\User::where('role', $role->slug)->count();
+        // Convert slug format (super-user) to database format (SUPER USER)
+        $roleValue = strtoupper(str_replace('-', ' ', $role->slug));
+        $role->users_count = \App\Models\User::whereRaw('UPPER(role) = ?', [$roleValue])->count();
         return response()->json($role);
     }
 
@@ -90,7 +94,9 @@ class RoleManagementController extends Controller
     public function destroy(Role $role)
     {
         // Prevent deleting roles that have users
-        $usersCount = \App\Models\User::where('role', $role->slug)->count();
+        // Convert slug format (super-user) to database format (SUPER USER)
+        $roleValue = strtoupper(str_replace('-', ' ', $role->slug));
+        $usersCount = \App\Models\User::whereRaw('UPPER(role) = ?', [$roleValue])->count();
         if ($usersCount > 0) {
             return response()->json([
                 'message' => 'Cannot delete role with assigned users',

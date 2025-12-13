@@ -52,9 +52,6 @@ class McAllocationController extends Controller
             'stats' => $stats,
             'filterOptions' => $filterOptions,
             'filters' => $this->sanitizeFiltersForResponse($filters),
-            'auth' => [
-                'user' => $request->user(),
-            ],
         ]);
     }
 

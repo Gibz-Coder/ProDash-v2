@@ -8,7 +8,7 @@ import ApexCharts from 'apexcharts';
 
 const breadcrumbs: BreadcrumbItem[] = [
     { title: 'Home', href: dashboard().url },
-    { title: 'Machine Escalation Reporting', href: '/escalation' },
+    { title: 'Escalation', href: '/escalation' },
 ];
 
 // Theme colors aligned with reference image
@@ -95,21 +95,21 @@ const perLine = ref([
 
 const escalationReports = ref([
     {
-        no: 1, week: 47, wallTime: '00:00:00', team: 'Equipment', line: 'D',
+        no: 1, week: 47, waitingTime: '00:00:00', team: 'Equipment', line: 'D',
         mcType: 'GMC-G3', mcNo: 'VJ489', mcStatus: 'Run', modelId: '058104',
         lotId: 'EL99PRO', category: 'Ejecter Unit', problemPart: 'Eject Binning',
         problemDetails: 'eject binning', requestor: 'MARQUEZ, FROILAN LEVI',
         dateTime: '2025-11-18 07:53:30',
     },
     {
-        no: 2, week: 47, wallTime: '00:37:52', team: 'Equipment', line: 'D',
+        no: 2, week: 47, waitingTime: '00:37:52', team: 'Equipment', line: 'D',
         mcType: 'GMC-G3', mcNo: 'VJ489', mcStatus: 'Run', modelId: '058104',
         lotId: 'EL99PRO', category: 'Ejecter Unit', problemPart: 'Eject Binning',
         problemDetails: 'eject binning', requestor: 'ROLLE, JUSTIN NAVARRO',
         dateTime: '2025-11-18 07:53:30',
     },
     {
-        no: 3, week: 47, wallTime: '00:06:12', team: 'AI', line: 'D',
+        no: 3, week: 47, waitingTime: '00:06:12', team: 'AI', line: 'D',
         mcType: 'GMC-G3', mcNo: 'VJ528', mcStatus: 'Run', modelId: '058108',
         lotId: 'HLAVPTG', category: 'Inspection Result', problemPart: 'High NG Rate',
         problemDetails: 'high ng rate', requestor: 'CARRASCAL, ALMIRA ALFEO',
@@ -120,6 +120,7 @@ const escalationReports = ref([
 // Computed values
 const perTeamMax = computed(() => Math.max(...perTeam.value.map((t) => t.value)));
 const perCategoryMax = computed(() => Math.max(...perCategory.value.map((c) => c.value)));
+const sortedPerCategory = computed(() => [...perCategory.value].sort((a, b) => b.value - a.value));
 const machineMakerMax = computed(() => Math.max(...perMachineMaker.value.map((m) => m.value)));
 const perLineMax = computed(() => Math.max(...perLine.value.map((l) => l.value)));
 const totalTeamValue = computed(() => perTeam.value.reduce((sum, t) => sum + t.value, 0));
@@ -445,16 +446,43 @@ watch(isDarkMode, reinitializeCharts);
     <Head title="Machine Escalation Reporting" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
-        <template #header>
-            <div class="flex items-center justify-between">
-                <div>
-                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">Machine Escalation Reporting</h1>
-                    <p class="text-sm text-gray-500 dark:text-gray-400">Accumulated Data as of November 2025</p>
-                </div>
-                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-3 py-1.5 text-sm font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
-                    <span class="h-2 w-2 rounded-full bg-emerald-500"></span>
+        <!-- Center: Badge Page Title -->
+        <template #center>
+            <span class="inline-flex items-center gap-2.5 rounded-full bg-gradient-to-r from-teal-500 to-cyan-500 px-6 py-2 text-sm font-bold text-white shadow-lg">
+                <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 17v-2m3 2v-4m3 4v-6m2 10H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+                Machine Escalation Dashboard Reporting
+            </span>
+        </template>
+
+        <!-- Right: Actions -->
+        <template #filters>
+            <div class="flex items-center gap-3">
+                <!-- Live Data Badge -->
+                <span class="inline-flex items-center gap-1.5 rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700 dark:bg-emerald-900/30 dark:text-emerald-400">
+                    <span class="h-1.5 w-1.5 rounded-full bg-emerald-500 animate-pulse"></span>
                     Live Data
                 </span>
+
+                <!-- Notification Bell -->
+                <button class="relative rounded-lg p-1.5 text-gray-500 transition-colors hover:bg-gray-100 hover:text-gray-700 dark:text-gray-400 dark:hover:bg-gray-800 dark:hover:text-gray-200">
+                    <svg class="h-5 w-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
+                    </svg>
+                    <span class="absolute -right-0.5 -top-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-red-500 text-[10px] font-bold text-white">3</span>
+                </button>
+
+                <!-- Export Button -->
+                <button class="inline-flex items-center gap-1.5 rounded-lg bg-gray-100 px-2.5 py-1.5 text-xs font-medium text-gray-700 transition-colors hover:bg-gray-200 dark:bg-gray-800 dark:text-gray-300 dark:hover:bg-gray-700">
+                    <svg class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+                    </svg>
+                    Export
+                    <svg class="h-3 w-3" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7" />
+                    </svg>
+                </button>
             </div>
         </template>
 
@@ -572,7 +600,7 @@ watch(isDarkMode, reinitializeCharts);
                     <div class="h-full rounded-2xl border border-gray-200/80 bg-white p-5 shadow-sm transition-shadow hover:shadow-md dark:border-gray-800 dark:bg-gray-900">
                         <h3 class="mb-3 text-sm font-semibold text-gray-700 dark:text-gray-300">Reports by Category</h3>
                         <div class="space-y-1.5 max-h-[160px] overflow-y-auto pr-1">
-                            <div v-for="cat in perCategory" :key="cat.name" class="group flex items-center gap-2.5">
+                            <div v-for="cat in sortedPerCategory" :key="cat.name" class="group flex items-center gap-2.5">
                                 <span class="w-20 truncate text-xs text-gray-600 dark:text-gray-400">{{ cat.name }}</span>
                                 <div class="relative h-4 flex-1 overflow-hidden rounded-full bg-gray-100 dark:bg-gray-800">
                                     <div class="h-full rounded-full bg-gradient-to-r from-purple-500 to-pink-500 transition-all duration-300" :style="{ width: `${(cat.value / perCategoryMax) * 100}%` }"></div>
@@ -618,14 +646,14 @@ watch(isDarkMode, reinitializeCharts);
             </div>
 
             <!-- Row 3: Escalation Report Table -->
-            <div class="rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900">
-                <div class="overflow-x-auto">
+            <div class="rounded-2xl border border-gray-200/80 bg-white shadow-sm dark:border-gray-800 dark:bg-gray-900 max-h-[300px] flex flex-col">
+                <div class="overflow-x-auto overflow-y-auto flex-1">
                     <table class="w-full text-xs">
                         <thead>
                             <tr class="bg-gradient-to-r from-teal-600 to-cyan-500 text-white">
                                 <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">#</th>
                                 <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Week</th>
-                                <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Wall Time</th>
+                                <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Date/Time</th>
                                 <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Team</th>
                                 <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Line</th>
                                 <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Mc Type</th>
@@ -637,7 +665,8 @@ watch(isDarkMode, reinitializeCharts);
                                 <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Problem Part</th>
                                 <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Details</th>
                                 <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Requestor</th>
-                                <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Date/Time</th>
+                                <th class="px-4 py-3 text-left font-semibold whitespace-nowrap">Waiting Time</th>
+                                <th class="px-4 py-3 text-center font-semibold whitespace-nowrap">Action</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-100 dark:divide-gray-800">
@@ -645,7 +674,7 @@ watch(isDarkMode, reinitializeCharts);
                             <tr v-for="report in escalationReports" :key="report.no" class="transition-colors hover:bg-gray-50/80 dark:hover:bg-gray-800/50">
                                 <td class="px-4 py-3 text-center font-medium text-gray-900 dark:text-white">{{ report.no }}</td>
                                 <td class="px-4 py-3 text-center text-gray-600 dark:text-gray-400">{{ report.week }}</td>
-                                <td class="px-4 py-3 font-mono text-gray-600 dark:text-gray-400">{{ report.wallTime }}</td>
+                                <td class="px-4 py-3 whitespace-nowrap text-gray-500 dark:text-gray-500">{{ report.dateTime }}</td>
                                 <td class="px-4 py-3">
                                     <span :class="getTeamClass(report.team)" class="inline-flex rounded-full px-2 py-0.5 text-[10px] font-medium">
                                         {{ report.team }}
@@ -667,7 +696,12 @@ watch(isDarkMode, reinitializeCharts);
                                 <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ report.problemPart }}</td>
                                 <td class="px-4 py-3 max-w-[150px] truncate text-gray-500 dark:text-gray-500" :title="report.problemDetails">{{ report.problemDetails }}</td>
                                 <td class="px-4 py-3 text-gray-600 dark:text-gray-400">{{ report.requestor }}</td>
-                                <td class="px-4 py-3 whitespace-nowrap text-gray-500 dark:text-gray-500">{{ report.dateTime }}</td>
+                                <td class="px-4 py-3 font-mono text-gray-600 dark:text-gray-400">{{ report.waitingTime }}</td>
+                                <td class="px-4 py-3 text-center">
+                                    <button class="inline-flex items-center gap-1 rounded-lg bg-teal-500 px-3 py-1.5 text-[10px] font-semibold text-white transition-colors hover:bg-teal-600">
+                                        Response
+                                    </button>
+                                </td>
                             </tr>
                         </tbody>
                     </table>
