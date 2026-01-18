@@ -95,9 +95,9 @@
 
                         <div class="mb-6">
                             <p class="mb-3 text-sm font-semibold text-foreground">Permissions</p>
-                            <div v-if="role.permissions && role.permissions.length > 0" class="flex flex-wrap gap-2">
+                            <div v-if="getDisplayPermissions(role.permissions).length > 0" class="flex flex-wrap gap-2">
                                 <span
-                                    v-for="permission in role.permissions"
+                                    v-for="permission in getDisplayPermissions(role.permissions)"
                                     :key="permission"
                                     class="inline-flex items-center rounded-lg bg-gradient-to-r from-muted to-muted/80 px-3 py-1.5 text-xs font-medium text-foreground shadow-sm ring-1 ring-border/50 transition-all duration-200 hover:shadow-md hover:ring-border"
                                 >
@@ -309,15 +309,13 @@ const roleToDelete = ref(null);
 const deleting = ref(false);
 
 const allPermissions = [
-    // Admin Permissions
     { value: 'Employees Manage', label: 'Manage Users' },
     { value: 'Roles Manage', label: 'Manage Roles & Permissions' },
     { value: 'Settings Manage', label: 'Manage System Settings' },
-    // Dashboard Access Permissions
-    { value: 'Data Entry Access', label: 'Access Data Entry' },
     { value: 'MC Allocation Edit', label: 'Edit MC Allocation' },
-    { value: 'MC Allocation Delete', label: 'Delete MC Allocation' },
     { value: 'Endtime Manage', label: 'Manage Endtime Records' },
+    { value: 'Data Entry Access', label: 'Access Data Entry' },
+    { value: 'MC Allocation Delete', label: 'Delete MC Allocation' },
     { value: 'Endtime Delete', label: 'Delete Endtime Records' },
 ];
 
@@ -447,8 +445,20 @@ const getRoleBadgeClass = (roleName) => {
     return classes[roleName] || 'bg-gradient-to-r from-blue-500 to-blue-600 text-white ring-blue-500/30';
 };
 
+const getDisplayPermissions = (permissions) => {
+    if (!permissions || !Array.isArray(permissions)) return [];
+    
+    // Get list of valid permission values from allPermissions
+    const validPermissions = allPermissions.map(p => p.value);
+    
+    // Filter to only show permissions that are in our allPermissions list
+    return permissions.filter(permission => validPermissions.includes(permission));
+};
+
 const formatPermission = (permission) => {
-    return permission.replace(/\./g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+    // Find the permission in allPermissions to get its label
+    const permissionObj = allPermissions.find(p => p.value === permission);
+    return permissionObj ? permissionObj.label : permission;
 };
 
 const generateSlug = (name) => {
