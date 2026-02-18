@@ -12,6 +12,8 @@ class Equipment extends Model
         'eqp_status',
         'alloc_type',
         'oee_capa',
+        'remarks',
+        'modified_by',
     ];
 
     /**

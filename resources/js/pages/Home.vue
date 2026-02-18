@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { dashboard, lot_request, dashboard_5, endline, endtime, escalation, process_wip, mc_allocation } from '@/routes';
+import { dashboard, lot_request, mems_dashboard, endline, endtime, escalation, process_wip, mc_allocation } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import { onMounted, ref } from 'vue';
@@ -95,13 +95,13 @@ function revealOnScroll() {
                                     </div>
                                 </div>
                             </Link>
-                            <Link :href="dashboard_5().url" class="hexagon-link">
+                            <Link :href="mems_dashboard().url" class="hexagon-link">
                                 <div class="hexagon reveal">
                                     <div class="hexagon-inner">
                                         <div class="hexagon-content">
                                             <div class="hex-icon">📊</div>
-                                            <h3 class="hex-title">Process KPI</h3>
-                                            <p class="hex-desc">Realtime process KPI update</p>
+                                            <h3 class="hex-title">MEMS Dashboard</h3>
+                                            <p class="hex-desc">Machine and Endtime Monitoring System</p>
                                         </div>
                                     </div>
                                 </div>

@@ -17,8 +17,9 @@ import {
 // ============================================================================
 // PROPS & EMITS
 // ============================================================================
-defineProps<{
+const props = defineProps<{
     open: boolean;
+    initialLotNo?: string | null;
 }>();
 
 const emit = defineEmits<{
@@ -60,6 +61,35 @@ const formData = ref({
     submission_notes: '',
     employee_id: '',
     employee_name: '',
+    reason_category: '',
+    reason_others_text: '',
+});
+
+// Predefined reason options
+const reasonOptions = [
+    'machine error',
+    'maintenance',
+    'experiment',
+    'breaktime',
+    'attend meeting',
+    'attend educ',
+    'low loading rate',
+    'high NG rate',
+    'long setting time',
+    'forgot to submit',
+    'wrong endtime',
+    'others',
+];
+
+// Watch for initialLotNo prop and auto-populate when modal opens
+watch(() => props.open, async (newValue) => {
+    if (newValue && props.initialLotNo) {
+        // Auto-populate the lot number
+        formData.value.lot_id = props.initialLotNo;
+        // Trigger lookup after a short delay to ensure the input is rendered
+        await nextTick();
+        lookupLotInfo();
+    }
 });
 
 // Computed property for estimated endtime display (from database)
@@ -130,6 +160,24 @@ const isReasonRequired = computed(() => {
     return remarks.value !== 'OK';
 });
 
+// Computed property to check if "others" is selected
+const isOthersSelected = computed(() => {
+    return formData.value.reason_category === 'others';
+});
+
+// Computed property for final submission notes
+const finalSubmissionNotes = computed(() => {
+    if (remarks.value === 'OK') {
+        return 'OK';
+    }
+    
+    if (formData.value.reason_category === 'others' && formData.value.reason_others_text) {
+        return `others: ${formData.value.reason_others_text}`;
+    }
+    
+    return formData.value.reason_category;
+});
+
 // ============================================================================
 // METHODS
 // ============================================================================
@@ -153,6 +201,8 @@ const resetForm = () => {
         submission_notes: '',
         employee_id: '',
         employee_name: '',
+        reason_category: '',
+        reason_others_text: '',
     };
     lookupError.value = '';
     endtimeId.value = null;
@@ -227,6 +277,8 @@ const resetFormExceptLotId = () => {
         submission_notes: '',
         employee_id: '',
         employee_name: '',
+        reason_category: '',
+        reason_others_text: '',
     };
     endtimeId.value = null;
 };
@@ -239,8 +291,17 @@ const resetFormExceptLotId = () => {
 watch(remarks, (newRemarks) => {
     if (newRemarks === 'OK') {
         formData.value.submission_notes = 'OK';
+        formData.value.reason_category = '';
+        formData.value.reason_others_text = '';
     } else if (formData.value.submission_notes === 'OK') {
         formData.value.submission_notes = '';
+    }
+});
+
+// Watch reason_category to clear others text when not "others"
+watch(() => formData.value.reason_category, (newCategory) => {
+    if (newCategory !== 'others') {
+        formData.value.reason_others_text = '';
     }
 });
 
@@ -421,8 +482,13 @@ const handleSubmit = async () => {
         return;
     }
 
-    if (isReasonRequired.value && (!formData.value.submission_notes || formData.value.submission_notes.trim() === '')) {
-        showToast('Please provide a reason for early or late submission', 'danger');
+    if (isReasonRequired.value && !formData.value.reason_category) {
+        showToast('Please select a reason for early or late submission', 'danger');
+        return;
+    }
+
+    if (isOthersSelected.value && (!formData.value.reason_others_text || formData.value.reason_others_text.trim() === '')) {
+        showToast('Please specify the reason for "others"', 'danger');
         return;
     }
 
@@ -432,7 +498,7 @@ const handleSubmit = async () => {
         router.post(`/endtime/${endtimeId.value}/submit`, {
             actual_endtime: formData.value.actual_endtime,
             remarks: remarks.value,
-            submission_notes: formData.value.submission_notes,
+            submission_notes: finalSubmissionNotes.value,
             employee_id: formData.value.employee_id,
         }, {
             onSuccess: () => {
@@ -687,18 +753,35 @@ const handleSubmit = async () => {
 
                         <!-- Reason -->
                         <div class="col-span-4 space-y-2">
-                            <Label for="submission_notes" class="text-sm font-medium">
+                            <Label for="reason_category" class="text-sm font-medium">
                                 Reason {{ isReasonRequired ? '*' : '' }}
                             </Label>
-                            <Input 
-                                id="submission_notes"
-                                v-model="formData.submission_notes"
-                                type="text"
-                                placeholder="Enter reason"
+                            <select
+                                id="reason_category"
+                                v-model="formData.reason_category"
                                 :required="isReasonRequired"
-                                :readonly="!isReasonRequired"
-                                :class="!isReasonRequired ? 'bg-muted/50' : ''"
+                                :disabled="!isReasonRequired"
+                                :class="[
+                                    'w-full h-10 px-3 rounded-md border border-input bg-background text-sm',
+                                    'focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2',
+                                    !isReasonRequired ? 'bg-muted/50 cursor-not-allowed' : 'cursor-pointer'
+                                ]"
+                            >
+                                <option value="" disabled>Select reason</option>
+                                <option v-for="option in reasonOptions" :key="option" :value="option">
+                                    {{ option }}
+                                </option>
+                            </select>
+                            
+                            <!-- Conditional "others" text input -->
+                            <Input 
+                                v-if="isOthersSelected"
+                                v-model="formData.reason_others_text"
+                                type="text"
+                                placeholder="Specify reason (e.g., waiting)"
+                                required
                                 maxlength="100"
+                                class="mt-2"
                             />
                         </div>
                     </div>

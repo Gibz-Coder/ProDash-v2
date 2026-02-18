@@ -181,12 +181,10 @@ const getStatusColor = (status: string) => {
 };
 
 const handleAccept = (requestId: string) => {
-    console.log('Accept request:', requestId);
     // Add your accept logic here
 };
 
 const handleDelete = (requestId: string) => {
-    console.log('Delete request:', requestId);
     // Add your delete logic here
 };
 

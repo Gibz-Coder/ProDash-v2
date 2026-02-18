@@ -708,4 +708,275 @@ class Endtime extends Model
 
         return $query->get()->toArray();
     }
+
+    /**
+     * Get endtime remaining data grouped by class (hour ranges from est_endtime)
+     * Class is calculated as hours remaining from now (or selected date) to est_endtime
+     * 
+     * @param string|null $date Selected date (if not today, use end of day)
+     * @param string|null $workType Filter by work type
+     * @return array
+     */
+    public static function getEndtimeRemainingByClass(?string $date = null, ?string $workType = null): array
+    {
+        // Determine reference time
+        if ($date) {
+            $referenceDate = \Carbon\Carbon::parse($date);
+            $today = now()->startOfDay();
+            
+            // If selected date is today, use current time
+            if ($referenceDate->isSameDay($today)) {
+                $referenceTime = now();
+            } else {
+                // For past/future dates, use end of day
+                $referenceTime = $referenceDate->endOfDay();
+            }
+        } else {
+            $referenceTime = now();
+            $date = now()->toDateString(); // Set date to today if not provided
+        }
+
+        // Define class ranges (in hours)
+        $classes = [
+            'A | 0~1 HRS' => ['min' => 0, 'max' => 1],
+            'B | 1~3 HRS' => ['min' => 1, 'max' => 3],
+            'C | 3~6 HRS' => ['min' => 3, 'max' => 6],
+            'D | 6+ HRS' => ['min' => 6, 'max' => PHP_INT_MAX],
+        ];
+
+        // Initialize result structure
+        $result = [];
+        $sizes = ['03', '05', '10', '21', '31', '32'];
+        $sizeLabels = [
+            '03' => '0603',
+            '05' => '1005',
+            '10' => '1608',
+            '21' => '2012',
+            '31' => '3216',
+            '32' => '3225',
+        ];
+
+        foreach ($classes as $className => $range) {
+            $classData = [
+                'class' => $className,
+                'count' => 0,
+                'qty' => 0,
+            ];
+
+            foreach ($sizes as $size) {
+                $classData[$sizeLabels[$size]] = 0;
+            }
+
+            $result[] = $classData;
+        }
+
+        // CRITICAL: Fetch only ongoing lots for the selected date
+        // This prevents memory exhaustion from fetching all data
+        $query = self::query()
+            ->select('lot_id', 'lot_qty', 'lot_size', 'est_endtime')
+            ->where('status', 'Ongoing')
+            ->whereDate('est_endtime', $date);
+
+        // Apply work type filter
+        if ($workType && $workType !== 'ALL') {
+            $query->where('work_type', $workType);
+        }
+
+        $lots = $query->get();
+
+        // Process each lot
+        foreach ($lots as $lot) {
+            if (!$lot->est_endtime) continue;
+            
+            $estEndtime = \Carbon\Carbon::parse($lot->est_endtime);
+            $hoursRemaining = $referenceTime->diffInHours($estEndtime, false);
+
+            // Find the appropriate class
+            $classIndex = null;
+            $classKeys = array_keys($classes);
+            foreach ($classKeys as $idx => $className) {
+                $range = $classes[$className];
+                if ($hoursRemaining >= $range['min'] && $hoursRemaining < $range['max']) {
+                    $classIndex = $idx;
+                    break;
+                }
+            }
+
+            if ($classIndex !== null && isset($result[$classIndex])) {
+                $result[$classIndex]['count']++;
+                $result[$classIndex]['qty'] += $lot->lot_qty;
+
+                // Add to size column
+                $sizeLabel = $sizeLabels[$lot->lot_size] ?? null;
+                if ($sizeLabel && isset($result[$classIndex][$sizeLabel])) {
+                    $result[$classIndex][$sizeLabel] += $lot->lot_qty;
+                }
+            }
+        }
+
+        // Calculate totals
+        $totalRow = [
+            'class' => 'TOTAL',
+            'count' => 0,
+            'qty' => 0,
+        ];
+
+        foreach ($sizes as $size) {
+            $totalRow[$sizeLabels[$size]] = 0;
+        }
+
+        foreach ($result as $row) {
+            $totalRow['count'] += $row['count'];
+            $totalRow['qty'] += $row['qty'];
+            foreach ($sizes as $size) {
+                $totalRow[$sizeLabels[$size]] += $row[$sizeLabels[$size]];
+            }
+        }
+
+        $result[] = $totalRow;
+
+        return $result;
+    }
+
+    /**
+     * Get endtime per cutoff data
+     * 
+     * @param string|null $date Selected date
+     * @param string|null $workType Filter by work type
+     * @param string $statusFilter 'all', 'ongoing', or 'submitted'
+     * @return array
+     */
+    public static function getEndtimePerCutoff(?string $date = null, ?string $workType = null, string $statusFilter = 'all'): array
+    {
+        // Define cutoff ranges
+        $cutoffs = [
+            '00:00~03:59' => ['start' => 0, 'end' => 3],
+            '04:00~06:59' => ['start' => 4, 'end' => 6],
+            '07:00~11:59' => ['start' => 7, 'end' => 11],
+            '12:00~15:59' => ['start' => 12, 'end' => 15],
+            '16:00~18:59' => ['start' => 16, 'end' => 18],
+            '19:00~23:59' => ['start' => 19, 'end' => 23],
+        ];
+
+        $sizes = ['03', '05', '10', '21', '31', '32'];
+        $sizeLabels = [
+            '03' => '0603',
+            '05' => '1005',
+            '10' => '1608',
+            '21' => '2012',
+            '31' => '3216',
+            '32' => '3225',
+        ];
+
+        // Initialize result structure
+        $result = [];
+        foreach ($cutoffs as $cutoffName => $range) {
+            $cutoffData = [
+                'cutoff' => $cutoffName,
+                'count' => 0,
+                'qty' => 0,
+            ];
+
+            foreach ($sizes as $size) {
+                $cutoffData[$sizeLabels[$size]] = 0;
+            }
+
+            $result[] = $cutoffData;
+        }
+
+        // Use current date if not provided
+        if (!$date) {
+            $date = now()->toDateString();
+        }
+
+        // Build query based on status filter
+        $query = self::query()->select('lot_id', 'lot_qty', 'lot_size', 'est_endtime', 'actual_submitted_at', 'status');
+
+        // Apply work type filter
+        if ($workType && $workType !== 'ALL') {
+            $query->where('work_type', $workType);
+        }
+
+        // CRITICAL: Apply date filter based on status
+        // This prevents fetching all data from database
+        if ($statusFilter === 'ongoing') {
+            // For ongoing lots, filter by est_endtime date
+            $query->where('status', 'Ongoing')
+                  ->whereDate('est_endtime', $date);
+        } elseif ($statusFilter === 'submitted') {
+            // For submitted lots, filter by actual_submitted_at date
+            $query->where('status', 'Submitted')
+                  ->whereDate('actual_submitted_at', $date);
+        } else {
+            // For 'all', get both ongoing and submitted for the selected date
+            $query->where(function($q) use ($date) {
+                $q->where(function($subQ) use ($date) {
+                    // Ongoing lots with est_endtime on selected date
+                    $subQ->where('status', 'Ongoing')
+                         ->whereDate('est_endtime', $date);
+                })->orWhere(function($subQ) use ($date) {
+                    // Submitted lots with actual_submitted_at on selected date
+                    $subQ->where('status', 'Submitted')
+                         ->whereDate('actual_submitted_at', $date);
+                });
+            });
+        }
+
+        $lots = $query->get();
+
+        // Process each lot
+        foreach ($lots as $lot) {
+            // Use est_endtime for ongoing, actual_submitted_at for submitted
+            $timeColumn = $lot->status === 'Submitted' ? $lot->actual_submitted_at : $lot->est_endtime;
+            if (!$timeColumn) continue;
+
+            $time = \Carbon\Carbon::parse($timeColumn);
+            $hour = $time->hour;
+
+            // Find the appropriate cutoff
+            $cutoffIndex = null;
+            $cutoffKeys = array_keys($cutoffs);
+            foreach ($cutoffKeys as $idx => $cutoffName) {
+                $range = $cutoffs[$cutoffName];
+                if ($hour >= $range['start'] && $hour <= $range['end']) {
+                    $cutoffIndex = $idx;
+                    break;
+                }
+            }
+
+            if ($cutoffIndex !== null && isset($result[$cutoffIndex])) {
+                $result[$cutoffIndex]['count']++;
+                $result[$cutoffIndex]['qty'] += $lot->lot_qty;
+
+                // Add to size column
+                $sizeLabel = $sizeLabels[$lot->lot_size] ?? null;
+                if ($sizeLabel && isset($result[$cutoffIndex][$sizeLabel])) {
+                    $result[$cutoffIndex][$sizeLabel] += $lot->lot_qty;
+                }
+            }
+        }
+
+        // Calculate totals
+        $totalRow = [
+            'cutoff' => 'TOTAL',
+            'count' => 0,
+            'qty' => 0,
+        ];
+
+        foreach ($sizes as $size) {
+            $totalRow[$sizeLabels[$size]] = 0;
+        }
+
+        foreach ($result as $row) {
+            $totalRow['count'] += $row['count'];
+            $totalRow['qty'] += $row['qty'];
+            foreach ($sizes as $size) {
+                $totalRow[$sizeLabels[$size]] += $row[$sizeLabels[$size]];
+            }
+        }
+
+        $result[] = $totalRow;
+
+        return $result;
+    }
 }

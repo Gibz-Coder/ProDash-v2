@@ -31,6 +31,9 @@ function setOpen(value: boolean) {
 
   // This sets the cookie to keep the sidebar state.
   document.cookie = `${SIDEBAR_COOKIE_NAME}=${open.value}; path=/; max-age=${SIDEBAR_COOKIE_MAX_AGE}`
+  
+  // Dispatch custom event for other components to listen to
+  window.dispatchEvent(new CustomEvent('sidebar-toggle', { detail: { open: value } }))
 }
 
 function setOpenMobile(value: boolean) {

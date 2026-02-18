@@ -1,0 +1,2329 @@
+/* MEMS Dashboard Styles - ProDash v2 Color Theme (Blue-focused) */
+
+/* Light Mode (Default) */
+:root {
+  /* Backgrounds - Adapted from ProDash v2 */
+  --mems-bg-primary: hsl(220 50% 98%);
+  --mems-bg-secondary: hsl(220 50% 96%);
+  --mems-bg-tertiary: hsl(220 50% 94%);
+  
+  /* Panels */
+  --mems-panel-bg: hsl(0 0% 100%);
+  --mems-panel-header-bg: hsl(220 70% 60% / 0.08);
+  --mems-panel-border: hsl(220 70% 60% / 0.2);
+  
+  /* Text */
+  --mems-text-primary: hsl(222 84% 16%);
+  --mems-text-secondary: hsl(220 13% 36%);
+  --mems-text-tertiary: hsl(220 13% 50%);
+  
+  /* Accents - Blue-focused with purple hints */
+  --mems-accent-primary: hsl(220 70% 60%);
+  --mems-accent-primary-hover: hsl(220 70% 50%);
+  --mems-accent-primary-subtle: hsl(220 70% 60% / 0.1);
+  --mems-accent-secondary: hsl(210 90% 56%);
+  --mems-accent-secondary-subtle: hsl(210 90% 56% / 0.1);
+  --mems-accent-tertiary: hsl(197 71% 52%);
+  
+  /* Status Colors - Balanced Neon Green for Run */
+  --mems-status-run: hsl(158 100% 38%);
+  --mems-status-wait: hsl(220 70% 60%);
+  --mems-status-idle: hsl(25 95% 53%);
+  
+  /* Borders & Shadows */
+  --mems-border-subtle: hsl(220 13% 91%);
+  --mems-border-emphasis: hsl(220 70% 60% / 0.3);
+  --mems-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+  --mems-shadow-md: 0 4px 6px -1px hsl(220 70% 60% / 0.1);
+  --mems-shadow-lg: 0 10px 15px -3px hsl(220 70% 60% / 0.15);
+  
+  /* Chart Colors */
+  --mems-chart-bg: transparent;
+  --mems-chart-text: hsl(222 84% 16%);
+  --mems-chart-grid: hsl(220 13% 91% / 0.5);
+  --mems-chart-tooltip-bg: hsl(0 0% 100% / 0.95);
+  --mems-chart-tooltip-border: hsl(220 70% 60%);
+  
+  /* Gradients - Blue-focused */
+  --mems-gradient-header: linear-gradient(135deg, hsl(220 70% 60% / 0.05) 0%, hsl(210 90% 56% / 0.05) 100%);
+  --mems-gradient-button: linear-gradient(135deg, hsl(220 70% 60%) 0%, hsl(210 90% 56%) 100%);
+  --mems-gradient-panel-header: linear-gradient(90deg, hsl(220 70% 60% / 0.08) 0%, hsl(210 90% 56% / 0.06) 100%);
+  --mems-gradient-title: linear-gradient(90deg, hsl(220 70% 60%), hsl(210 90% 56%));
+  
+  /* Legacy variables for backward compatibility */
+  --bg-dark: hsl(220 50% 98%);
+  --bg-panel: hsl(0 0% 100%);
+  --bg-card: hsl(220 50% 94%);
+  --accent-cyan: hsl(220 70% 60%);
+  --accent-orange: hsl(25 95% 53%);
+  --accent-green: hsl(158 100% 38%);
+  --text-primary: hsl(222 84% 16%);
+  --text-secondary: hsl(220 13% 36%);
+  --border-subtle: hsl(220 13% 91%);
+  --glow-cyan: hsl(220 70% 60% / 0.3);
+}
+
+/* Dark Mode */
+.dark {
+  /* Backgrounds */
+  --mems-bg-primary: hsl(220 15% 9%);
+  --mems-bg-secondary: hsl(220 15% 12%);
+  --mems-bg-tertiary: hsl(220 15% 15%);
+  
+  /* Panels */
+  --mems-panel-bg: hsl(220 15% 12%);
+  --mems-panel-header-bg: hsl(220 15% 15%);
+  --mems-panel-border: hsl(220 70% 60% / 0.3);
+  
+  /* Text */
+  --mems-text-primary: hsl(0 0% 95%);
+  --mems-text-secondary: hsl(0 0% 70%);
+  --mems-text-tertiary: hsl(0 0% 60%);
+  
+  /* Accents */
+  --mems-accent-primary: hsl(220 70% 60%);
+  --mems-accent-primary-hover: hsl(220 70% 70%);
+  --mems-accent-primary-subtle: hsl(220 70% 60% / 0.15);
+  --mems-accent-secondary: hsl(210 90% 56%);
+  --mems-accent-secondary-subtle: hsl(210 90% 56% / 0.15);
+  --mems-accent-tertiary: hsl(197 71% 52%);
+  
+  /* Status Colors - Balanced Neon Green for Run */
+  --mems-status-run: hsl(158 100% 43%);
+  --mems-status-wait: hsl(220 70% 60%);
+  --mems-status-idle: hsl(25 95% 53%);
+  
+  /* Borders & Shadows */
+  --mems-border-subtle: hsl(220 70% 60% / 0.2);
+  --mems-border-emphasis: hsl(220 70% 60% / 0.4);
+  --mems-shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.3);
+  --mems-shadow-md: 0 4px 20px hsl(220 70% 60% / 0.2);
+  --mems-shadow-lg: 0 4px 20px hsl(220 70% 60% / 0.3);
+  
+  /* Chart Colors */
+  --mems-chart-bg: transparent;
+  --mems-chart-text: hsl(0 0% 95%);
+  --mems-chart-grid: hsl(0 0% 70% / 0.1);
+  --mems-chart-tooltip-bg: hsl(220 15% 12% / 0.95);
+  --mems-chart-tooltip-border: hsl(220 70% 60%);
+  
+  /* Gradients */
+  --mems-gradient-header: linear-gradient(135deg, hsl(220 70% 60% / 0.1) 0%, hsl(210 90% 56% / 0.1) 100%);
+  --mems-gradient-button: linear-gradient(135deg, hsl(220 70% 60%) 0%, hsl(210 90% 56%) 100%);
+  --mems-gradient-panel-header: linear-gradient(90deg, hsl(220 70% 60% / 0.15) 0%, hsl(210 90% 56% / 0.12) 100%);
+  --mems-gradient-title: linear-gradient(90deg, hsl(220 70% 60%), hsl(210 90% 56%));
+  
+  /* Legacy variables for backward compatibility */
+  --bg-dark: hsl(220 15% 9%);
+  --bg-panel: hsl(220 15% 12%);
+  --bg-card: hsl(220 15% 15%);
+  --accent-cyan: hsl(220 70% 60%);
+  --accent-orange: hsl(25 95% 53%);
+  --accent-green: hsl(158 100% 43%);
+  --text-primary: hsl(0 0% 95%);
+  --text-secondary: hsl(0 0% 70%);
+  --border-subtle: hsl(220 70% 60% / 0.2);
+  --glow-cyan: hsl(220 70% 60% / 0.3);
+}
+
+/* Header Title in Main Header */
+.mems-title-header {
+  font-size: 1.1rem;
+  font-weight: 800;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  background: var(--mems-gradient-title);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  white-space: nowrap;
+  text-align: center;
+  line-height: 1.2;
+}
+
+@media (max-width: 1400px) {
+  .mems-title-header {
+    font-size: 1rem;
+    letter-spacing: 1.5px;
+  }
+}
+
+@media (max-width: 1200px) {
+  .mems-title-header {
+    font-size: 0.9rem;
+    letter-spacing: 1px;
+  }
+}
+
+.mems-header-buttons {
+  display: flex;
+  gap: 6px;
+  flex-wrap: nowrap;
+}
+
+.mems-btn {
+  background: var(--mems-gradient-button);
+  border: 1px solid var(--mems-panel-border);
+  padding: 5px 10px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--mems-text-primary);
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.5px;
+  transition: all 0.3s ease;
+  white-space: nowrap;
+}
+
+.mems-btn:hover {
+  background: linear-gradient(135deg, var(--mems-accent-primary) 0%, var(--mems-accent-secondary) 100%);
+  box-shadow: 0 0 15px var(--mems-accent-primary-subtle), 0 0 25px var(--mems-accent-secondary-subtle);
+  transform: translateY(-1px);
+}
+
+@media (max-width: 1200px) {
+  .mems-btn {
+    padding: 4px 8px;
+    font-size: 0.6rem;
+  }
+  
+  .mems-header-buttons {
+    gap: 4px;
+  }
+}
+
+.mems-dashboard {
+  font-family: "Roboto", sans-serif;
+  color: var(--mems-text-primary);
+  background: var(--mems-bg-primary);
+  height: 100%;
+  max-height: calc(100vh - 4rem);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: all 0.2s ease-linear;
+  padding: 8px;
+}
+
+/* Main Grid */
+.mems-main-grid {
+  display: grid;
+  grid-template-columns: 38fr 62fr;
+  gap: 8px;
+  flex: 0 0 auto;
+  min-height: 0;
+  transition: all 0.2s ease-linear;
+}
+
+/* Panel Styles */
+.mems-panel {
+  background: var(--mems-panel-bg);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--mems-panel-border);
+  overflow: hidden;
+  box-shadow: var(--mems-shadow-md);
+  transition: all 0.2s ease-linear;
+}
+
+.mems-panel-header {
+  background: var(--mems-gradient-panel-header);
+  color: var(--mems-accent-primary);
+  padding: 8px 15px;
+  font-weight: 700;
+  font-size: 0.8rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  border-bottom: 1px solid var(--mems-panel-border);
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+/* Mini dropdown in panel header */
+.mems-panel-header-dropdown {
+  position: relative;
+  display: inline-block;
+}
+
+.mems-panel-header-dropdown-btn {
+  background: rgba(100, 149, 237, 0.15);
+  border: 1px solid rgba(100, 149, 237, 0.3);
+  color: var(--mems-accent-primary);
+  padding: 3px 8px;
+  font-size: 0.7rem;
+  font-weight: 600;
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.2s;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  white-space: nowrap;
+}
+
+.mems-panel-header-dropdown-btn:hover {
+  background: rgba(100, 149, 237, 0.25);
+  border-color: rgba(100, 149, 237, 0.5);
+}
+
+.mems-panel-header-dropdown-menu {
+  position: absolute;
+  top: calc(100% + 4px);
+  right: 0;
+  background: var(--mems-panel-bg);
+  border: 1px solid var(--mems-panel-border);
+  border-radius: 6px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  z-index: 1000;
+  min-width: 100px;
+  overflow: hidden;
+}
+
+.mems-panel-header-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 6px 12px;
+  background: transparent;
+  border: none;
+  color: var(--mems-text-primary);
+  font-size: 0.75rem;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+
+.mems-panel-header-dropdown-item:hover {
+  background: rgba(100, 149, 237, 0.1);
+}
+
+.mems-panel-header-dropdown-item.active {
+  background: rgba(100, 149, 237, 0.2);
+  color: var(--mems-accent-primary);
+  font-weight: 700;
+}
+
+/* Dark mode */
+.dark .mems-panel-header-dropdown-btn {
+  background: rgba(100, 149, 237, 0.2);
+  border-color: rgba(100, 149, 237, 0.4);
+}
+
+.dark .mems-panel-header-dropdown-btn:hover {
+  background: rgba(100, 149, 237, 0.3);
+  border-color: rgba(100, 149, 237, 0.6);
+}
+
+.dark .mems-panel-header-dropdown-menu {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.dark .mems-panel-header-dropdown-item:hover {
+  background: rgba(100, 149, 237, 0.15);
+}
+
+.dark .mems-panel-header-dropdown-item.active {
+  background: rgba(100, 149, 237, 0.25);
+}
+
+.mems-panel-content {
+  padding: 10px;
+  flex: 1;
+  background: transparent;
+  min-height: 0;
+  overflow: auto;
+}
+
+/* Left Column */
+.mems-left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.mems-machine-util {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  height: 475px;
+  min-height: 470px;
+}
+
+.mems-machine-util-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  padding: 8px;
+  gap: 8px;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+}
+
+.mems-chart-area {
+  width: 40%;
+  position: relative;
+  transition: width 0.2s ease-linear;
+}
+
+.mems-switch-header {
+  background: var(--mems-gradient-button);
+  padding: 5px 8px;
+  border-radius: 20px;
+  text-align: center;
+  margin-bottom: 4px;
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: var(--mems-text-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  box-shadow: var(--mems-shadow-md);
+  flex-shrink: 0;
+}
+
+/* Gauge Controls - Simple and Clean */
+.mems-gauge-controls {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 8px 12px;
+  margin-bottom: 8px;
+  background: rgba(100, 149, 237, 0.08);
+  border-radius: 6px;
+  border: 1px solid rgba(100, 149, 237, 0.2);
+}
+
+/* Dark mode */
+.dark .mems-gauge-controls {
+  background: rgba(100, 149, 237, 0.1);
+  border: 1px solid rgba(100, 149, 237, 0.25);
+}
+
+.mems-line-display {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mems-line-prefix {
+  font-size: 13px;
+  font-weight: 500;
+  color: #4a7bb7;
+}
+
+.dark .mems-line-prefix {
+  color: #7ba3d9;
+}
+
+.mems-line-label {
+  font-size: 14px;
+  font-weight: 600;
+  color: #2c5aa0;
+  min-width: 50px;
+  text-align: center;
+}
+
+.dark .mems-line-label {
+  color: #a4c2d6;
+}
+
+.mems-carousel-toggle {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mems-toggle-label {
+  font-size: 11px;
+  font-weight: 600;
+  color: #5a7fa8;
+  letter-spacing: 0.5px;
+}
+
+.dark .mems-toggle-label {
+  color: #8baac9;
+}
+
+/* Navigation Buttons - Minimal Style */
+.mems-nav-btn {
+  background: transparent;
+  border: 1px solid rgba(100, 149, 237, 0.3);
+  color: #4a7bb7;
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.dark .mems-nav-btn {
+  border: 1px solid rgba(100, 149, 237, 0.4);
+  color: #a4c2d6;
+}
+
+.mems-nav-btn:hover:not(:disabled) {
+  background: rgba(100, 149, 237, 0.12);
+  border-color: rgba(100, 149, 237, 0.45);
+}
+
+.dark .mems-nav-btn:hover:not(:disabled) {
+  background: rgba(100, 149, 237, 0.2);
+  border-color: rgba(100, 149, 237, 0.6);
+}
+
+.mems-nav-btn:active:not(:disabled) {
+  transform: scale(0.95);
+}
+
+.mems-nav-btn:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+/* Toggle Switch - Refined */
+.mems-toggle-switch {
+  position: relative;
+  display: inline-block;
+  width: 42px;
+  height: 22px;
+}
+
+.mems-toggle-switch input {
+  opacity: 0;
+  width: 0;
+  height: 0;
+}
+
+.mems-toggle-slider {
+  position: absolute;
+  cursor: pointer;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(100, 149, 237, 0.15);
+  transition: 0.3s;
+  border-radius: 22px;
+  border: 1px solid rgba(100, 149, 237, 0.3);
+}
+
+.dark .mems-toggle-slider {
+  background-color: rgba(100, 149, 237, 0.2);
+  border: 1px solid rgba(100, 149, 237, 0.35);
+}
+
+.mems-toggle-slider:before {
+  position: absolute;
+  content: "";
+  height: 16px;
+  width: 16px;
+  left: 2px;
+  bottom: 2px;
+  background-color: #fff;
+  transition: 0.3s;
+  border-radius: 50%;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.3);
+}
+
+.mems-toggle-switch input:checked + .mems-toggle-slider {
+  background-color: #5a9fd4;
+  border-color: #5a9fd4;
+}
+
+.dark .mems-toggle-switch input:checked + .mems-toggle-slider {
+  background-color: #6495ed;
+  border-color: #6495ed;
+}
+
+.mems-toggle-switch input:checked + .mems-toggle-slider:before {
+  transform: translateX(20px);
+}
+
+/* Scroll Button Styles - Deprecated, keeping for compatibility */
+.mems-scroll-btn {
+  background: rgba(255, 255, 255, 0.2);
+  border: 1px solid rgba(255, 255, 255, 0.4);
+  color: white;
+  padding: 2px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  transition: all 0.2s;
+}
+
+.mems-scroll-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+  border-color: rgba(255, 255, 255, 0.6);
+}
+
+.mems-scroll-btn:active {
+  transform: scale(0.95);
+}
+
+/* Right Column */
+.mems-right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  min-height: 0;
+}
+
+.mems-right-col .mems-panel {
+  flex: 0 0 auto;
+  min-height: 0;
+}
+
+.mems-ongoing-lots {
+  height: 220px;
+  min-height: 220px;
+  max-height: 220px;
+}
+
+/* Modern Table Styles */
+.mems-table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  font-size: 0.7rem;
+  color: var(--mems-text-primary);
+  background: transparent;
+  transition: all 0.2s ease-linear;
+}
+
+.mems-table th,
+.mems-table td {
+  padding: 4px 6px;
+  text-align: center;
+  border: none;
+}
+
+.mems-table th {
+  background: var(--mems-gradient-panel-header);
+  font-weight: 700;
+  color: var(--mems-accent-primary);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.65rem;
+  border-bottom: 2px solid var(--mems-accent-primary);
+}
+
+.mems-table tbody tr {
+  background: var(--mems-accent-primary-subtle);
+  transition: all 0.2s ease;
+}
+
+.mems-table tbody tr:nth-child(even) {
+  background: var(--mems-accent-primary-subtle);
+}
+
+.mems-table tbody tr:hover {
+  background: var(--mems-border-emphasis);
+  box-shadow: inset 0 0 20px var(--mems-accent-primary-subtle);
+}
+
+.mems-table tbody td {
+  border-bottom: 1px solid var(--mems-border-subtle);
+  color: var(--mems-text-secondary);
+}
+
+/* Total Row Highlight */
+.mems-table tbody tr:last-child {
+  background: var(--mems-gradient-panel-header);
+  font-weight: 700;
+}
+
+.mems-table tbody tr:last-child td {
+  color: var(--mems-accent-primary);
+  font-weight: 700;
+  border-bottom: none;
+}
+
+/* Util Table */
+.mems-util-table td {
+  font-size: 0.78rem;
+  padding: 2px 3px;
+  line-height: 2.0;
+  white-space: nowrap;
+}
+
+.mems-util-table th {
+  font-size: 1rem;
+  padding: 5px 3px;
+  line-height: 2.0;
+  white-space: nowrap;
+}
+
+/* Status Badges */
+.mems-status-badge {
+  display: inline-block;
+  padding: 1px 4px;
+  border-radius: 3px;
+  font-size: 0.68rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: 70px;
+  text-align: center;
+}
+
+/* Idle badge should be narrower */
+.mems-status-badge.mems-status-idle {
+  min-width: 55px;
+}
+
+.mems-status-badge:hover {
+  transform: scale(1.05);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.mems-status-badge.mems-status-run {
+  background-color: var(--mems-status-run);
+  color: white;
+  border: 1px solid rgba(0, 220, 130, 0.3);
+}
+
+.mems-status-badge.mems-status-wait {
+  background-color: var(--mems-status-wait);
+  color: white;
+  border: 1px solid rgba(0, 160, 233, 0.3);
+}
+
+.mems-status-badge.mems-status-idle {
+  background-color: var(--mems-status-idle);
+  color: white;
+  border: 1px solid rgba(233, 106, 36, 0.3);
+}
+
+/* Highlight First Column globally */
+.mems-table tbody td:first-child {
+  background: var(--mems-accent-primary-subtle);
+  font-weight: 700;
+  color: var(--mems-accent-primary);
+}
+
+/* Make COUNT column (second column) more visible */
+.mems-table tbody td:nth-child(2) {
+  font-weight: 700;
+  color: var(--mems-text-primary);
+  font-size: 0.82rem;
+}
+
+/* Machine Type Status Table */
+.mems-machine-type-status .mems-table {
+  font-size: 0.9rem;
+}
+
+.mems-machine-type-status .mems-table th,
+.mems-machine-type-status .mems-table td {
+  padding: 6px 8px;
+  line-height: 1.9;
+}
+
+/* Color-coded rows for machine type status */
+.mems-machine-type-run {
+  background: linear-gradient(90deg, 
+    var(--mems-status-run) 0%, 
+    rgba(0, 220, 130, 0.15) 100%) !important;
+}
+
+.mems-machine-type-run td {
+  color: var(--mems-text-primary) !important;
+  font-weight: 600;
+}
+
+.mems-machine-type-run td:first-child {
+  color: white !important;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.mems-machine-type-wait {
+  background: linear-gradient(90deg, 
+    var(--mems-status-wait) 0%, 
+    rgba(91, 127, 219, 0.15) 100%) !important;
+}
+
+.mems-machine-type-wait td {
+  color: var(--mems-text-primary) !important;
+  font-weight: 600;
+}
+
+.mems-machine-type-wait td:first-child {
+  color: white !important;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.mems-machine-type-idle {
+  background: linear-gradient(90deg, 
+    var(--mems-status-idle) 0%, 
+    rgba(233, 106, 36, 0.15) 100%) !important;
+}
+
+.mems-machine-type-idle td {
+  color: var(--mems-text-primary) !important;
+  font-weight: 600;
+}
+
+.mems-machine-type-idle td:first-child {
+  color: white !important;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+/* Dark mode adjustments for machine type rows */
+.dark .mems-machine-type-run {
+  background: linear-gradient(90deg, 
+    rgba(0, 220, 130, 0.2) 0%, 
+    rgba(0, 220, 130, 0.05) 100%) !important;
+}
+
+.dark .mems-machine-type-wait {
+  background: linear-gradient(90deg, 
+    rgba(91, 127, 219, 0.2) 0%, 
+    rgba(91, 127, 219, 0.05) 100%) !important;
+}
+
+.dark .mems-machine-type-idle {
+  background: linear-gradient(90deg, 
+    rgba(233, 106, 36, 0.2) 0%, 
+    rgba(233, 106, 36, 0.05) 100%) !important;
+}
+
+/* Raw Data Section */
+.mems-raw-data {
+  height: 350px;
+  min-height: 350px;
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+  margin-top: 0;
+  border-top: 2px solid var(--mems-accent-primary);
+  box-shadow: 0 -2px 10px var(--mems-accent-primary-subtle);
+}
+
+.mems-raw-data .mems-panel-header {
+  padding: 6px 10px;
+  min-height: 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.mems-raw-data-content th {
+  position: sticky;
+  top: 0;
+  z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+}
+
+.mems-search-input {
+  padding: 8px 15px;
+  border-radius: 20px;
+  border: 1px solid var(--mems-panel-border);
+  background: var(--mems-panel-bg);
+  color: var(--mems-text-primary);
+  width: 200px;
+  font-size: 0.8rem;
+  transition: all 0.3s ease;
+}
+
+.mems-search-input:focus {
+  outline: none;
+  border-color: var(--mems-accent-primary);
+  box-shadow: 0 0 10px var(--mems-accent-primary-subtle);
+}
+
+.mems-search-input::placeholder {
+  color: var(--mems-text-secondary);
+}
+
+.mems-raw-data-content {
+  overflow: hidden;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.mems-raw-data-content table {
+  width: 100%;
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+
+.mems-raw-data-content thead {
+  flex-shrink: 0;
+}
+
+.mems-raw-data-content tbody {
+  display: block;
+  overflow-y: auto;
+  overflow-x: hidden;
+  flex: 1;
+}
+
+.mems-raw-data-content thead tr,
+.mems-raw-data-content tbody tr {
+  display: table;
+  width: 100%;
+  table-layout: fixed;
+}
+
+.mems-raw-data-content th:first-child,
+.mems-raw-data-content td:first-child {
+  width: 50px;
+  min-width: 50px;
+  max-width: 50px;
+}
+
+/* Custom Scrollbar for all scrollable areas */
+.mems-dashboard::-webkit-scrollbar,
+.mems-raw-data-content::-webkit-scrollbar,
+.mems-panel-content::-webkit-scrollbar,
+.mems-left-col::-webkit-scrollbar,
+.mems-right-col::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.mems-dashboard::-webkit-scrollbar-track,
+.mems-raw-data-content::-webkit-scrollbar-track,
+.mems-panel-content::-webkit-scrollbar-track,
+.mems-left-col::-webkit-scrollbar-track,
+.mems-right-col::-webkit-scrollbar-track {
+  background: var(--mems-bg-primary);
+  border-radius: 4px;
+}
+
+.mems-dashboard::-webkit-scrollbar-thumb,
+.mems-raw-data-content::-webkit-scrollbar-thumb,
+.mems-panel-content::-webkit-scrollbar-thumb,
+.mems-left-col::-webkit-scrollbar-thumb,
+.mems-right-col::-webkit-scrollbar-thumb {
+  background: var(--mems-accent-primary);
+  border-radius: 4px;
+}
+
+.mems-dashboard::-webkit-scrollbar-thumb:hover,
+.mems-raw-data-content::-webkit-scrollbar-thumb:hover,
+.mems-panel-content::-webkit-scrollbar-thumb:hover,
+.mems-left-col::-webkit-scrollbar-thumb:hover,
+.mems-right-col::-webkit-scrollbar-thumb:hover {
+  background: var(--mems-accent-primary-hover);
+}
+
+/* Chart Legend Styles */
+.mems-chart-legend {
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  margin-top: 8px;
+  padding: 6px 0;
+}
+
+.mems-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 0.85rem;
+  color: var(--mems-text-primary);
+  font-weight: 600;
+}
+
+.mems-legend-badge {
+  width: 14px;
+  height: 14px;
+  border-radius: 3px;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+.mems-legend-badge.run {
+  background-color: var(--mems-status-run);
+}
+
+.mems-legend-badge.wait {
+  background-color: var(--mems-status-wait);
+}
+
+.mems-legend-badge.idle {
+  background-color: var(--mems-status-idle);
+}
+
+/* Time Dropdown Styles */
+.mems-time-dropdown {
+  position: relative;
+}
+
+.mems-time-select {
+  background: var(--mems-panel-bg);
+  border: 1px solid var(--mems-panel-border);
+  border-radius: 4px;
+  color: var(--mems-text-primary);
+  padding: 2px 6px;
+  font-size: 0.65rem;
+  font-weight: 600;
+  cursor: pointer;
+  outline: none;
+  transition: all 0.3s ease;
+  min-width: 70px;
+}
+
+.mems-time-select:hover {
+  border-color: var(--mems-accent-primary);
+  box-shadow: 0 0 5px var(--mems-accent-primary-subtle);
+}
+
+.mems-time-select:focus {
+  border-color: var(--mems-accent-primary);
+  box-shadow: 0 0 8px var(--mems-accent-primary-subtle);
+}
+
+.mems-time-select option {
+  background: var(--mems-panel-bg);
+  color: var(--mems-text-primary);
+  padding: 4px;
+}
+
+
+/* Machine Type Status Panel */
+.mems-machine-type-status {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.mems-machine-type-status .mems-panel-content {
+  padding: 8px;
+  overflow: visible;
+}
+
+.mems-machine-type-status .mems-table {
+  font-size: 0.75rem;
+}
+
+.mems-machine-type-status .mems-table th,
+.mems-machine-type-status .mems-table td {
+  padding: 6px 8px;
+}
+
+/* Ensure proper scrolling for table containers */
+.mems-panel-content:has(table) {
+  overflow: auto;
+}
+
+/* Adjust button sizes */
+.mems-btn {
+  padding: 6px 12px;
+  font-size: 0.7rem;
+}
+
+/* Search input adjustments */
+.mems-search-input {
+  padding: 6px 12px;
+  font-size: 0.75rem;
+  width: 180px;
+}
+
+/* Filter Components */
+.mems-filter-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.mems-btn.active {
+  background: var(--mems-gradient-button);
+  color: white;
+  box-shadow: 0 0 15px hsl(220 70% 60% / 0.5);
+}
+
+.mems-countdown {
+  font-size: 0.85em;
+  opacity: 0.9;
+  margin-left: 4px;
+}
+
+.mems-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  left: 0;
+  background: var(--mems-panel-bg);
+  border: 1px solid var(--mems-panel-border);
+  border-radius: 8px;
+  box-shadow: var(--mems-shadow-lg);
+  z-index: 1000;
+  min-width: 200px;
+  padding: 8px;
+  animation: mems-dropdown-fade-in 0.2s ease-out;
+}
+
+@keyframes mems-dropdown-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(-10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.mems-date-input {
+  width: 100%;
+  padding: 8px 12px;
+  background: var(--mems-bg-secondary);
+  border: 1px solid var(--mems-border-subtle);
+  border-radius: 6px;
+  color: var(--mems-text-primary);
+  font-size: 14px;
+  font-family: inherit;
+  cursor: pointer;
+}
+
+.mems-date-input:focus {
+  outline: none;
+  border-color: var(--mems-accent-primary);
+  box-shadow: 0 0 0 3px var(--mems-accent-primary-subtle);
+}
+
+.mems-dropdown-item {
+  display: block;
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  color: var(--mems-text-primary);
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mems-dropdown-item:hover {
+  background: var(--mems-accent-primary-subtle);
+  color: var(--mems-accent-primary);
+}
+
+.mems-dropdown-item.active {
+  background: var(--mems-gradient-button);
+  color: white;
+}
+
+/* Refresh Modal */
+.mems-refresh-modal {
+  min-width: 280px;
+  padding: 16px;
+}
+
+.mems-refresh-header {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--mems-text-primary);
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 2px solid var(--mems-border-subtle);
+}
+
+.mems-refresh-status {
+  font-size: 14px;
+  color: var(--mems-text-secondary);
+  margin-bottom: 16px;
+}
+
+.mems-refresh-status strong {
+  color: var(--mems-accent-primary);
+  font-weight: 700;
+}
+
+.mems-refresh-interval {
+  margin-bottom: 16px;
+}
+
+.mems-refresh-interval label {
+  display: block;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--mems-text-secondary);
+  margin-bottom: 8px;
+}
+
+.mems-interval-buttons {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.mems-interval-btn {
+  padding: 8px 12px;
+  background: var(--mems-bg-secondary);
+  border: 1px solid var(--mems-border-subtle);
+  border-radius: 6px;
+  color: var(--mems-text-primary);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mems-interval-btn:hover {
+  background: var(--mems-accent-primary-subtle);
+  border-color: var(--mems-accent-primary);
+  color: var(--mems-accent-primary);
+}
+
+.mems-interval-btn.active {
+  background: var(--mems-gradient-button);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 0 10px hsl(220 70% 60% / 0.3);
+}
+
+.mems-toggle-btn {
+  width: 100%;
+  padding: 12px;
+  background: var(--mems-bg-secondary);
+  border: 2px solid var(--mems-accent-primary);
+  border-radius: 8px;
+  color: var(--mems-accent-primary);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mems-toggle-btn:hover {
+  background: var(--mems-accent-primary-subtle);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px hsl(220 70% 60% / 0.2);
+}
+
+.mems-toggle-btn.active {
+  background: var(--mems-gradient-button);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 0 15px hsl(220 70% 60% / 0.4);
+}
+
+/* Dark mode adjustments */
+.dark .mems-date-input {
+  background: var(--mems-bg-tertiary);
+  color: var(--mems-text-primary);
+}
+
+.dark .mems-interval-btn {
+  background: var(--mems-bg-tertiary);
+}
+
+.dark .mems-toggle-btn {
+  background: var(--mems-bg-tertiary);
+}
+
+/* Snapshot Toggle Button */
+.mems-snapshot-wrapper {
+  position: relative;
+  display: inline-block;
+}
+
+.mems-panel.mems-ongoing-lots {
+  overflow: visible !important;
+}
+
+.mems-panel.mems-ongoing-lots .mems-panel-header {
+  overflow: visible !important;
+}
+
+.mems-snapshot-toggle-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  background: var(--mems-bg-secondary);
+  border: 1.5px solid var(--mems-border-subtle);
+  border-radius: 5px;
+  color: var(--mems-text-primary);
+  font-size: 10px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+  min-width: 70px;
+}
+
+.mems-snapshot-toggle-btn:hover {
+  background: var(--mems-accent-primary-subtle);
+  border-color: var(--mems-accent-primary);
+  transform: translateY(-1px);
+  box-shadow: 0 2px 8px hsl(220 70% 60% / 0.2);
+}
+
+.mems-snapshot-toggle-btn.active {
+  background: var(--mems-gradient-button);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 0 12px hsl(220 70% 60% / 0.4);
+  animation: snapshot-pulse 2s ease-in-out infinite;
+}
+
+@keyframes snapshot-pulse {
+  0%, 100% {
+    box-shadow: 0 0 12px hsl(220 70% 60% / 0.4);
+  }
+  50% {
+    box-shadow: 0 0 20px hsl(220 70% 60% / 0.6);
+  }
+}
+
+.snapshot-icon {
+  font-size: 12px;
+  line-height: 1;
+}
+
+.snapshot-status {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  font-size: 10px;
+}
+
+.snapshot-countdown {
+  font-size: 9px;
+  opacity: 0.9;
+  padding: 1px 4px;
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 3px;
+  font-family: 'Courier New', monospace;
+}
+
+/* Snapshot Dropdown */
+.mems-snapshot-dropdown {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  background: var(--mems-panel-bg);
+  border: 1px solid var(--mems-panel-border);
+  border-radius: 8px;
+  box-shadow: var(--mems-shadow-lg);
+  z-index: 9999;
+  min-width: 240px;
+  padding: 12px;
+  animation: mems-dropdown-fade-in 0.2s ease-out;
+}
+
+.mems-snapshot-header {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--mems-text-primary);
+  margin-bottom: 10px;
+  padding-bottom: 6px;
+  border-bottom: 2px solid var(--mems-border-subtle);
+}
+
+.mems-snapshot-interval {
+  margin-bottom: 12px;
+}
+
+.mems-snapshot-interval label {
+  display: block;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--mems-text-secondary);
+  margin-bottom: 6px;
+}
+
+.mems-snapshot-interval-buttons {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 6px;
+}
+
+.mems-snapshot-interval-btn {
+  padding: 6px 10px;
+  background: var(--mems-bg-secondary);
+  border: 1px solid var(--mems-border-subtle);
+  border-radius: 5px;
+  color: var(--mems-text-primary);
+  font-size: 11px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.mems-snapshot-interval-btn:hover {
+  background: var(--mems-accent-primary-subtle);
+  border-color: var(--mems-accent-primary);
+  color: var(--mems-accent-primary);
+}
+
+.mems-snapshot-interval-btn.active {
+  background: var(--mems-gradient-button);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 0 8px hsl(220 70% 60% / 0.3);
+}
+
+.mems-snapshot-action-btn {
+  width: 100%;
+  padding: 8px;
+  background: var(--mems-bg-secondary);
+  border: 2px solid var(--mems-accent-primary);
+  border-radius: 6px;
+  color: var(--mems-accent-primary);
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.mems-snapshot-action-btn:hover:not(:disabled) {
+  background: var(--mems-accent-primary-subtle);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px hsl(220 70% 60% / 0.2);
+}
+
+.mems-snapshot-action-btn.active {
+  background: var(--mems-gradient-button);
+  border-color: transparent;
+  color: white;
+  box-shadow: 0 0 12px hsl(220 70% 60% / 0.4);
+}
+
+.mems-snapshot-action-btn:disabled,
+.mems-snapshot-action-btn.disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+  border-color: var(--mems-border-subtle);
+  color: var(--mems-text-secondary);
+}
+
+.mems-snapshot-action-btn:disabled:hover,
+.mems-snapshot-action-btn.disabled:hover {
+  background: var(--mems-bg-secondary);
+  transform: none;
+  box-shadow: none;
+}
+
+/* Dark mode adjustments */
+.dark .mems-snapshot-toggle-btn {
+  background: var(--mems-bg-tertiary);
+}
+
+.dark .mems-snapshot-toggle-btn:hover {
+  background: var(--mems-accent-primary-subtle);
+}
+
+.dark .mems-snapshot-interval-btn {
+  background: var(--mems-bg-tertiary);
+}
+
+.dark .mems-snapshot-action-btn {
+  background: var(--mems-bg-tertiary);
+}
+
+/* ============================================
+   Endtime Tables Styling
+   ============================================ */
+
+.mems-endtime-table {
+  font-size: 0.75rem;
+  table-layout: fixed;
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+/* Fixed column widths to prevent CLASS/CUTOFF from being too wide */
+.mems-endtime-table th:first-child,
+.mems-endtime-table td:first-child {
+  width: 110px;
+  min-width: 110px;
+  max-width: 110px;
+}
+
+.mems-endtime-table th:nth-child(2),
+.mems-endtime-table td:nth-child(2) {
+  width: 70px;
+  min-width: 70px;
+}
+
+.mems-endtime-table th:nth-child(3),
+.mems-endtime-table td:nth-child(3) {
+  width: 110px;
+  min-width: 110px;
+}
+
+/* Size columns - equal width for remaining space */
+.mems-endtime-table th:nth-child(n+4),
+.mems-endtime-table td:nth-child(n+4) {
+  width: auto;
+}
+
+.mems-endtime-table th {
+  background: linear-gradient(135deg, rgba(100, 149, 237, 0.15) 0%, rgba(135, 206, 250, 0.15) 100%);
+  font-weight: 700;
+  color: hsl(220 70% 50%);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  font-size: 0.7rem;
+  padding: 6px 6px;
+  border-bottom: 1px solid rgba(100, 149, 237, 0.3);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+}
+
+.mems-endtime-table th:first-child {
+  text-align: left;
+  padding-left: 12px;
+}
+
+.mems-endtime-table td {
+  padding: 5px 8px;
+  text-align: center;
+  border-bottom: 1px solid rgba(100, 149, 237, 0.1);
+  color: var(--mems-text-secondary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  line-height: 1.32;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* First column (CLASS/CUTOFF) styling */
+.mems-endtime-table tbody td:first-child {
+  background: rgba(255, 255, 255, 0.5);
+  font-weight: 700;
+  color: hsl(220 70% 45%);
+  text-align: left;
+  padding-left: 12px;
+  padding-right: 8px;
+  font-size: 0.72rem;
+}
+
+/* Color coding for CLASS rows in Endtime Remaining */
+.mems-endtime-table tbody tr[data-class="A"] td:first-child {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.25) 0%, rgba(34, 197, 94, 0.05) 100%);
+  color: rgb(22, 163, 74);
+  border-left: 3px solid rgb(34, 197, 94);
+}
+
+.mems-endtime-table tbody tr[data-class="B"] td:first-child {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.25) 0%, rgba(251, 191, 36, 0.05) 100%);
+  color: rgb(217, 119, 6);
+  border-left: 3px solid rgb(251, 191, 36);
+}
+
+.mems-endtime-table tbody tr[data-class="C"] td:first-child {
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.25) 0%, rgba(249, 115, 22, 0.05) 100%);
+  color: rgb(194, 65, 12);
+  border-left: 3px solid rgb(249, 115, 22);
+}
+
+.mems-endtime-table tbody tr[data-class="D"] td:first-child {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.25) 0%, rgba(239, 68, 68, 0.05) 100%);
+  color: rgb(185, 28, 28);
+  border-left: 3px solid rgb(239, 68, 68);
+}
+
+/* Color coding for CUTOFF rows in Endtime Per Cutoff */
+.mems-endtime-table tbody tr[data-cutoff="00:00~03:59"] td:first-child,
+.mems-endtime-table tbody tr[data-cutoff="04:00~06:59"] td:first-child {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.25) 0%, rgba(34, 197, 94, 0.05) 100%);
+  color: rgb(22, 163, 74);
+  border-left: 3px solid rgb(34, 197, 94);
+}
+
+.mems-endtime-table tbody tr[data-cutoff="07:00~11:59"] td:first-child,
+.mems-endtime-table tbody tr[data-cutoff="12:00~15:59"] td:first-child {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.25) 0%, rgba(251, 191, 36, 0.05) 100%);
+  color: rgb(217, 119, 6);
+  border-left: 3px solid rgb(251, 191, 36);
+}
+
+.mems-endtime-table tbody tr[data-cutoff="16:00~18:59"] td:first-child,
+.mems-endtime-table tbody tr[data-cutoff="19:00~23:59"] td:first-child {
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.25) 0%, rgba(249, 115, 22, 0.05) 100%);
+  color: rgb(194, 65, 12);
+  border-left: 3px solid rgb(249, 115, 22);
+}
+
+/* COUNT and QTY columns - make them stand out */
+.mems-endtime-table tbody td:nth-child(2),
+.mems-endtime-table tbody td:nth-child(3) {
+  font-weight: 700;
+  color: var(--mems-text-primary);
+  font-size: 0.78rem;
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Size columns (0603, 1005, etc.) - clean background */
+.mems-endtime-table tbody td:nth-child(n+4) {
+  background: rgba(255, 255, 255, 0.5);
+  font-size: 0.72rem;
+}
+
+/* Alternating row colors - very subtle */
+.mems-endtime-table tbody tr:nth-child(even) td {
+  background: rgba(100, 149, 237, 0.04);
+}
+
+.mems-endtime-table tbody tr:nth-child(odd) td {
+  background: rgba(255, 255, 255, 0.5);
+}
+
+/* Hover effect */
+.mems-endtime-table tbody tr:hover td {
+  background: rgba(100, 149, 237, 0.12) !important;
+  color: var(--mems-text-primary);
+}
+
+/* Total row styling - solid blue background */
+.mems-endtime-table tbody tr.mems-total-row {
+  border-top: 2px solid hsl(220 70% 60%);
+}
+
+.mems-endtime-table tbody tr.mems-total-row td {
+  background: hsl(220 70% 60%) !important;
+  color: white !important;
+  font-weight: 700;
+  font-size: 0.75rem;
+  border-bottom: none;
+  padding: 4px 8px;
+}
+
+.mems-endtime-table tbody tr.mems-total-row td:first-child {
+  background: hsl(220 70% 60%) !important;
+  color: white !important;
+  text-shadow: none;
+  padding-left: 12px;
+}
+
+/* Dark mode adjustments */
+.dark .mems-endtime-table th {
+  background: linear-gradient(135deg, rgba(100, 149, 237, 0.2) 0%, rgba(135, 206, 250, 0.2) 100%);
+  color: hsl(220 70% 65%);
+  border-bottom: 1px solid rgba(100, 149, 237, 0.4);
+}
+
+.dark .mems-endtime-table td {
+  background: rgba(0, 0, 0, 0.2);
+  border-bottom: 1px solid rgba(100, 149, 237, 0.15);
+}
+
+.dark .mems-endtime-table tbody td:first-child {
+  background: rgba(0, 0, 0, 0.2);
+  color: hsl(220 70% 70%);
+}
+
+/* Dark mode color coding for CLASS rows */
+.dark .mems-endtime-table tbody tr[data-class="A"] td:first-child {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.3) 0%, rgba(34, 197, 94, 0.1) 100%);
+  color: rgb(134, 239, 172);
+  border-left: 3px solid rgb(34, 197, 94);
+}
+
+.dark .mems-endtime-table tbody tr[data-class="B"] td:first-child {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.3) 0%, rgba(251, 191, 36, 0.1) 100%);
+  color: rgb(253, 224, 71);
+  border-left: 3px solid rgb(251, 191, 36);
+}
+
+.dark .mems-endtime-table tbody tr[data-class="C"] td:first-child {
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.3) 0%, rgba(249, 115, 22, 0.1) 100%);
+  color: rgb(251, 146, 60);
+  border-left: 3px solid rgb(249, 115, 22);
+}
+
+.dark .mems-endtime-table tbody tr[data-class="D"] td:first-child {
+  background: linear-gradient(90deg, rgba(239, 68, 68, 0.3) 0%, rgba(239, 68, 68, 0.1) 100%);
+  color: rgb(252, 165, 165);
+  border-left: 3px solid rgb(239, 68, 68);
+}
+
+/* Dark mode color coding for CUTOFF rows */
+.dark .mems-endtime-table tbody tr[data-cutoff="00:00~03:59"] td:first-child,
+.dark .mems-endtime-table tbody tr[data-cutoff="04:00~06:59"] td:first-child {
+  background: linear-gradient(90deg, rgba(34, 197, 94, 0.3) 0%, rgba(34, 197, 94, 0.1) 100%);
+  color: rgb(134, 239, 172);
+  border-left: 3px solid rgb(34, 197, 94);
+}
+
+.dark .mems-endtime-table tbody tr[data-cutoff="07:00~11:59"] td:first-child,
+.dark .mems-endtime-table tbody tr[data-cutoff="12:00~15:59"] td:first-child {
+  background: linear-gradient(90deg, rgba(251, 191, 36, 0.3) 0%, rgba(251, 191, 36, 0.1) 100%);
+  color: rgb(253, 224, 71);
+  border-left: 3px solid rgb(251, 191, 36);
+}
+
+.dark .mems-endtime-table tbody tr[data-cutoff="16:00~18:59"] td:first-child,
+.dark .mems-endtime-table tbody tr[data-cutoff="19:00~23:59"] td:first-child {
+  background: linear-gradient(90deg, rgba(249, 115, 22, 0.3) 0%, rgba(249, 115, 22, 0.1) 100%);
+  color: rgb(251, 146, 60);
+  border-left: 3px solid rgb(249, 115, 22);
+}
+
+.dark .mems-endtime-table tbody td:nth-child(2),
+.dark .mems-endtime-table tbody td:nth-child(3) {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.dark .mems-endtime-table tbody td:nth-child(n+4) {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.dark .mems-endtime-table tbody tr:nth-child(even) td {
+  background: rgba(100, 149, 237, 0.08);
+}
+
+.dark .mems-endtime-table tbody tr:nth-child(odd) td {
+  background: rgba(0, 0, 0, 0.2);
+}
+
+.dark .mems-endtime-table tbody tr:hover td {
+  background: rgba(100, 149, 237, 0.2) !important;
+}
+
+.dark .mems-endtime-table tbody tr.mems-total-row td {
+  background: hsl(220 70% 55%) !important;
+  color: white !important;
+}
+
+.dark .mems-endtime-table tbody tr.mems-total-row td:first-child {
+  background: hsl(220 70% 55%) !important;
+}
+
+/* Number formatting - right align for better readability */
+.mems-endtime-table tbody td:nth-child(2),
+.mems-endtime-table tbody td:nth-child(3),
+.mems-endtime-table tbody td:nth-child(n+4) {
+  text-align: right;
+  padding-right: 10px;
+}
+
+.mems-endtime-table th:nth-child(2),
+.mems-endtime-table th:nth-child(3),
+.mems-endtime-table th:nth-child(n+4) {
+  text-align: right;
+  padding-right: 10px;
+}
+
+/* Responsive font sizing for smaller screens */
+@media (max-width: 1400px) {
+  .mems-endtime-table {
+    font-size: 0.68rem;
+  }
+  
+  .mems-endtime-table th {
+    font-size: 0.65rem;
+    padding: 4px 4px;
+  }
+  
+  .mems-endtime-table td {
+    padding: 3px 6px;
+  }
+  
+  .mems-endtime-table tbody td:first-child {
+    font-size: 0.65rem;
+    padding-left: 8px;
+  }
+  
+  .mems-endtime-table th:first-child {
+    padding-left: 8px;
+  }
+  
+  .mems-endtime-table tbody tr.mems-total-row td {
+    padding: 3px 6px;
+  }
+  
+  .mems-endtime-table tbody tr.mems-total-row td:first-child {
+    padding-left: 8px;
+  }
+}
+
+/* Action button in raw data table - Enhanced Professional Style */
+.mems-action-group {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  justify-content: center;
+  flex-wrap: nowrap;
+}
+
+.mems-action-btn {
+  background: transparent;
+  border: 1.5px solid var(--mems-accent-primary);
+  color: var(--mems-accent-primary);
+  padding: 5px 10px;
+  border-radius: 5px;
+  cursor: pointer;
+  font-size: 0.68rem;
+  font-weight: 600;
+  transition: all 0.25s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 70px;
+  height: 28px;
+  box-shadow: 0 1px 3px rgba(100, 149, 237, 0.1);
+  white-space: nowrap;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+}
+
+.mems-action-btn .action-icon {
+  font-size: 13px;
+  line-height: 1;
+}
+
+.mems-action-btn .action-text {
+  font-size: 0.65rem;
+  font-weight: 700;
+}
+
+/* View Details button - Icon only, smaller */
+.mems-action-btn.mems-action-view {
+  min-width: 36px;
+  padding: 5px 8px;
+  border-color: hsl(220 70% 60%);
+  color: hsl(220 70% 60%);
+}
+
+.mems-action-btn.mems-action-view .action-icon {
+  font-size: 15px;
+}
+
+.mems-action-btn.mems-action-view:hover {
+  background: hsl(220 70% 60%);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(100, 149, 237, 0.4);
+  border-color: transparent;
+}
+
+/* Assign button - Blue theme */
+.mems-action-btn.mems-action-assign {
+  border-color: var(--mems-accent-primary);
+  color: var(--mems-accent-primary);
+}
+
+.mems-action-btn.mems-action-assign:hover {
+  background: var(--mems-gradient-button);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(100, 149, 237, 0.35);
+  border-color: transparent;
+}
+
+/* Remarks button - Green theme */
+.mems-action-btn.mems-action-remarks {
+  border-color: var(--mems-status-run);
+  color: var(--mems-status-run);
+}
+
+.mems-action-btn.mems-action-remarks:hover {
+  background: var(--mems-status-run);
+  color: white;
+  transform: translateY(-2px);
+  box-shadow: 0 4px 12px rgba(0, 220, 130, 0.35);
+  border-color: transparent;
+}
+
+.mems-action-btn:active {
+  transform: translateY(0);
+}
+
+/* Dark mode adjustments */
+.dark .mems-action-btn {
+  box-shadow: 0 1px 3px rgba(100, 149, 237, 0.2);
+}
+
+.dark .mems-action-btn.mems-action-view {
+  border-color: hsl(220 70% 65%);
+  color: hsl(220 70% 65%);
+}
+
+.dark .mems-action-btn.mems-action-view:hover {
+  background: hsl(220 70% 60%);
+  color: white;
+  box-shadow: 0 4px 12px rgba(100, 149, 237, 0.5);
+}
+
+.dark .mems-action-btn.mems-action-assign {
+  border-color: var(--mems-accent-primary);
+  color: var(--mems-accent-primary);
+}
+
+.dark .mems-action-btn.mems-action-assign:hover {
+  background: var(--mems-gradient-button);
+  color: white;
+  box-shadow: 0 4px 12px rgba(100, 149, 237, 0.5);
+}
+
+.dark .mems-action-btn.mems-action-remarks {
+  border-color: var(--mems-status-run);
+  color: var(--mems-status-run);
+}
+
+.dark .mems-action-btn.mems-action-remarks:hover {
+  background: var(--mems-status-run);
+  color: white;
+  box-shadow: 0 4px 12px rgba(0, 220, 130, 0.5);
+}
+
+/* Responsive adjustments */
+@media (max-width: 1600px) {
+  .mems-action-btn {
+    padding: 4px 8px;
+    min-width: 65px;
+    height: 26px;
+    font-size: 0.62rem;
+    gap: 3px;
+  }
+  
+  .mems-action-btn.mems-action-view {
+    min-width: 32px;
+    padding: 4px 6px;
+  }
+  
+  .mems-action-btn .action-icon {
+    font-size: 12px;
+  }
+  
+  .mems-action-btn.mems-action-view .action-icon {
+    font-size: 14px;
+  }
+  
+  .mems-action-btn .action-text {
+    font-size: 0.6rem;
+  }
+  
+  .mems-action-group {
+    gap: 4px;
+  }
+}
+
+/* Raw Data Table Styling - Professional Enhanced */
+.mems-raw-data .mems-table {
+  font-size: 0.72rem;
+  table-layout: auto;
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+.mems-raw-data .mems-table th {
+  padding: 8px 10px;
+  line-height: 1.4;
+  font-size: 0.68rem;
+  background: linear-gradient(135deg, rgba(100, 149, 237, 0.18) 0%, rgba(135, 206, 250, 0.18) 100%);
+  color: var(--mems-accent-primary);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  border-bottom: 2px solid var(--mems-accent-primary);
+  white-space: nowrap;
+  text-align: center;
+  position: relative;
+  box-shadow: 0 2px 4px rgba(100, 149, 237, 0.1);
+}
+
+.mems-raw-data .mems-table th::after {
+  content: '';
+  position: absolute;
+  right: 0;
+  top: 20%;
+  height: 60%;
+  width: 1px;
+  background: rgba(100, 149, 237, 0.2);
+}
+
+.mems-raw-data .mems-table th:last-child::after {
+  display: none;
+}
+
+.mems-raw-data .mems-table td {
+  padding: 6px 10px;
+  line-height: 1.5;
+  border-bottom: 1px solid var(--mems-border-subtle);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  text-align: center;
+  font-weight: 500;
+  color: var(--mems-text-secondary);
+  transition: all 0.2s ease;
+}
+
+/* Dynamic Column Widths - Machine View */
+.mems-raw-data .mems-table th:nth-child(1),
+.mems-raw-data .mems-table td:nth-child(1) {
+  width: 50px;
+  min-width: 50px;
+  max-width: 50px;
+  font-weight: 600;
+  color: var(--mems-text-tertiary);
+}
+
+.mems-raw-data .mems-table th:nth-child(2),
+.mems-raw-data .mems-table td:nth-child(2) {
+  width: 90px;
+  min-width: 90px;
+  font-weight: 700;
+  color: var(--mems-accent-primary);
+  text-align: left;
+  padding-left: 12px;
+}
+
+.mems-raw-data .mems-table th:nth-child(3),
+.mems-raw-data .mems-table td:nth-child(3) {
+  width: 100px;
+  min-width: 100px;
+  font-weight: 600;
+}
+
+.mems-raw-data .mems-table th:nth-child(4),
+.mems-raw-data .mems-table td:nth-child(4) {
+  width: 60px;
+  min-width: 60px;
+}
+
+.mems-raw-data .mems-table th:nth-child(5),
+.mems-raw-data .mems-table td:nth-child(5) {
+  width: 70px;
+  min-width: 70px;
+}
+
+.mems-raw-data .mems-table th:nth-child(6),
+.mems-raw-data .mems-table td:nth-child(6) {
+  width: 60px;
+  min-width: 60px;
+}
+
+/* Column 7 - LOT QTY (NEW) */
+.mems-raw-data .mems-table th:nth-child(7),
+.mems-raw-data .mems-table td:nth-child(7) {
+  width: 90px;
+  min-width: 90px;
+  font-weight: 600;
+  text-align: right;
+  padding-right: 12px;
+}
+
+/* Column 8 - MC NO (wider for multiple equipment) */
+.mems-raw-data .mems-table th:nth-child(8),
+.mems-raw-data .mems-table td:nth-child(8) {
+  width: 150px;
+  min-width: 150px;
+  font-weight: 600;
+}
+
+/* Column 9 - WORKTYPE */
+.mems-raw-data .mems-table th:nth-child(9),
+.mems-raw-data .mems-table td:nth-child(9) {
+  width: 100px;
+  min-width: 100px;
+}
+
+/* Column 10 - LIPAS */
+.mems-raw-data .mems-table th:nth-child(10),
+.mems-raw-data .mems-table td:nth-child(10) {
+  width: 60px;
+  min-width: 60px;
+}
+
+/* Column 11 - EST. ENDTIME */
+.mems-raw-data .mems-table th:nth-child(11),
+.mems-raw-data .mems-table td:nth-child(11) {
+  width: 140px;
+  min-width: 140px;
+  font-weight: 600;
+}
+
+/* Column 12 - ELAPSED TIME */
+.mems-raw-data .mems-table th:nth-child(12),
+.mems-raw-data .mems-table td:nth-child(12) {
+  width: 100px;
+  min-width: 100px;
+  font-weight: 700;
+}
+
+/* Column 13 - ACTION */
+.mems-raw-data .mems-table th:nth-child(13),
+.mems-raw-data .mems-table td:nth-child(13) {
+  width: 200px;
+  min-width: 200px;
+}
+
+/* Alternating row colors with enhanced contrast */
+.mems-raw-data .mems-table tbody tr {
+  transition: all 0.2s ease;
+}
+
+.mems-raw-data .mems-table tbody tr:nth-child(even) {
+  background: rgba(100, 149, 237, 0.05);
+}
+
+.mems-raw-data .mems-table tbody tr:nth-child(odd) {
+  background: rgba(255, 255, 255, 0.7);
+}
+
+/* Enhanced hover effect with shadow */
+.mems-raw-data .mems-table tbody tr:hover {
+  background: linear-gradient(90deg, rgba(100, 149, 237, 0.15) 0%, rgba(135, 206, 250, 0.12) 100%);
+  transform: translateX(2px);
+  box-shadow: -3px 0 0 0 var(--mems-accent-primary), 0 2px 8px rgba(100, 149, 237, 0.25);
+  cursor: pointer;
+}
+
+.mems-raw-data .mems-table tbody tr:hover td {
+  color: var(--mems-text-primary);
+}
+
+/* Dark mode adjustments */
+.dark .mems-raw-data .mems-table th {
+  background: linear-gradient(135deg, rgba(100, 149, 237, 0.22) 0%, rgba(135, 206, 250, 0.22) 100%);
+  color: hsl(220 70% 70%);
+  border-bottom: 2px solid rgba(100, 149, 237, 0.5);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+}
+
+.dark .mems-raw-data .mems-table th::after {
+  background: rgba(100, 149, 237, 0.3);
+}
+
+.dark .mems-raw-data .mems-table td {
+  border-bottom: 1px solid rgba(100, 149, 237, 0.15);
+  color: var(--mems-text-secondary);
+}
+
+.dark .mems-raw-data .mems-table tbody tr:nth-child(even) {
+  background: rgba(100, 149, 237, 0.1);
+}
+
+.dark .mems-raw-data .mems-table tbody tr:nth-child(odd) {
+  background: rgba(0, 0, 0, 0.3);
+}
+
+.dark .mems-raw-data .mems-table tbody tr:hover {
+  background: linear-gradient(90deg, rgba(100, 149, 237, 0.25) 0%, rgba(135, 206, 250, 0.2) 100%);
+  box-shadow: -3px 0 0 0 var(--mems-accent-primary), 0 2px 8px rgba(100, 149, 237, 0.4);
+}
+
+.dark .mems-raw-data .mems-table tbody tr:hover td {
+  color: var(--mems-text-primary);
+}
+
+/* Highlight MC NO column */
+.dark .mems-raw-data .mems-table tbody td:nth-child(2) {
+  color: hsl(220 70% 70%);
+}
+
+/* Highlight waiting/elapsed time column (10th column - second to last before ACTION) */
+.mems-raw-data .mems-table tbody td:nth-child(10) {
+  color: hsl(25 95% 53%);
+  font-weight: 600;
+}
+
+.dark .mems-raw-data .mems-table tbody td:nth-child(10) {
+  color: hsl(25 95% 60%);
+  font-weight: 600;
+}
+
+/* Highlight waiting/elapsed time header */
+.mems-raw-data .mems-table thead th:nth-child(10) {
+  color: hsl(25 95% 50%);
+}
+
+.dark .mems-raw-data .mems-table thead th:nth-child(10) {
+  color: hsl(25 95% 60%);
+}
+
+/* Empty state styling */
+.mems-raw-data .mems-table tbody tr td[colspan] {
+  text-align: center;
+  padding: 30px 20px;
+  color: var(--mems-text-tertiary);
+  font-style: italic;
+  font-size: 0.85rem;
+  background: rgba(100, 149, 237, 0.03);
+}
+
+.dark .mems-raw-data .mems-table tbody tr td[colspan] {
+  background: rgba(100, 149, 237, 0.08);
+}
+
+/* Responsive adjustments for smaller screens */
+@media (max-width: 1600px) {
+  .mems-raw-data .mems-table {
+    font-size: 0.68rem;
+  }
+  
+  .mems-raw-data .mems-table th {
+    font-size: 0.65rem;
+    padding: 6px 8px;
+  }
+  
+  .mems-raw-data .mems-table td {
+    padding: 5px 8px;
+  }
+}
+
+/* Sortable Table Headers */
+.sortable-header {
+  cursor: pointer;
+  user-select: none;
+  transition: background-color 0.2s ease, color 0.2s ease;
+  position: relative;
+  padding-right: 24px !important;
+}
+
+.sortable-header:hover {
+  background-color: var(--mems-accent-primary-subtle);
+  color: var(--mems-accent-primary);
+}
+
+.sort-indicator {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 12px;
+  opacity: 0.6;
+  transition: opacity 0.2s ease;
+}
+
+.sortable-header:hover .sort-indicator {
+  opacity: 1;
+}
+
+.sort-indicator span {
+  display: inline-block;
+  line-height: 1;
+}
+
+/* Submit Action Button */
+.mems-action-submit {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+  border: 1px solid #059669;
+}
+
+.mems-action-submit:hover {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+}
+
+.mems-action-submit .action-icon {
+  font-size: 14px;
+}
+
+/* Delete Action Button */
+.mems-action-delete {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  color: white;
+  border: 1px solid #dc2626;
+}
+
+.mems-action-delete:hover {
+  background: linear-gradient(135deg, #dc2626 0%, #b91c1c 100%);
+  transform: translateY(-1px);
+  box-shadow: 0 4px 8px rgba(239, 68, 68, 0.3);
+}
+
+.mems-action-delete .action-icon {
+  font-size: 14px;
+}
+
+/* Clickable Status Badges */
+.clickable-badge {
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.clickable-badge:hover {
+  transform: scale(1.05);
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
+  filter: brightness(1.1);
+}
+
+.clickable-badge:active {
+  transform: scale(0.98);
+}
+
+.clickable-badge::after {
+  content: '🔍';
+  position: absolute;
+  right: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-size: 10px;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.clickable-badge:hover::after {
+  opacity: 0.7;
+}
+
+
+/* Elapsed Time Color Coding - Font Only */
+.elapsed-time-a {
+  color: #28a745 !important; /* Green */
+  font-weight: 700 !important;
+}
+
+.elapsed-time-b {
+  color: #ff8c00 !important; /* Dark orange */
+  font-weight: 700 !important;
+}
+
+.elapsed-time-c {
+  color: #ff6347 !important; /* Tomato red */
+  font-weight: 700 !important;
+}
+
+.elapsed-time-d {
+  color: #dc3545 !important; /* Bright red */
+  font-weight: 700 !important;
+}
+
+/* Dark mode adjustments for elapsed time colors */
+.dark .elapsed-time-a {
+  color: #90ee90 !important; /* Light green */
+}
+
+.dark .elapsed-time-b {
+  color: #ffa500 !important; /* Orange */
+}
+
+.dark .elapsed-time-c {
+  color: #ff7f50 !important; /* Coral */
+}
+
+.dark .elapsed-time-d {
+  color: #ff4500 !important; /* Orange red */
+}

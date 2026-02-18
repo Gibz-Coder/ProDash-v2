@@ -13,8 +13,30 @@ class ProcessWipController extends Controller
     {
         $query = $this->applyFilters(UpdateWip::query(), $request);
 
-        // Get paginated data
-        $wips = $query->orderBy('created_at', 'desc')->paginate(15);
+        // Apply sorting
+        $sortField = $request->input('sort_field');
+        $sortDirection = $request->input('sort_direction', 'asc');
+        
+        $allowedSortFields = [
+            'lot_id', 'model_15', 'lot_qty', 'stagnant_tat', 
+            'work_type', 'wip_status', 'auto_yn', 'lipas_yn', 
+            'eqp_type', 'qty_class', 'lot_location'
+        ];
+        
+        if ($sortField && in_array($sortField, $allowedSortFields)) {
+            // Cast numeric fields to ensure proper sorting
+            if (in_array($sortField, ['lot_qty', 'stagnant_tat'])) {
+                $query->orderByRaw("CAST({$sortField} AS DECIMAL(15,2)) {$sortDirection}");
+            } else {
+                $query->orderBy($sortField, $sortDirection);
+            }
+        } else {
+            // Default sorting
+            $query->orderBy('created_at', 'desc');
+        }
+
+        // Get paginated data and append query parameters to pagination links
+        $wips = $query->paginate(15)->appends($request->except('page'));
 
         // Get summary statistics
         $stats = $this->getStatistics($request);
@@ -26,7 +48,7 @@ class ProcessWipController extends Controller
             'wips' => $wips,
             'stats' => $stats,
             'filterOptions' => $filterOptions,
-            'filters' => $request->only(['wip_status', 'lot_status', 'eqp_type', 'hold', 'work_type', 'search', 'lipas', 'automotive']),
+            'filters' => $request->only(['wip_status', 'lot_status', 'eqp_type', 'hold', 'work_type', 'search', 'lipas', 'automotive', 'size', 'sort_field', 'sort_direction']),
         ]);
     }
 
@@ -34,7 +56,26 @@ class ProcessWipController extends Controller
     {
         $query = $this->applyFilters(UpdateWip::query(), $request);
         
-        $wips = $query->orderBy('created_at', 'desc')->get();
+        // Apply sorting to export as well
+        $sortField = $request->input('sort_field');
+        $sortDirection = $request->input('sort_direction', 'asc');
+        
+        $allowedSortFields = [
+            'lot_id', 'model_15', 'lot_qty', 'stagnant_tat', 
+            'work_type', 'wip_status', 'auto_yn', 'lipas_yn', 
+            'eqp_type', 'qty_class', 'lot_location'
+        ];
+        
+        if ($sortField && in_array($sortField, $allowedSortFields)) {
+            // Cast numeric fields to ensure proper sorting
+            if (in_array($sortField, ['lot_qty', 'stagnant_tat'])) {
+                $wips = $query->orderByRaw("CAST({$sortField} AS DECIMAL(15,2)) {$sortDirection}")->get();
+            } else {
+                $wips = $query->orderBy($sortField, $sortDirection)->get();
+            }
+        } else {
+            $wips = $query->orderBy('created_at', 'desc')->get();
+        }
 
         $filename = 'process_wip_' . date('Y-m-d_His') . '.csv';
         
@@ -87,6 +128,48 @@ class ProcessWipController extends Controller
         return response()->stream($callback, 200, $headers);
     }
 
+    /**
+     * Get available lots for assignment
+     * Filters: wip_status=NEW, lot_status=STANDBY, optional model and work_type
+     */
+    public function getAvailableLots(Request $request)
+    {
+        $query = UpdateWip::query();
+
+        // Apply required filters
+        $query->where('wip_status', 'NEW')
+              ->where('lot_location', 'STANDBY');
+
+        // Apply optional filters
+        if ($request->has('model') && $request->input('model')) {
+            $query->where('model_15', $request->input('model'));
+        }
+
+        if ($request->has('work_type') && $request->input('work_type')) {
+            $query->where('work_type', $request->input('work_type'));
+        }
+
+        // Get the lots
+        $lots = $query->select([
+            'lot_id as lot_no',
+            'model_15 as lot_model',
+            'lot_qty',
+            'lot_size',
+            'wip_status',
+            'lot_location as lot_status',
+            'work_type'
+        ])
+        ->orderBy('created_at', 'desc')
+        ->limit(50)
+        ->get();
+
+        return response()->json([
+            'data' => $lots,
+            'count' => $lots->count()
+        ]);
+    }
+
+
     private function applyFilters($query, Request $request)
     {
         // Apply filters
@@ -116,6 +199,23 @@ class ProcessWipController extends Controller
 
         if ($request->filled('automotive') && $request->automotive !== 'ALL') {
             $query->where('auto_yn', $request->automotive);
+        }
+
+        // Size filter - map display size to lot_size
+        if ($request->filled('size') && $request->size !== 'ALL') {
+            $sizeMap = [
+                '0603' => '03',
+                '1005' => '05',
+                '1608' => '10',
+                '2012' => '21',
+                '3216' => '31',
+                '3225' => '32',
+            ];
+            
+            $lotSize = $sizeMap[$request->size] ?? null;
+            if ($lotSize) {
+                $query->where('lot_size', $lotSize);
+            }
         }
 
         if ($request->filled('search')) {

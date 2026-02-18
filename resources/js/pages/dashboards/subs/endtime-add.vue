@@ -893,8 +893,8 @@ const handleExport = async () => {
                                 <Input 
                                     v-model="currentFilters.search"
                                     @keyup.enter="handleFilterChange"
-                                    placeholder="Search Lot ID (searches all data)..."
-                                    class="h-6 w-64 border-0 bg-transparent text-xs font-semibold text-foreground focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
+                                    placeholder="Search Lot ID, Model, Size, Line, Area, Type..."
+                                    class="h-6 w-80 border-0 bg-transparent text-xs font-semibold text-foreground focus-visible:ring-0 focus-visible:ring-offset-0 px-0"
                                 />
                                 <Button 
                                     v-if="isSearchActive"

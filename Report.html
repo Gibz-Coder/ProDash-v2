@@ -46,6 +46,17 @@
             font-weight: 300;
         }
         
+        .metric-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+        
+        .metric-label {
+            font-size: 13px;
+            opacity: 0.9;
+        }
+        
         .email-body {
             padding: 40px 30px;
         }
@@ -349,13 +360,13 @@
         <!-- Email Header -->
         <div class="email-header">
             <h1>VICIS PRODASH V2</h1>
-            <p class="subtitle">Development Progress Report | December 6, 2025</p>
+            <p class="subtitle">Development Progress Report | February 19, 2026</p>
         </div>
         
         <!-- Email Body -->
         <div class="email-body">
             <div class="greeting">
-                <p>Dear Stakeholders,</p>
+                <p>Dear Pro's,</p>
                 <p style="margin-top: 10px;">I am pleased to present the comprehensive development progress report for <strong>VICIS PRODASH V2</strong>, our advanced production dashboard web application designed for manufacturing process management.</p>
             </div>
             
@@ -656,7 +667,7 @@
                         <div class="metric-label">Authentication</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-value">60%</div>
+                        <div class="metric-value">75%</div>
                         <div class="metric-label">Main Dashboards</div>
                     </div>
                     <div class="metric-card">
@@ -664,19 +675,19 @@
                         <div class="metric-label">Admin Features</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-value">84+</div>
+                        <div class="metric-value">120+</div>
                         <div class="metric-label">API Endpoints</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-value">20+</div>
+                        <div class="metric-value">21</div>
                         <div class="metric-label">UI Components</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-value">9</div>
+                        <div class="metric-value">6</div>
                         <div class="metric-label">Database Models</div>
                     </div>
                     <div class="metric-card">
-                        <div class="metric-value">12</div>
+                        <div class="metric-value">14</div>
                         <div class="metric-label">Completed Features</div>
                     </div>
                 </div>
@@ -721,7 +732,7 @@
                             <span>Type-safe JavaScript</span>
                         </div>
                         <div class="tech-item">
-                            <strong>Tailwind CSS 4.1</strong>
+                            <strong>Tailwind CSS 4.1.11</strong>
                             <span>Utility-first CSS</span>
                         </div>
                         <div class="tech-item">
@@ -729,12 +740,20 @@
                             <span>Build tool</span>
                         </div>
                         <div class="tech-item">
-                            <strong>ApexCharts</strong>
+                            <strong>ApexCharts 5.3.6</strong>
                             <span>Interactive charts</span>
                         </div>
                         <div class="tech-item">
-                            <strong>ECharts 6.0</strong>
+                            <strong>ECharts 6.0.0</strong>
                             <span>Advanced visualizations</span>
+                        </div>
+                        <div class="tech-item">
+                            <strong>Reka UI 2.4.1</strong>
+                            <span>UI primitives</span>
+                        </div>
+                        <div class="tech-item">
+                            <strong>Lucide Vue Next</strong>
+                            <span>Icon library</span>
                         </div>
                     </div>
                 </div>
@@ -742,7 +761,7 @@
             
             <!-- Completed Features -->
             <div class="section">
-                <h2 class="section-title">✅ Completed Features (12 Major Components)</h2>
+                <h2 class="section-title">✅ Completed Features (14 Major Components)</h2>
                 <ul class="feature-list">
                     <li>
                         <div>
@@ -835,12 +854,34 @@
                     <li>
                         <div>
                             <span class="checkmark">✓</span>
-                            <span class="feature-name">UI Component Library (20+ components)</span>
+                            <span class="feature-name">UI Component Library (21 components)</span>
                         </div>
                         <span class="status-badge status-complete">Complete</span>
                     </li>
                     <li style="padding-left: 40px; font-size: 13px; color: #666; border: none;">
-                        Fully implemented component library based on Reka UI primitives: Alert, Avatar, Badge, Breadcrumb, Button, Card, Checkbox, Collapsible, Dialog, Dropdown Menu, Input, Label, Navigation Menu, Pin Input, Separator, Sheet, Sidebar, Skeleton, Spinner, Tooltip
+                        Fully implemented component library based on Reka UI primitives: Alert, Avatar, Badge, Breadcrumb, Button, Card, Checkbox, Collapsible, Dialog, Dropdown Menu, Input, Label, Navigation Menu, Pin Input, Separator, Sheet, Sidebar, Skeleton, Spinner, Textarea, Tooltip
+                    </li>
+                    
+                    <li>
+                        <div>
+                            <span class="checkmark">✓</span>
+                            <span class="feature-name">MEMS Dashboard</span>
+                        </div>
+                        <span class="status-badge status-complete">Complete</span>
+                    </li>
+                    <li style="padding-left: 40px; font-size: 13px; color: #666; border: none;">
+                        Machine Equipment Management System with real-time utilization tracking, equipment status monitoring, automated snapshot capture (30-minute intervals), trend analysis, line utilization gauges, machine type status breakdown, endtime remaining by class, available lot assignment, and equipment details with remarks management
+                    </li>
+                    
+                    <li>
+                        <div>
+                            <span class="checkmark">✓</span>
+                            <span class="feature-name">Equipment Snapshot System</span>
+                        </div>
+                        <span class="status-badge status-complete">Complete</span>
+                    </li>
+                    <li style="padding-left: 40px; font-size: 13px; color: #666; border: none;">
+                        Automated equipment utilization snapshot capture system with scheduled tasks (every 30 minutes), historical trend data storage, aggregated status counts (Operational, Breakdown, Full Stop, Plan Stop, Idle, Advance), lot assignment tracking (Run, Wait, Not Use), and cleanup mechanism for old snapshots (90-day retention)
                     </li>
                     
                     <li>
@@ -892,6 +933,7 @@
                             <li>Floating gradient elements</li>
                             <li>Hover effects with glow animations</li>
                             <li>Responsive mobile layout</li>
+                            <li>Scroll reveal animations</li>
                         </ul>
                     </div>
                     
@@ -906,9 +948,10 @@
                             <li>Per-line and per-size summary tables</li>
                             <li>Equipment list modal</li>
                             <li>Remaining lots modal</li>
-                            <li>Lot submission form</li>
+                            <li>Lot submission form with WIP update</li>
                             <li>Auto-refresh capability</li>
                             <li>Excel export functionality</li>
+                            <li>Lot entry and management (CRUD)</li>
                         </ul>
                     </div>
                     
@@ -922,6 +965,7 @@
                             <li>Comprehensive lot list table</li>
                             <li>Search and filter functionality</li>
                             <li>Status indicators (Standby, Ongoing, Endline)</li>
+                            <li>Available lots API for assignment</li>
                             <li>Excel export capability</li>
                         </ul>
                     </div>
@@ -939,6 +983,58 @@
                             <li>Ongoing lot tracking</li>
                             <li>Reference data management</li>
                             <li>Excel export functionality</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="dashboard-card">
+                        <h4>🏭 MEMS Dashboard</h4>
+                        <p><strong>Features:</strong></p>
+                        <ul style="font-size: 13px; margin-top: 8px; padding-left: 20px;">
+                            <li>Real-time machine utilization monitoring</li>
+                            <li>Equipment status breakdown (Operational, Breakdown, etc.)</li>
+                            <li>Automated snapshot capture (30-min intervals)</li>
+                            <li>Historical trend analysis with ECharts</li>
+                            <li>Line utilization gauge charts</li>
+                            <li>Machine type status visualization</li>
+                            <li>Endtime remaining by class</li>
+                            <li>Available lot assignment interface</li>
+                            <li>Equipment details with remarks</li>
+                            <li>Manual snapshot capture</li>
+                            <li>Snapshot statistics and cleanup</li>
+                            <li>Filter options (date range, line, machine type)</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="dashboard-card">
+                        <h4>🏁 Endline Management</h4>
+                        <p><strong>Features:</strong></p>
+                        <ul style="font-size: 13px; margin-top: 8px; padding-left: 20px;">
+                            <li>Visual endline WIP management</li>
+                            <li>Bottleneck identification</li>
+                            <li>Workflow optimization tools</li>
+                            <li>Real-time status updates</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="dashboard-card">
+                        <h4>🚨 Machine Escalation</h4>
+                        <p><strong>Features:</strong></p>
+                        <ul style="font-size: 13px; margin-top: 8px; padding-left: 20px;">
+                            <li>Escalation request submission</li>
+                            <li>Status tracking system</li>
+                            <li>Response management</li>
+                            <li>Resolution history</li>
+                        </ul>
+                    </div>
+                    
+                    <div class="dashboard-card">
+                        <h4>📊 Endtime Ranking</h4>
+                        <p><strong>Features:</strong></p>
+                        <ul style="font-size: 13px; margin-top: 8px; padding-left: 20px;">
+                            <li>Performance ranking by equipment</li>
+                            <li>Completion rate analysis</li>
+                            <li>Comparative metrics</li>
+                            <li>Historical performance tracking</li>
                         </ul>
                     </div>
                     
@@ -969,14 +1065,14 @@
             
             <!-- In Progress Features -->
             <div class="section">
-                <h2 class="section-title">🚧 In Progress / Planned Features (4 Dashboards)</h2>
+                <h2 class="section-title">🚧 In Progress / Planned Features (2 Dashboards)</h2>
                 <ul class="feature-list">
                     <li>
                         <div>
                             <span class="progress-icon">⚙</span>
                             <span class="feature-name">Lot Request Dashboard (dashboard-1)</span>
                         </div>
-                        <span class="status-badge status-progress">In Progress</span>
+                        <span class="status-badge status-progress">Planned</span>
                     </li>
                     <li style="padding-left: 40px; font-size: 13px; color: #666; border: none;">
                         FIFO, LIPAS and urgent lot management system. Placeholder implemented with route and page structure ready for feature integration. Will include lot prioritization, request tracking, and approval workflows
@@ -985,34 +1081,12 @@
                     <li>
                         <div>
                             <span class="progress-icon">⚙</span>
-                            <span class="feature-name">Process KPI Dashboard (dashboard-5)</span>
+                            <span class="feature-name">Process KPI Dashboard (dashboard-3)</span>
                         </div>
-                        <span class="status-badge status-progress">In Progress</span>
+                        <span class="status-badge status-progress">Planned</span>
                     </li>
                     <li style="padding-left: 40px; font-size: 13px; color: #666; border: none;">
                         Real-time process KPI monitoring and performance tracking. Placeholder implemented. Will feature live metrics, trend analysis, performance indicators, and automated alerts for KPI thresholds
-                    </li>
-                    
-                    <li>
-                        <div>
-                            <span class="progress-icon">⚙</span>
-                            <span class="feature-name">Endline Management Dashboard</span>
-                        </div>
-                        <span class="status-badge status-progress">In Progress</span>
-                    </li>
-                    <li style="padding-left: 40px; font-size: 13px; color: #666; border: none;">
-                        Visual endline WIP management system. Placeholder implemented. Will provide endline status visualization, bottleneck identification, and workflow optimization tools
-                    </li>
-                    
-                    <li>
-                        <div>
-                            <span class="progress-icon">⚙</span>
-                            <span class="feature-name">Machine Escalation Dashboard</span>
-                        </div>
-                        <span class="status-badge status-progress">In Progress</span>
-                    </li>
-                    <li style="padding-left: 40px; font-size: 13px; color: #666; border: none;">
-                        Machine escalation request and response tracking system. Placeholder implemented. Will include escalation submission, status tracking, response management, and resolution history
                     </li>
                 </ul>
             </div>
@@ -1036,9 +1110,9 @@
                     </div>
                     
                     <div style="margin-bottom: 20px;">
-                        <strong>Main Dashboards (3/5 complete)</strong>
+                        <strong>Main Dashboards (6/8 complete)</strong>
                         <div class="progress-bar-container">
-                            <div class="progress-bar" style="width: 60%;">60%</div>
+                            <div class="progress-bar" style="width: 75%;">75%</div>
                         </div>
                     </div>
                     
@@ -1211,21 +1285,21 @@
                         <tbody>
                             <tr>
                                 <td><strong>Authentication</strong></td>
-                                <td>9 endpoints</td>
+                                <td>12 endpoints</td>
                                 <td><span class="status-badge status-complete">Complete</span></td>
-                                <td>Login, logout, register, password reset, email verification</td>
+                                <td>Login, logout, register, password reset, email verification, 2FA</td>
                             </tr>
                             <tr>
                                 <td><strong>Dashboard Routes</strong></td>
-                                <td>12 endpoints</td>
+                                <td>15 endpoints</td>
                                 <td><span class="status-badge status-complete">Complete</span></td>
-                                <td>Home, endtime, process-wip, mc-allocation, data-entry, ranking, etc.</td>
+                                <td>Home, endtime, process-wip, mc-allocation, data-entry, mems, endline, escalation, ranking</td>
                             </tr>
                             <tr>
                                 <td><strong>Endtime API</strong></td>
-                                <td>8 endpoints</td>
+                                <td>12 endpoints</td>
                                 <td><span class="status-badge status-complete">Complete</span></td>
-                                <td>Equipment list, remaining lots, export, CRUD operations, submit</td>
+                                <td>Equipment list, remaining lots, export, CRUD operations, submit, lot lookup, employee search</td>
                             </tr>
                             <tr>
                                 <td><strong>Machine Allocation API</strong></td>
@@ -1235,9 +1309,21 @@
                             </tr>
                             <tr>
                                 <td><strong>Process WIP API</strong></td>
-                                <td>2 endpoints</td>
+                                <td>3 endpoints</td>
                                 <td><span class="status-badge status-complete">Complete</span></td>
-                                <td>Get WIP data, export to Excel</td>
+                                <td>Get WIP data, export to Excel, available lots</td>
+                            </tr>
+                            <tr>
+                                <td><strong>MEMS Dashboard API</strong></td>
+                                <td>18 endpoints</td>
+                                <td><span class="status-badge status-complete">Complete</span></td>
+                                <td>Utilization trends, latest data, equipment list, snapshot capture/clear/stats, filter options, line utilization, machine type status, endtime remaining, available lots, raw data, equipment details, remarks update</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Equipment Status API</strong></td>
+                                <td>6 endpoints</td>
+                                <td><span class="status-badge status-complete">Complete</span></td>
+                                <td>Machine utilization, line utilization, machine type status, raw equipment data, equipment details, remarks update</td>
                             </tr>
                             <tr>
                                 <td><strong>Lookup API</strong></td>
@@ -1253,15 +1339,21 @@
                             </tr>
                             <tr>
                                 <td><strong>Admin API</strong></td>
-                                <td>15 endpoints</td>
+                                <td>18 endpoints</td>
                                 <td><span class="status-badge status-complete">Complete</span></td>
-                                <td>User management, role management, system settings</td>
+                                <td>User management, role management, system settings, logs, backups</td>
                             </tr>
                             <tr>
                                 <td><strong>Settings API</strong></td>
                                 <td>9 endpoints</td>
                                 <td><span class="status-badge status-complete">Complete</span></td>
                                 <td>Profile, password, appearance, two-factor authentication</td>
+                            </tr>
+                            <tr>
+                                <td><strong>Health & Monitoring</strong></td>
+                                <td>2 endpoints</td>
+                                <td><span class="status-badge status-complete">Complete</span></td>
+                                <td>Keep-alive, scheduler health check</td>
                             </tr>
                             <tr>
                                 <td><strong>Test Routes</strong></td>
@@ -1271,7 +1363,7 @@
                             </tr>
                         </tbody>
                     </table>
-                    <p style="margin-top: 15px; font-weight: 600; color: #1a1f35;">Total: 84+ API endpoints implemented and functional</p>
+                    <p style="margin-top: 15px; font-weight: 600; color: #1a1f35;">Total: 120+ API endpoints implemented and functional</p>
                 </div>
             </div>
             
@@ -1290,8 +1382,8 @@
                         <tbody>
                             <tr>
                                 <td><strong>User</strong></td>
-                                <td>emp_no, emp_name, role, position, title_class, rank, hr_job_name, job_assigned, password, avatar</td>
-                                <td>Employee authentication and profile management</td>
+                                <td>emp_no, emp_name, role, position, title_class, rank, hr_job_name, job_assigned, password, avatar, two_factor_secret, two_factor_recovery_codes</td>
+                                <td>Employee authentication and profile management with 2FA support</td>
                             </tr>
                             <tr>
                                 <td><strong>Role</strong></td>
@@ -1301,17 +1393,22 @@
                             <tr>
                                 <td><strong>Endtime</strong></td>
                                 <td>lot_id, lot_qty, lot_size, lot_type, model_15, est_endtime, actual_endtime, work_type, eqp_line, status, eqp_1-10, ng_percent_1-10, start_time_1-10</td>
-                                <td>Production lot tracking and forecasting</td>
+                                <td>Production lot tracking and forecasting with multi-equipment support</td>
                             </tr>
                             <tr>
                                 <td><strong>Equipment</strong></td>
-                                <td>eqp_no, eqp_status, eqp_line, eqp_area, size, alloc_type, oee_capa, ongoing_lot</td>
-                                <td>Equipment capacity and allocation management</td>
+                                <td>eqp_no, eqp_status, eqp_line, eqp_area, size, alloc_type, oee_capa, ongoing_lot, remarks</td>
+                                <td>Equipment capacity and allocation management with remarks tracking</td>
                             </tr>
                             <tr>
                                 <td><strong>UpdateWip</strong></td>
                                 <td>lot_id, model_15, lot_size, lot_qty, stagnant_tat, qty_class, work_type, wip_status, lot_status, hold, auto_yn, lipas_yn</td>
                                 <td>Work-in-progress tracking and status management</td>
+                            </tr>
+                            <tr>
+                                <td><strong>EquipmentSnapshot</strong></td>
+                                <td>operational, breakdown, full_stop, plan_stop, idle, advance, run, wait, not_use, remarks, date, hour, snapshot_at</td>
+                                <td>Historical equipment utilization snapshots captured every 30 minutes</td>
                             </tr>
                             <tr>
                                 <td><strong>WipTrend</strong></td>
@@ -1336,6 +1433,7 @@
                         </tbody>
                     </table>
                     <p style="margin-top: 15px;"><strong>Additional Tables:</strong> cache, jobs, sessions, password_reset_tokens, personal_access_tokens</p>
+                    <p style="margin-top: 10px;"><strong>Total Database Tables:</strong> 15 (10 main models + 5 system tables)</p>
                 </div>
             </div>
             
@@ -1830,8 +1928,9 @@
             <!-- Signature -->
             <div class="signature">
                 <strong>Best Regards,</strong>
-                <p>VICIS PRODASH V2 Development Team</p>
-                <p>December 6, 2025</p>
+                <p>Gilbert H Hapita</p>
+                <p>VICIS PRODASH V2 Developer</p>
+                <p>February 19, 2026</p>
             </div>
         </div>
         

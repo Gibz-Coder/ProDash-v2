@@ -22,6 +22,7 @@ import {
     ref,
     watch,
 } from 'vue';
+import EndtimeWipupdateModal from '@/pages/dashboards/subs/endtime-wipupdate-modal.vue';
 
 echarts.use([
     TitleComponent,
@@ -85,17 +86,22 @@ const props = defineProps<{
         search?: string;
         automotive?: string;
         lipas?: string;
+        size?: string;
+        sort_field?: string;
+        sort_direction?: string;
     };
 }>();
 
 const isLoading = ref(false);
 const isDarkMode = ref(false);
-const selectedSize = ref('ALL');
-const sortField = ref<string | null>(null);
-const sortDirection = ref<'asc' | 'desc'>('asc');
+const sortField = ref<string | null>(props.filters.sort_field || null);
+const sortDirection = ref<'asc' | 'desc'>((props.filters.sort_direction as 'asc' | 'desc') || 'asc');
 const selectedBarFilter = ref<{ eqpType?: string; wipStatus?: string } | null>(
     null,
 );
+
+// Modal state for WIP Update
+const isWipUpdateModalOpen = ref(false);
 
 // Reactive filters
 const currentFilters = ref({
@@ -104,7 +110,10 @@ const currentFilters = ref({
     automotive: props.filters.automotive || 'ALL',
     hold: props.filters.hold || 'ALL',
     worktype: props.filters.work_type || 'ALL',
+    size: props.filters.size || 'ALL',
     search: props.filters.search || '',
+    sort_field: props.filters.sort_field || null,
+    sort_direction: props.filters.sort_direction || 'asc',
 });
 
 // ============================================================================
@@ -130,7 +139,13 @@ const handleFilterChange = () => {
             currentFilters.value.worktype !== 'ALL'
                 ? currentFilters.value.worktype
                 : null,
+        size:
+            currentFilters.value.size !== 'ALL'
+                ? currentFilters.value.size
+                : null,
         search: currentFilters.value.search,
+        sort_field: sortField.value,
+        sort_direction: sortDirection.value,
     };
 
     // Add chart filter parameters
@@ -160,13 +175,18 @@ const handleFilterChange = () => {
 };
 
 const handleReset = () => {
+    sortField.value = null;
+    sortDirection.value = 'asc';
     currentFilters.value = {
         last_update: props.stats.last_update,
         lipas: 'ALL',
         automotive: 'ALL',
         hold: 'ALL',
         worktype: 'ALL',
+        size: 'ALL',
         search: '',
+        sort_field: null,
+        sort_direction: 'asc',
     };
     handleFilterChange();
 };
@@ -178,6 +198,7 @@ const handleSort = (field: string) => {
         sortField.value = field;
         sortDirection.value = 'asc';
     }
+    handleFilterChange();
 };
 
 // Mapping from display names back to database values
@@ -212,37 +233,8 @@ const categoryToStatusMap: Record<string, string[]> = {
     ],
 };
 
-const sortedWips = computed(() => {
-    let data = props.wips.data;
-
-    if (!sortField.value) return data;
-
-    const sorted = [...data].sort((a: any, b: any) => {
-        let aVal = a[sortField.value!];
-        let bVal = b[sortField.value!];
-
-        // Handle numeric fields
-        if (
-            sortField.value === 'lot_qty' ||
-            sortField.value === 'stagnant_tat'
-        ) {
-            aVal = Number(aVal) || 0;
-            bVal = Number(bVal) || 0;
-        }
-
-        // Handle string fields
-        if (typeof aVal === 'string') {
-            aVal = aVal.toLowerCase();
-            bVal = bVal.toLowerCase();
-        }
-
-        if (aVal < bVal) return sortDirection.value === 'asc' ? -1 : 1;
-        if (aVal > bVal) return sortDirection.value === 'asc' ? 1 : -1;
-        return 0;
-    });
-
-    return sorted;
-});
+// Remove client-side sorting - now handled by backend
+const sortedWips = computed(() => props.wips.data);
 
 const clearBarFilter = () => {
     selectedBarFilter.value = null;
@@ -263,6 +255,9 @@ const exportUrl = computed(() => {
     }
     if (currentFilters.value.worktype !== 'ALL') {
         params.append('work_type', currentFilters.value.worktype);
+    }
+    if (currentFilters.value.size !== 'ALL') {
+        params.append('size', currentFilters.value.size);
     }
     if (currentFilters.value.search) {
         params.append('search', currentFilters.value.search);
@@ -480,9 +475,9 @@ const initCharts = () => {
 
         // Filter data by selected size
         let chartData = props.stats.donut_chart;
-        if (selectedSize.value !== 'ALL' && props.stats.donut_chart_by_size) {
+        if (currentFilters.value.size !== 'ALL' && props.stats.donut_chart_by_size) {
             chartData =
-                props.stats.donut_chart_by_size[selectedSize.value] ||
+                props.stats.donut_chart_by_size[currentFilters.value.size] ||
                 props.stats.donut_chart;
         }
 
@@ -603,8 +598,8 @@ watch(isDarkMode, () => {
     initCharts();
 });
 
-// Watch for size selection changes
-watch(selectedSize, () => {
+// Watch for size filter changes to update donut chart
+watch(() => currentFilters.value.size, () => {
     initCharts();
 });
 
@@ -775,6 +770,28 @@ const formatMpcs = (value: number): string => {
                         >
                             {{ type }}
                         </option>
+                    </select>
+                </div>
+
+                <!-- Size Filter -->
+                <div
+                    class="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 shadow-sm"
+                >
+                    <span class="text-xs font-medium text-muted-foreground"
+                        >SIZE:</span
+                    >
+                    <select
+                        v-model="currentFilters.size"
+                        @change="handleFilterChange"
+                        class="cursor-pointer border-0 bg-transparent pr-6 text-xs font-semibold text-foreground focus:ring-0 focus:outline-none [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-gray-800 [&>option]:dark:text-gray-100"
+                    >
+                        <option value="ALL">ALL</option>
+                        <option value="0603">0603</option>
+                        <option value="1005">1005</option>
+                        <option value="1608">1608</option>
+                        <option value="2012">2012</option>
+                        <option value="3216">3216</option>
+                        <option value="3225">3225</option>
                     </select>
                 </div>
 
@@ -1056,30 +1073,10 @@ const formatMpcs = (value: number): string => {
                                 class="rounded-lg bg-white shadow dark:bg-gray-800"
                             >
                                 <div
-                                    class="flex items-center justify-between border-b border-gray-200 p-4 dark:border-gray-700"
+                                    class="border-b border-gray-200 p-4 dark:border-gray-700"
                                 >
                                     <div class="font-semibold">
                                         WIP CATEGORY
-                                    </div>
-                                    <div
-                                        class="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 shadow-sm"
-                                    >
-                                        <span
-                                            class="text-xs font-medium text-muted-foreground"
-                                            >SIZE:</span
-                                        >
-                                        <select
-                                            v-model="selectedSize"
-                                            class="cursor-pointer border-0 bg-transparent pr-6 text-xs font-semibold text-foreground focus:ring-0 focus:outline-none [&>option]:bg-background [&>option]:text-foreground [&>option]:dark:bg-gray-800 [&>option]:dark:text-gray-100"
-                                        >
-                                            <option value="ALL">ALL</option>
-                                            <option value="0603">0603</option>
-                                            <option value="1005">1005</option>
-                                            <option value="1608">1608</option>
-                                            <option value="2012">2012</option>
-                                            <option value="3216">3216</option>
-                                            <option value="3225">3225</option>
-                                        </select>
                                     </div>
                                 </div>
                                 <div class="p-4">
@@ -1183,6 +1180,16 @@ const formatMpcs = (value: number): string => {
                                         @click="handleFilterChange"
                                     >
                                         Search
+                                    </button>
+                                </div>
+                                <div class="relative">
+                                    <button
+                                        class="inline-flex items-center gap-1 rounded bg-sky-500 px-3 py-1 text-sm text-white hover:bg-sky-600"
+                                        @click="isWipUpdateModalOpen = true"
+                                        title="Update WIP Data"
+                                    >
+                                        <span>🔄</span>
+                                        <span>Update WIP</span>
                                     </button>
                                 </div>
                                 <div class="relative">
@@ -1673,5 +1680,8 @@ const formatMpcs = (value: number): string => {
                 </div>
             </div>
         </div>
+
+        <!-- WIP Update Modal Component -->
+        <EndtimeWipupdateModal v-model:open="isWipUpdateModalOpen" />
     </AppLayout>
 </template>

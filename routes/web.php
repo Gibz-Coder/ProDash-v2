@@ -28,6 +28,10 @@ Route::get('process-wip/export', [App\Http\Controllers\ProcessWipController::cla
     ->middleware(['auth', 'verified'])
     ->name('process_wip.export');
 
+Route::get('api/process-wip/available-lots', [App\Http\Controllers\ProcessWipController::class, 'getAvailableLots'])
+    ->middleware(['auth', 'verified'])
+    ->name('process_wip.available_lots');
+
 Route::get('mc-allocation', [App\Http\Controllers\McAllocationController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('mc_allocation');
@@ -56,9 +60,9 @@ Route::get('endline', function () {
     return Inertia::render('dashboards/main/endline');
 })->middleware(['auth', 'verified'])->name('endline');
 
-Route::get('dashboard-5', function () {
-    return Inertia::render('dashboards/main/dashboard-5');
-})->middleware(['auth', 'verified'])->name('dashboard_5');
+Route::get('mems-dashboard', function () {
+    return Inertia::render('dashboards/main/mems-dashboard');
+})->middleware(['auth', 'verified'])->name('mems_dashboard');
 
 Route::get('escalation', function () {
     return Inertia::render('dashboards/main/escalation');
@@ -137,6 +141,131 @@ Route::get('api/employee/lookup', [App\Http\Controllers\EndtimeController::class
 Route::get('api/endtime/lookup-ongoing', [App\Http\Controllers\EndtimeController::class, 'lookupOngoingLot'])
     ->middleware(['auth', 'verified'])
     ->name('endtime.lookup_ongoing');
+
+// MEMS Dashboard - Machine Utilization Trend API
+Route::get('api/mems/utilization/trend', [App\Http\Controllers\MachineUtilizationTrendController::class, 'getTrendData'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.utilization.trend');
+
+Route::get('api/mems/utilization/latest', [App\Http\Controllers\MachineUtilizationTrendController::class, 'getLatestUtilization'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.utilization.latest');
+
+Route::get('api/mems/equipment/list', [App\Http\Controllers\MachineUtilizationTrendController::class, 'getEquipmentList'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.equipment.list');
+
+// Manual snapshot capture endpoint
+Route::post('api/mems/snapshot/capture', [App\Http\Controllers\MachineUtilizationTrendController::class, 'captureSnapshot'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.snapshot.capture');
+
+// Clear snapshots endpoint
+Route::delete('api/mems/snapshot/clear', [App\Http\Controllers\MachineUtilizationTrendController::class, 'clearSnapshots'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.snapshot.clear');
+
+// Get snapshot statistics
+Route::get('api/mems/snapshot/stats', [App\Http\Controllers\MachineUtilizationTrendController::class, 'getSnapshotStats'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.snapshot.stats');
+
+// Get filter options
+Route::get('api/mems/filters/options', [App\Http\Controllers\MachineUtilizationTrendController::class, 'getFilterOptions'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.filters.options');
+
+// Real-time Equipment Status API (direct from equipment table)
+Route::get('api/equipment/status/utilization', [App\Http\Controllers\EquipmentStatusController::class, 'getMachineUtilizationStatus'])
+    ->middleware(['auth', 'verified'])
+    ->name('equipment.status.utilization');
+
+Route::get('api/equipment/status/line', [App\Http\Controllers\EquipmentStatusController::class, 'getLineUtilization'])
+    ->middleware(['auth', 'verified'])
+    ->name('equipment.status.line');
+
+Route::get('api/equipment/status/machine-type', [App\Http\Controllers\EquipmentStatusController::class, 'getMachineTypeStatus'])
+    ->middleware(['auth', 'verified'])
+    ->name('equipment.status.machine-type');
+
+Route::get('api/equipment/status/raw', [App\Http\Controllers\EquipmentStatusController::class, 'getRawEquipmentData'])
+    ->middleware(['auth', 'verified'])
+    ->name('equipment.status.raw');
+
+Route::get('api/equipment/raw-machine', [App\Http\Controllers\EquipmentStatusController::class, 'getRawMachineData'])
+    ->middleware(['auth', 'verified'])
+    ->name('equipment.raw.machine');
+
+Route::get('api/equipment/details/{equipmentNo}', [App\Http\Controllers\EquipmentStatusController::class, 'getEquipmentDetails'])
+    ->middleware(['auth', 'verified'])
+    ->name('equipment.details');
+
+Route::put('api/equipment/{equipmentNo}/remarks', [App\Http\Controllers\EquipmentStatusController::class, 'updateRemarks'])
+    ->middleware(['auth', 'verified'])
+    ->name('equipment.remarks.update');
+
+// Get line utilization for gauge
+Route::get('api/mems/utilization/line', [App\Http\Controllers\MachineUtilizationTrendController::class, 'getLineUtilization'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.utilization.line');
+
+// Get machine type status
+Route::get('api/mems/utilization/machine-type', [App\Http\Controllers\MachineUtilizationTrendController::class, 'getMachineTypeStatus'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.utilization.machine-type');
+
+// Get endtime remaining by class (real-time from endtime table)
+Route::get('api/mems/endtime/remaining', [App\Http\Controllers\MemsDashboardController::class, 'getEndtimeRemaining'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.endtime.remaining');
+
+Route::get('api/mems/endtime/raw-lots', [App\Http\Controllers\MemsDashboardController::class, 'getRawLotsData'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.endtime.raw-lots');
+
+// Get available lots for assignment (from updatewip table)
+Route::get('api/mems/available-lots', [App\Http\Controllers\MemsDashboardController::class, 'getAvailableLotsForAssignment'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.available-lots');
+
+// Get filter options for lot assignment
+Route::get('api/mems/filter-options', [App\Http\Controllers\MemsDashboardController::class, 'getFilterOptions'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.filter-options');
+
+// Get endtime per cutoff
+Route::get('api/mems/endtime/per-cutoff', [App\Http\Controllers\MachineUtilizationTrendController::class, 'getEndtimePerCutoff'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.endtime.per-cutoff');
+
+// Health check endpoint for scheduler monitoring
+Route::get('api/health/scheduler', function () {
+    $lastSnapshot = App\Models\EquipmentSnapshot::latest('snapshot_at')->first();
+    
+    if (!$lastSnapshot) {
+        return response()->json([
+            'status' => 'error',
+            'message' => 'No snapshots found. Scheduler may not be running.',
+        ], 500);
+    }
+    
+    $minutesAgo = now()->diffInMinutes($lastSnapshot->snapshot_at);
+    
+    if ($minutesAgo > 35) { // 30 min interval + 5 min grace period
+        return response()->json([
+            'status' => 'warning',
+            'message' => "Last snapshot was {$minutesAgo} minutes ago. Scheduler may be delayed.",
+            'last_snapshot' => $lastSnapshot->snapshot_at->toIso8601String(),
+        ], 200);
+    }
+    
+    return response()->json([
+        'status' => 'ok',
+        'message' => 'Scheduler is running normally',
+        'last_snapshot' => $lastSnapshot->snapshot_at->toIso8601String(),
+        'minutes_ago' => $minutesAgo,
+    ]);
+})->name('health.scheduler');
 
 Route::post('endtime/{id}/submit', [App\Http\Controllers\EndtimeController::class, 'submitLot'])
     ->middleware(['auth', 'verified', 'permission:Endtime Manage'])

@@ -381,7 +381,7 @@ class EndtimeController extends Controller
         if (!$ongoingLot) {
             return response()->json([
                 'success' => false,
-                'message' => 'Hindi naka ENDTIME !! 😤'
+                'message' => 'Hindi naka ENDTIME !! ≡ƒÿñ'
             ], 404);
         }
 

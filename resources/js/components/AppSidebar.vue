@@ -10,7 +10,7 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard, lot_request, dashboard_2, dashboard_3, dashboard_5, dashboard_7, data_entry, endline, endtime, escalation, process_wip, mc_allocation } from '@/routes';
+import { dashboard, lot_request, dashboard_2, dashboard_3, dashboard_5, dashboard_7, data_entry, endline, endtime, escalation, process_wip, mc_allocation, mems_dashboard } from '@/routes';
 import admin from '@/routes/admin';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
@@ -33,6 +33,11 @@ const allNavItems: NavItem[] = [
         title: 'ENDTIME',
         href: endtime(),
         icon: '⌛',
+    },
+    {
+        title: 'MEMS-DB',
+        href: mems_dashboard(),
+        icon: '📊',
     },
     {
         title: 'LOT REQUEST',
@@ -58,11 +63,6 @@ const allNavItems: NavItem[] = [
         title: 'ESCALATION',
         href: escalation(),
         icon: '🛠️',
-    },
-    {
-        title: 'PROCESS KPI',
-        href: dashboard_5(),
-        icon: '📊',
     },
     {
         title: 'LIPAS',
