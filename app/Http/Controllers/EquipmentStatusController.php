@@ -232,6 +232,101 @@ class EquipmentStatusController extends Controller
     }
 
     /**
+     * Get real-time status per machine size
+     */
+    public function getMachineSizeStatus(Request $request): JsonResponse
+    {
+        $mcStatus = $request->input('mcStatus', null);
+        $mcWorktype = $request->input('mcWorktype', null);
+        
+        // Define fixed sizes in order (database values)
+        $fixedSizes = ['03', '05', '10', '21', '31', '32'];
+        
+        $query = Equipment::query();
+
+        // Apply filters
+        if ($mcStatus && $mcStatus !== 'ALL') {
+            $query->where('eqp_status', $mcStatus);
+        }
+
+        if ($mcWorktype && $mcWorktype !== 'ALL') {
+            $query->where('alloc_type', $mcWorktype);
+        }
+
+        $equipment = $query->get();
+        
+        // Group by size
+        $groupedBySize = $equipment->groupBy('size');
+        
+        $result = [];
+        
+        // Initialize all fixed sizes with zero values
+        foreach ($fixedSizes as $size) {
+            $result[$size] = [
+                'value' => 0,
+                'run' => ['value' => 0, 'percent' => 0],
+                'wait' => ['value' => 0, 'percent' => 0],
+                'idle' => ['value' => 0, 'percent' => 0],
+            ];
+        }
+        
+        // Fill in actual data for sizes that exist
+        foreach ($groupedBySize as $size => $items) {
+            // Only process if it's in our fixed list
+            if (!in_array($size, $fixedSizes)) {
+                continue;
+            }
+            
+            $total = $items->count();
+            
+            $run = $items->filter(function($item) {
+                return !empty($item->ongoing_lot);
+            })->count();
+            
+            $wait = $items->filter(function($item) {
+                return empty($item->ongoing_lot) && strtoupper($item->eqp_status) === 'OPERATIONAL';
+            })->count();
+            
+            $idle = $items->filter(function($item) {
+                return strtoupper($item->eqp_status) !== 'OPERATIONAL';
+            })->count();
+            
+            $result[$size] = [
+                'value' => $total,
+                'run' => ['value' => $run, 'percent' => $total > 0 ? round(($run / $total) * 100, 1) : 0],
+                'wait' => ['value' => $wait, 'percent' => $total > 0 ? round(($wait / $total) * 100, 1) : 0],
+                'idle' => ['value' => $idle, 'percent' => $total > 0 ? round(($idle / $total) * 100, 1) : 0],
+            ];
+        }
+        
+        // Calculate totals
+        $totalCount = $equipment->count();
+        $totalRun = $equipment->filter(function($item) {
+            return !empty($item->ongoing_lot);
+        })->count();
+        $totalWait = $equipment->filter(function($item) {
+            return empty($item->ongoing_lot) && strtoupper($item->eqp_status) === 'OPERATIONAL';
+        })->count();
+        $totalIdle = $equipment->filter(function($item) {
+            return strtoupper($item->eqp_status) !== 'OPERATIONAL';
+        })->count();
+        
+        $result['TOTAL'] = [
+            'value' => $totalCount,
+            'run' => ['value' => $totalRun, 'percent' => $totalCount > 0 ? round(($totalRun / $totalCount) * 100, 1) : 0],
+            'wait' => ['value' => $totalWait, 'percent' => $totalCount > 0 ? round(($totalWait / $totalCount) * 100, 1) : 0],
+            'idle' => ['value' => $totalIdle, 'percent' => $totalCount > 0 ? round(($totalIdle / $totalCount) * 100, 1) : 0],
+        ];
+
+        return response()->json([
+            'mcStatus' => $mcStatus,
+            'mcWorktype' => $mcWorktype,
+            'data' => $result,
+            'timestamp' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
      * Get raw equipment data for the table
      */
     public function getRawEquipmentData(Request $request): JsonResponse
@@ -308,7 +403,8 @@ class EquipmentStatusController extends Controller
             'equipment.alloc_type',
             'equipment.remarks',
             'equipment.eqp_status',
-            'equipment.ongoing_lot'
+            'equipment.ongoing_lot',
+            'equipment.est_endtime'
         );
 
         // Apply filters
@@ -384,10 +480,21 @@ class EquipmentStatusController extends Controller
         // Calculate waiting time and map previous lots
         $now = now();
         $result = $equipment->map(function($item) use ($now, $prevLotsMap) {
-            // Waiting time should be 0 if there's an ongoing lot
-            // Only calculate waiting time if no ongoing lot (machine is idle/waiting)
             $waitingMinutes = 0;
-            if (!$item->ongoing_lot || trim($item->ongoing_lot) === '') {
+            $isNegative = false;
+            
+            // If machine has an ongoing lot, calculate time difference from est_endtime
+            if ($item->ongoing_lot && trim($item->ongoing_lot) !== '') {
+                if ($item->est_endtime) {
+                    $estEndtime = \Carbon\Carbon::parse($item->est_endtime);
+                    // Calculate: current time - est_endtime
+                    // If est_endtime is in the past (delayed), result is positive
+                    // If est_endtime is in the future (on time), result is negative
+                    $waitingMinutes = $now->diffInMinutes($estEndtime, false) * -1;
+                    $isNegative = true;
+                }
+            } else {
+                // No ongoing lot - calculate idle time from updated_at
                 $updatedAt = \Carbon\Carbon::parse($item->updated_at);
                 $waitingMinutes = abs($now->diffInMinutes($updatedAt, false));
             }
@@ -400,8 +507,10 @@ class EquipmentStatusController extends Controller
                 'eqp_line' => $item->eqp_line,
                 'eqp_area' => $item->eqp_area,
                 'size' => $item->size,
+                'est_endtime' => $item->est_endtime,
+                'est_endtime_formatted' => $item->est_endtime ? \Carbon\Carbon::parse($item->est_endtime)->format('M d, Y H:i') : null,
                 'waiting_minutes' => $waitingMinutes,
-                'waiting_time' => $this->formatWaitingTime($waitingMinutes),
+                'waiting_time' => $this->formatWaitingTime($waitingMinutes, $isNegative),
                 'prev_lot' => $prevLot['lot_id'] ?? null,
                 'prev_model' => $prevLot['model_15'] ?? null,
                 'alloc_type' => $item->alloc_type,
@@ -516,22 +625,32 @@ class EquipmentStatusController extends Controller
     /**
      * Format waiting time in human-readable format
      */
-    private function formatWaitingTime(int $minutes): string
+    private function formatWaitingTime(int $minutes, bool $isNegative = false): string
     {
-        if ($minutes < 60) {
-            return $minutes . ' min';
+        $absMinutes = abs($minutes);
+        $prefix = '';
+        
+        // For negative values (ongoing lots), show - only for negative (on time/early)
+        if ($isNegative) {
+            // If minutes is positive, machine is delayed (past est_endtime) - no prefix
+            // If minutes is negative, machine is on time (before est_endtime) - show "-"
+            $prefix = $minutes < 0 ? '-' : '';
         }
         
-        $hours = floor($minutes / 60);
-        $remainingMinutes = $minutes % 60;
+        if ($absMinutes < 60) {
+            return $prefix . $absMinutes . ' min';
+        }
+        
+        $hours = floor($absMinutes / 60);
+        $remainingMinutes = $absMinutes % 60;
         
         if ($hours < 24) {
-            return $hours . 'h ' . $remainingMinutes . 'm';
+            return $prefix . $hours . 'h ' . $remainingMinutes . 'm';
         }
         
         $days = floor($hours / 24);
         $remainingHours = $hours % 24;
         
-        return $days . 'd ' . $remainingHours . 'h';
+        return $prefix . $days . 'd ' . $remainingHours . 'h';
     }
 }

@@ -19,6 +19,18 @@ class EquipmentSnapshot extends Model
         'run',
         'wait',
         'not_use',
+        'normal_run',
+        'normal_wait',
+        'normal_not_use',
+        'process_rw_run',
+        'process_rw_wait',
+        'process_rw_not_use',
+        'rl_rework_run',
+        'rl_rework_wait',
+        'rl_rework_not_use',
+        'wh_rework_run',
+        'wh_rework_wait',
+        'wh_rework_not_use',
         'remarks',
         'date',
         'hour',
@@ -68,7 +80,7 @@ class EquipmentSnapshot extends Model
         }
 
         // Get ALL equipment
-        $equipmentList = Equipment::select('eqp_no', 'eqp_status', 'ongoing_lot')
+        $equipmentList = Equipment::select('eqp_no', 'eqp_status', 'ongoing_lot', 'alloc_type')
             ->get();
 
         // Initialize counters by status
@@ -84,21 +96,44 @@ class EquipmentSnapshot extends Model
         // Initialize counters by lot assignment
         $run = 0;
         $wait = 0;
+        
+        // Initialize counters by worktype
+        $worktypeCounts = [
+            'NORMAL' => ['run' => 0, 'wait' => 0, 'not_use' => 0],
+            'PROCESS RW' => ['run' => 0, 'wait' => 0, 'not_use' => 0],
+            'RL REWORK' => ['run' => 0, 'wait' => 0, 'not_use' => 0],
+            'WH REWORK' => ['run' => 0, 'wait' => 0, 'not_use' => 0],
+        ];
 
-        // Count equipment by status
+        // Count equipment by status and worktype
         foreach ($equipmentList as $equipment) {
             $status = strtoupper(trim($equipment->eqp_status ?? ''));
             $hasLot = !empty($equipment->ongoing_lot);
+            $worktype = strtoupper(trim($equipment->alloc_type ?? ''));
+            
+            // If worktype is empty or null, default to NORMAL
+            if (empty($worktype)) {
+                $worktype = 'NORMAL';
+            }
+            
+            // Normalize worktype to match our fixed types
+            if (!isset($worktypeCounts[$worktype])) {
+                $worktype = 'NORMAL'; // Default to NORMAL if unknown
+            }
             
             // Count by equipment status
+            $isOperational = ($status === 'OPERATIONAL');
+            
             switch ($status) {
                 case 'OPERATIONAL':
                     $statusCounts['operational']++;
                     // Also count for run/wait
                     if ($hasLot) {
                         $run++;
+                        $worktypeCounts[$worktype]['run']++;
                     } else {
                         $wait++;
+                        $worktypeCounts[$worktype]['wait']++;
                     }
                     break;
                 case 'BREAKDOWN':
@@ -122,6 +157,11 @@ class EquipmentSnapshot extends Model
                     // Unknown status - count as idle
                     $statusCounts['idle']++;
                     break;
+            }
+            
+            // Count not_use by worktype (non-operational machines)
+            if (!$isOperational) {
+                $worktypeCounts[$worktype]['not_use']++;
             }
         }
         
@@ -155,6 +195,19 @@ class EquipmentSnapshot extends Model
             'run' => $run,
             'wait' => $wait,
             'not_use' => $notUse,
+            // Worktype-specific counts
+            'normal_run' => $worktypeCounts['NORMAL']['run'],
+            'normal_wait' => $worktypeCounts['NORMAL']['wait'],
+            'normal_not_use' => $worktypeCounts['NORMAL']['not_use'],
+            'process_rw_run' => $worktypeCounts['PROCESS RW']['run'],
+            'process_rw_wait' => $worktypeCounts['PROCESS RW']['wait'],
+            'process_rw_not_use' => $worktypeCounts['PROCESS RW']['not_use'],
+            'rl_rework_run' => $worktypeCounts['RL REWORK']['run'],
+            'rl_rework_wait' => $worktypeCounts['RL REWORK']['wait'],
+            'rl_rework_not_use' => $worktypeCounts['RL REWORK']['not_use'],
+            'wh_rework_run' => $worktypeCounts['WH REWORK']['run'],
+            'wh_rework_wait' => $worktypeCounts['WH REWORK']['wait'],
+            'wh_rework_not_use' => $worktypeCounts['WH REWORK']['not_use'],
             'remarks' => $remarks,
             'date' => $date,
             'hour' => $hour,
@@ -217,8 +270,29 @@ class EquipmentSnapshot extends Model
 
         // Apply MC STATUS filter if specified
         if ($mcStatus && $mcStatus !== 'ALL') {
-            $snapshots = $snapshots->map(function ($snapshot) use ($mcStatus) {
+            $snapshots = $snapshots->map(function ($snapshot) use ($mcStatus, $mcWorktype) {
                 $statusUpper = strtoupper($mcStatus);
+                
+                // Apply worktype filter first if specified
+                if ($mcWorktype && $mcWorktype !== 'ALL') {
+                    $worktypeUpper = strtoupper($mcWorktype);
+                    
+                    // Map worktype to column prefix
+                    $prefix = match($worktypeUpper) {
+                        'NORMAL' => 'normal',
+                        'PROCESS RW' => 'process_rw',
+                        'RL REWORK' => 'rl_rework',
+                        'WH REWORK' => 'wh_rework',
+                        default => null
+                    };
+                    
+                    if ($prefix) {
+                        // Use worktype-specific columns
+                        $snapshot->run = $snapshot->{$prefix . '_run'};
+                        $snapshot->wait = $snapshot->{$prefix . '_wait'};
+                        $snapshot->not_use = $snapshot->{$prefix . '_not_use'};
+                    }
+                }
                 
                 if ($statusUpper === 'OPERATIONAL') {
                     // For OPERATIONAL, keep run and wait, set not_use to 0
@@ -241,6 +315,29 @@ class EquipmentSnapshot extends Model
                         $snapshot->wait = 0;
                         $snapshot->not_use = $count;
                     }
+                }
+                
+                return $snapshot;
+            });
+        } else if ($mcWorktype && $mcWorktype !== 'ALL') {
+            // Apply only worktype filter (no status filter)
+            $snapshots = $snapshots->map(function ($snapshot) use ($mcWorktype) {
+                $worktypeUpper = strtoupper($mcWorktype);
+                
+                // Map worktype to column prefix
+                $prefix = match($worktypeUpper) {
+                    'NORMAL' => 'normal',
+                    'PROCESS RW' => 'process_rw',
+                    'RL REWORK' => 'rl_rework',
+                    'WH REWORK' => 'wh_rework',
+                    default => null
+                };
+                
+                if ($prefix) {
+                    // Use worktype-specific columns
+                    $snapshot->run = $snapshot->{$prefix . '_run'};
+                    $snapshot->wait = $snapshot->{$prefix . '_wait'};
+                    $snapshot->not_use = $snapshot->{$prefix . '_not_use'};
                 }
                 
                 return $snapshot;

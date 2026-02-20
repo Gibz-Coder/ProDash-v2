@@ -32,7 +32,7 @@ const breadcrumbs: BreadcrumbItem[] = [
     },
 ];
 
-const selectedTime = ref('1h');
+const selectedTime = ref('12h');
 const { updateTrendChart, updateGaugeChart, handleResize } = useMemsCharts('utilizationGauge', 'ongoingLotsChart');
 const { 
     fetchLineUtilization, 
@@ -60,9 +60,23 @@ const currentGaugeData = ref<any>(null);
 
 // Machine type status data
 const machineTypeStatusData = ref<any>(null);
+const machineTypeStatusDataBySize = ref<any>(null);
 
 // Fixed machine types in specific order
 const machineTypes = ['G1', 'G1-AI', 'G20', 'G3', 'TWA', 'WINTEC'];
+
+// Machine type status view selection (Type or Size) - default to 'size'
+const machineTypeStatusView = ref<'type' | 'size'>('size');
+
+// Size columns mapping
+const sizeColumns = [
+    { display: '0603', dbValue: '03' },
+    { display: '1005', dbValue: '05' },
+    { display: '1608', dbValue: '10' },
+    { display: '2012', dbValue: '21' },
+    { display: '3216', dbValue: '31' },
+    { display: '3225', dbValue: '32' }
+];
 
 // Endtime data
 const endtimeRemainingData = ref<any[]>([]);
@@ -246,6 +260,26 @@ const fetchMachineTypeStatusData = async () => {
     }
 };
 
+// Fetch machine type status data by size (REAL-TIME from equipment table)
+const fetchMachineTypeStatusDataBySize = async () => {
+    try {
+        const response = await fetch(`/api/equipment/status/machine-size?` + new URLSearchParams({
+            mcStatus: selectedMcStatus.value,
+            mcWorktype: selectedMcWorktype.value,
+        }));
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch machine size status');
+        }
+        
+        const result = await response.json();
+        machineTypeStatusDataBySize.value = result.data;
+        return result.data;
+    } catch (error) {
+        return null;
+    }
+};
+
 // Fetch endtime remaining data
 const fetchEndtimeRemainingData = async () => {
     try {
@@ -359,7 +393,12 @@ const rawDataSortColumn = ref<string | null>(null);
 const rawDataSortDirection = ref<'asc' | 'desc'>('asc');
 
 // Filter state for raw data from Machine Operation Status
-const activeStatusFilter = ref<{ line: string | null; status: string | null }>({ line: null, status: null });
+const activeStatusFilter = ref<{ line: string | null; status: string | null; machineTypeOrSize: string | null; filterType: 'type' | 'size' | null }>({ 
+    line: null, 
+    status: null,
+    machineTypeOrSize: null,
+    filterType: null
+});
 const showQtyUnitDropdown = ref(false);
 
 // Filter options - will be loaded from database
@@ -386,6 +425,7 @@ const nextSnapshotTime = computed(() => {
 // Auto-refresh timer
 let refreshTimer: number | null = null;
 let countdownTimer: number | null = null;
+let sessionKeepAliveTimer: number | null = null;
 const nextRefreshIn = ref(0);
 
 const handleTimeChange = async (event: Event) => {
@@ -511,6 +551,20 @@ const filteredRawMachineData = computed(() => {
         });
     }
     
+    // Apply machine type/size filter from Operation Status per Machine table
+    if (activeStatusFilter.value.machineTypeOrSize && activeStatusFilter.value.filterType) {
+        filtered = filtered.filter(item => {
+            if (activeStatusFilter.value.filterType === 'type') {
+                // Filter by machine type (eqp_maker)
+                return item.eqp_maker === activeStatusFilter.value.machineTypeOrSize;
+            } else if (activeStatusFilter.value.filterType === 'size') {
+                // Filter by size
+                return item.size === activeStatusFilter.value.machineTypeOrSize;
+            }
+            return true;
+        });
+    }
+    
     // Apply search filter
     if (rawDataSearchQuery.value) {
         const query = rawDataSearchQuery.value.toLowerCase();
@@ -519,7 +573,8 @@ const filteredRawMachineData = computed(() => {
             item.eqp_maker?.toLowerCase().includes(query) ||
             item.eqp_line?.toLowerCase().includes(query) ||
             item.prev_lot?.toLowerCase().includes(query) ||
-            item.prev_model?.toLowerCase().includes(query)
+            item.prev_model?.toLowerCase().includes(query) ||
+            item.est_endtime_formatted?.toLowerCase().includes(query)
         );
     }
     
@@ -533,6 +588,10 @@ const filteredRawMachineData = computed(() => {
             if (rawDataSortColumn.value === 'waiting_minutes') {
                 aVal = Number(aVal) || 0;
                 bVal = Number(bVal) || 0;
+            } else if (rawDataSortColumn.value === 'est_endtime') {
+                // Handle date sorting for est_endtime
+                aVal = aVal ? new Date(aVal).getTime() : 0;
+                bVal = bVal ? new Date(bVal).getTime() : 0;
             } else {
                 // Handle string columns
                 aVal = String(aVal || '').toLowerCase();
@@ -604,7 +663,34 @@ const handleRawDataSort = (column: string) => {
 // Handle clicking on status badges in Machine Operation Status table
 const handleStatusBadgeClick = (line: string, status: string) => {
     // Set the filter - status should be RUN, WAIT, or IDLE
-    activeStatusFilter.value = { line, status: status.toUpperCase() };
+    activeStatusFilter.value = { 
+        line, 
+        status: status.toUpperCase(),
+        machineTypeOrSize: null,
+        filterType: null
+    };
+    
+    // Switch to MACHINE view in raw data
+    selectedRawDataView.value = 'machine';
+    
+    // Scroll to raw data section
+    nextTick(() => {
+        const rawDataSection = document.querySelector('.mems-raw-data');
+        if (rawDataSection) {
+            rawDataSection.scrollIntoView({ behavior: 'smooth', block: 'start' });
+        }
+    });
+};
+
+// Handle clicking on machine type/size cells in Operation Status per Machine table
+const handleMachineTypeClick = (typeOrSize: string, status: string) => {
+    // Set the filter for machine type or size
+    activeStatusFilter.value = { 
+        line: null,
+        status: status.toUpperCase(),
+        machineTypeOrSize: typeOrSize,
+        filterType: machineTypeStatusView.value
+    };
     
     // Switch to MACHINE view in raw data
     selectedRawDataView.value = 'machine';
@@ -620,7 +706,12 @@ const handleStatusBadgeClick = (line: string, status: string) => {
 
 // Reset the status filter
 const resetStatusFilter = () => {
-    activeStatusFilter.value = { line: null, status: null };
+    activeStatusFilter.value = { 
+        line: null, 
+        status: null,
+        machineTypeOrSize: null,
+        filterType: null
+    };
     rawDataSearchQuery.value = '';
 };
 
@@ -644,6 +735,7 @@ const applyFilters = async () => {
     
     // Fetch machine type status data
     await fetchMachineTypeStatusData();
+    await fetchMachineTypeStatusDataBySize();
     
     // Fetch endtime data
     await fetchEndtimeRemainingData();
@@ -666,11 +758,23 @@ const applyFilters = async () => {
 
 // Watch for filter changes (only mcStatus and mcWorktype for real-time equipment data)
 // But also watch selectedDate for endtime data
-watch([selectedMcStatus, selectedMcWorktype], () => {
+watch([selectedMcStatus, selectedMcWorktype], async () => {
     // Fetch equipment status data
     fetchLineUtilizationData();
     fetchAllLinesData();
     fetchMachineTypeStatusData();
+    fetchMachineTypeStatusDataBySize();
+    
+    // Refresh trend data when mcStatus or mcWorktype changes
+    const data = await fetchTrendData(
+        mapTimeRange(selectedTime.value),
+        'ALL',
+        selectedLotWorktype.value,
+        selectedDate.value,
+        selectedMcStatus.value,
+        selectedMcWorktype.value
+    );
+    updateTrendChart(selectedTime.value, data);
     
     // Refresh raw machine data when filters change
     if (selectedRawDataView.value === 'machine') {
@@ -724,6 +828,23 @@ const startAutoRefresh = () => {
         }
     }, 1000);
     
+    // Set up session keep-alive (ping every 5 minutes to prevent session expiration)
+    if (sessionKeepAliveTimer) {
+        clearInterval(sessionKeepAliveTimer);
+    }
+    sessionKeepAliveTimer = setInterval(() => {
+        // Ping the server to keep session alive
+        fetch('/api/session/keep-alive', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
+            }
+        }).catch(() => {
+            // Silently fail - session might have expired, user will be redirected on next real request
+        });
+    }, 5 * 60 * 1000); // Every 5 minutes
+    
     localStorage.setItem('memsAutoRefresh', 'true');
     localStorage.setItem('memsRefreshInterval', refreshInterval.value.toString());
 };
@@ -737,6 +858,10 @@ const stopAutoRefresh = () => {
     if (countdownTimer) {
         clearInterval(countdownTimer);
         countdownTimer = null;
+    }
+    if (sessionKeepAliveTimer) {
+        clearInterval(sessionKeepAliveTimer);
+        sessionKeepAliveTimer = null;
     }
     nextRefreshIn.value = 0;
     
@@ -1388,9 +1513,33 @@ onBeforeUnmount(() => {
 
                     <!-- Status per Machine Type -->
                     <div class="mems-panel mems-machine-type-status">
-                        <div class="mems-panel-header">Operation Status per Machine type</div>
+                        <div class="mems-panel-header" style="display: flex; align-items: center; justify-content: flex-start !important; gap: 15px;">
+                            <span>Operation Status per Machine</span>
+                            <!-- Radio button selection -->
+                            <div style="display: flex; gap: 10px; align-items: center;">
+                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.75rem; font-weight: 600;">
+                                    <input 
+                                        type="radio" 
+                                        value="type" 
+                                        v-model="machineTypeStatusView"
+                                        style="cursor: pointer;"
+                                    />
+                                    <span>Type</span>
+                                </label>
+                                <label style="display: flex; align-items: center; gap: 5px; cursor: pointer; font-size: 0.75rem; font-weight: 600;">
+                                    <input 
+                                        type="radio" 
+                                        value="size" 
+                                        v-model="machineTypeStatusView"
+                                        style="cursor: pointer;"
+                                    />
+                                    <span>Size</span>
+                                </label>
+                            </div>
+                        </div>
                         <div class="mems-panel-content" style="padding: 0">
-                            <table class="mems-table">
+                            <!-- Type View -->
+                            <table v-if="machineTypeStatusView === 'type'" class="mems-table">
                                 <thead>
                                     <tr>
                                         <th>ITEM</th>
@@ -1405,21 +1554,39 @@ onBeforeUnmount(() => {
                                     <template v-else>
                                         <tr class="mems-machine-type-run">
                                             <td>RUN</td>
-                                            <td v-for="type in machineTypes" :key="type">
+                                            <td 
+                                                v-for="type in machineTypes" 
+                                                :key="type"
+                                                @click="handleMachineTypeClick(type, 'RUN')"
+                                                class="clickable-cell"
+                                                :title="`Click to filter ${machineTypeStatusData[type]?.run.value || 0} running ${type} machines`"
+                                            >
                                                 {{ machineTypeStatusData[type]?.run.value || 0 }} ( {{ machineTypeStatusData[type]?.run.percent || 0 }}% )
                                             </td>
                                             <td>{{ machineTypeStatusData.TOTAL?.run.value || 0 }} ( {{ machineTypeStatusData.TOTAL?.run.percent || 0 }}% )</td>
                                         </tr>
                                         <tr class="mems-machine-type-wait">
                                             <td>WAIT</td>
-                                            <td v-for="type in machineTypes" :key="type">
+                                            <td 
+                                                v-for="type in machineTypes" 
+                                                :key="type"
+                                                @click="handleMachineTypeClick(type, 'WAIT')"
+                                                class="clickable-cell"
+                                                :title="`Click to filter ${machineTypeStatusData[type]?.wait.value || 0} waiting ${type} machines`"
+                                            >
                                                 {{ machineTypeStatusData[type]?.wait.value || 0 }} ( {{ machineTypeStatusData[type]?.wait.percent || 0 }}% )
                                             </td>
                                             <td>{{ machineTypeStatusData.TOTAL?.wait.value || 0 }} ( {{ machineTypeStatusData.TOTAL?.wait.percent || 0 }}% )</td>
                                         </tr>
                                         <tr class="mems-machine-type-idle">
                                             <td>IDLE</td>
-                                            <td v-for="type in machineTypes" :key="type">
+                                            <td 
+                                                v-for="type in machineTypes" 
+                                                :key="type"
+                                                @click="handleMachineTypeClick(type, 'IDLE')"
+                                                class="clickable-cell"
+                                                :title="`Click to filter ${machineTypeStatusData[type]?.idle.value || 0} idle ${type} machines`"
+                                            >
                                                 {{ machineTypeStatusData[type]?.idle.value || 0 }} ( {{ machineTypeStatusData[type]?.idle.percent || 0 }}% )
                                             </td>
                                             <td>{{ machineTypeStatusData.TOTAL?.idle.value || 0 }} ( {{ machineTypeStatusData.TOTAL?.idle.percent || 0 }}% )</td>
@@ -1437,16 +1604,83 @@ onBeforeUnmount(() => {
                                     </template>
                                 </tbody>
                             </table>
+                            
+                            <!-- Size View -->
+                            <table v-else class="mems-table">
+                                <thead>
+                                    <tr>
+                                        <th>ITEM</th>
+                                        <th v-for="size in sizeColumns" :key="size.display">{{ size.display }}</th>
+                                        <th>TOTAL</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    <tr v-if="!machineTypeStatusDataBySize">
+                                        <td :colspan="sizeColumns.length + 2" style="text-align: center; padding: 20px;">Loading...</td>
+                                    </tr>
+                                    <template v-else>
+                                        <tr class="mems-machine-type-run">
+                                            <td>RUN</td>
+                                            <td 
+                                                v-for="size in sizeColumns" 
+                                                :key="size.display"
+                                                @click="handleMachineTypeClick(size.dbValue, 'RUN')"
+                                                class="clickable-cell"
+                                                :title="`Click to filter ${machineTypeStatusDataBySize[size.dbValue]?.run.value || 0} running ${size.display} machines`"
+                                            >
+                                                {{ machineTypeStatusDataBySize[size.dbValue]?.run.value || 0 }} ( {{ machineTypeStatusDataBySize[size.dbValue]?.run.percent || 0 }}% )
+                                            </td>
+                                            <td>{{ machineTypeStatusDataBySize.TOTAL?.run.value || 0 }} ( {{ machineTypeStatusDataBySize.TOTAL?.run.percent || 0 }}% )</td>
+                                        </tr>
+                                        <tr class="mems-machine-type-wait">
+                                            <td>WAIT</td>
+                                            <td 
+                                                v-for="size in sizeColumns" 
+                                                :key="size.display"
+                                                @click="handleMachineTypeClick(size.dbValue, 'WAIT')"
+                                                class="clickable-cell"
+                                                :title="`Click to filter ${machineTypeStatusDataBySize[size.dbValue]?.wait.value || 0} waiting ${size.display} machines`"
+                                            >
+                                                {{ machineTypeStatusDataBySize[size.dbValue]?.wait.value || 0 }} ( {{ machineTypeStatusDataBySize[size.dbValue]?.wait.percent || 0 }}% )
+                                            </td>
+                                            <td>{{ machineTypeStatusDataBySize.TOTAL?.wait.value || 0 }} ( {{ machineTypeStatusDataBySize.TOTAL?.wait.percent || 0 }}% )</td>
+                                        </tr>
+                                        <tr class="mems-machine-type-idle">
+                                            <td>IDLE</td>
+                                            <td 
+                                                v-for="size in sizeColumns" 
+                                                :key="size.display"
+                                                @click="handleMachineTypeClick(size.dbValue, 'IDLE')"
+                                                class="clickable-cell"
+                                                :title="`Click to filter ${machineTypeStatusDataBySize[size.dbValue]?.idle.value || 0} idle ${size.display} machines`"
+                                            >
+                                                {{ machineTypeStatusDataBySize[size.dbValue]?.idle.value || 0 }} ( {{ machineTypeStatusDataBySize[size.dbValue]?.idle.percent || 0 }}% )
+                                            </td>
+                                            <td>{{ machineTypeStatusDataBySize.TOTAL?.idle.value || 0 }} ( {{ machineTypeStatusDataBySize.TOTAL?.idle.percent || 0 }}% )</td>
+                                        </tr>
+                                        <tr>
+                                            <td>TOTAL</td>
+                                            <td v-for="size in sizeColumns" :key="size.display">
+                                                {{ machineTypeStatusDataBySize[size.dbValue]?.value || 0 }}
+                                                <span v-if="machineTypeStatusDataBySize.TOTAL?.value > 0">
+                                                    ( {{ ((machineTypeStatusDataBySize[size.dbValue]?.value || 0) / machineTypeStatusDataBySize.TOTAL.value * 100).toFixed(1) }}% )
+                                                </span>
+                                            </td>
+                                            <td>{{ machineTypeStatusDataBySize.TOTAL?.value || 0 }} ( 100% )</td>
+                                        </tr>
+                                    </template>
+                                </tbody>
+                            </table>
                         </div>
                     </div>
                 </div>
 
                 <!-- Right Column -->
                 <div class="mems-right-col">
-                    <!-- Machine Utilization Trend -->
+                    <!-- Machine Operation Trend -->
                     <div class="mems-panel mems-ongoing-lots">
                         <div class="mems-panel-header" style="display: flex; justify-content: space-between; align-items: center; padding: 6px 15px; gap: 10px; overflow: visible;">
-                            <span>Machine Utilization Trend</span>
+                            <span>Machine Operation Trend</span>
                             <div style="display: flex; align-items: center; gap: 8px;">
                                 <div class="mems-time-dropdown">
                                     <select class="mems-time-select" @change="handleTimeChange" v-model="selectedTime">
@@ -1479,7 +1713,7 @@ onBeforeUnmount(() => {
                     <!-- Endtime remaining -->
                     <div class="mems-panel">
                         <div class="mems-panel-header">
-                            <span>Endtime remaining</span>
+                            <span>Endtime remaining | Delay</span>
                             <div class="mems-panel-header-dropdown" @click.stop>
                                 <button class="mems-panel-header-dropdown-btn" @click="toggleQtyUnit">
                                     {{ selectedQtyUnit }}
@@ -1721,9 +1955,15 @@ onBeforeUnmount(() => {
                             </label>
                         </div>
                         <!-- Active Filter Indicator -->
-                        <div v-if="activeStatusFilter.line || activeStatusFilter.status" style="display: flex; align-items: center; gap: 8px; padding: 4px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px;">
+                        <div v-if="activeStatusFilter.line || activeStatusFilter.status || activeStatusFilter.machineTypeOrSize" style="display: flex; align-items: center; gap: 8px; padding: 4px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px;">
                             <span style="font-size: 0.7rem; color: var(--mems-accent-primary); font-weight: 600;">
-                                🔍 Filtered: Line {{ activeStatusFilter.line }} - {{ activeStatusFilter.status }}
+                                🔍 Filtered: 
+                                <template v-if="activeStatusFilter.line && activeStatusFilter.status">
+                                    Line {{ activeStatusFilter.line }} - {{ activeStatusFilter.status }}
+                                </template>
+                                <template v-else-if="activeStatusFilter.machineTypeOrSize && activeStatusFilter.status">
+                                    {{ activeStatusFilter.filterType === 'type' ? 'Type' : 'Size' }} {{ activeStatusFilter.machineTypeOrSize }} - {{ activeStatusFilter.status }}
+                                </template>
                             </span>
                             <button 
                                 @click="resetStatusFilter"
@@ -1813,6 +2053,14 @@ onBeforeUnmount(() => {
                                         <span v-else>↓</span>
                                     </span>
                                 </th>
+                                <th class="sortable-header" @click="handleRawDataSort('est_endtime')">
+                                    EST. ENDTIME
+                                    <span class="sort-indicator">
+                                        <span v-if="rawDataSortColumn !== 'est_endtime'">↕</span>
+                                        <span v-else-if="rawDataSortDirection === 'asc'">↑</span>
+                                        <span v-else>↓</span>
+                                    </span>
+                                </th>
                                 <th class="sortable-header" @click="handleRawDataSort('waiting_minutes')">
                                     WAITING TIME
                                     <span class="sort-indicator">
@@ -1826,7 +2074,7 @@ onBeforeUnmount(() => {
                         </thead>
                         <tbody>
                             <tr v-if="filteredRawMachineData.length === 0">
-                                <td colspan="11" style="text-align: center; padding: 20px; color: var(--mems-text-secondary);">
+                                <td colspan="12" style="text-align: center; padding: 20px; color: var(--mems-text-secondary);">
                                     No data available
                                 </td>
                             </tr>
@@ -1840,6 +2088,7 @@ onBeforeUnmount(() => {
                                 <td>{{ item.prev_lot || '-' }}</td>
                                 <td>{{ item.prev_model || '-' }}</td>
                                 <td>{{ item.alloc_type }}</td>
+                                <td>{{ item.est_endtime_formatted || '-' }}</td>
                                 <td :class="getElapsedTimeClass(item.waiting_minutes)">{{ item.waiting_time }}</td>
                                 <td>
                                     <div class="mems-action-group">

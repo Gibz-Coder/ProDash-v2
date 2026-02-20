@@ -188,6 +188,10 @@ Route::get('api/equipment/status/machine-type', [App\Http\Controllers\EquipmentS
     ->middleware(['auth', 'verified'])
     ->name('equipment.status.machine-type');
 
+Route::get('api/equipment/status/machine-size', [App\Http\Controllers\EquipmentStatusController::class, 'getMachineSizeStatus'])
+    ->middleware(['auth', 'verified'])
+    ->name('equipment.status.machine-size');
+
 Route::get('api/equipment/status/raw', [App\Http\Controllers\EquipmentStatusController::class, 'getRawEquipmentData'])
     ->middleware(['auth', 'verified'])
     ->name('equipment.status.raw');
@@ -237,6 +241,15 @@ Route::get('api/mems/filter-options', [App\Http\Controllers\MemsDashboardControl
 Route::get('api/mems/endtime/per-cutoff', [App\Http\Controllers\MachineUtilizationTrendController::class, 'getEndtimePerCutoff'])
     ->middleware(['auth', 'verified'])
     ->name('mems.endtime.per-cutoff');
+
+// Session keep-alive endpoint
+Route::post('api/session/keep-alive', function () {
+    // Simply touching the session will refresh its lifetime
+    session()->put('last_activity', now());
+    return response()->json(['status' => 'ok', 'timestamp' => now()->toIso8601String()]);
+})
+    ->middleware(['auth', 'verified'])
+    ->name('session.keep-alive');
 
 // Health check endpoint for scheduler monitoring
 Route::get('api/health/scheduler', function () {

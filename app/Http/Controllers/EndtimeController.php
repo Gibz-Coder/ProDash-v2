@@ -451,13 +451,16 @@ class EndtimeController extends Controller
             'modified_by' => $employeeName,
         ]);
 
-        // Clear ongoing_lot from equipment table
+        // Clear ongoing_lot and est_endtime from equipment table
         for ($i = 1; $i <= 10; $i++) {
             $eqpField = 'eqp_' . $i;
             if (!empty($endtime->$eqpField)) {
                 Equipment::where('eqp_no', $endtime->$eqpField)
                     ->where('ongoing_lot', $endtime->lot_id)
-                    ->update(['ongoing_lot' => null]);
+                    ->update([
+                        'ongoing_lot' => null,
+                        'est_endtime' => null
+                    ]);
             }
         }
 
@@ -867,8 +870,8 @@ class EndtimeController extends Controller
         // Create the lot entry
         Endtime::create($lotData);
 
-        // Update equipment table with ongoing_lot
-        $this->updateEquipmentOngoingLot($equipmentData, $validated['lot_id']);
+        // Update equipment table with ongoing_lot and est_endtime
+        $this->updateEquipmentOngoingLot($equipmentData, $validated['lot_id'], $estEndtime);
 
         return redirect()->route('endtime_add')->with('success', 'Lot entry created successfully!');
     }
@@ -980,21 +983,28 @@ class EndtimeController extends Controller
         // Update the lot entry
         $endtime->update($lotData);
 
-        // Update equipment table with ongoing_lot
-        $this->updateEquipmentOngoingLot($equipmentData, $validated['lot_id']);
+        // Update equipment table with ongoing_lot and est_endtime
+        $this->updateEquipmentOngoingLot($equipmentData, $validated['lot_id'], $estEndtime);
 
         return redirect()->route('endtime_add')->with('success', 'Lot entry updated successfully!');
     }
 
     /**
-     * Update equipment table with ongoing lot
+     * Update equipment table with ongoing lot and estimated endtime
      */
-    private function updateEquipmentOngoingLot(array $equipmentData, string $lotId): void
+    private function updateEquipmentOngoingLot(array $equipmentData, string $lotId, ?string $estEndtime = null): void
     {
         foreach ($equipmentData as $equipment) {
             if (!empty($equipment['eqp_no'])) {
+                $updateData = ['ongoing_lot' => $lotId];
+                
+                // Add est_endtime if provided
+                if ($estEndtime) {
+                    $updateData['est_endtime'] = $estEndtime;
+                }
+                
                 Equipment::where('eqp_no', $equipment['eqp_no'])
-                    ->update(['ongoing_lot' => $lotId]);
+                    ->update($updateData);
             }
         }
     }

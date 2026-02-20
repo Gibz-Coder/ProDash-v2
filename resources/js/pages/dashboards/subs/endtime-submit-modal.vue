@@ -492,6 +492,21 @@ const handleSubmit = async () => {
         return;
     }
 
+    // Validate minimum length for "others" reason text (5 characters)
+    if (isOthersSelected.value && formData.value.reason_others_text.trim().length < 5) {
+        showToast('Reason must be at least 5 characters long', 'danger');
+        return;
+    }
+
+    // Validate that "others" reason text contains meaningful content (not just dots or special characters)
+    if (isOthersSelected.value) {
+        const meaningfulText = formData.value.reason_others_text.trim().replace(/[.\s,;:!?-]/g, '');
+        if (meaningfulText.length < 3) {
+            showToast('Please provide a meaningful reason (not just dots or symbols)', 'danger');
+            return;
+        }
+    }
+
     isSubmitting.value = true;
     
     try {

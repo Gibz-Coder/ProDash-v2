@@ -12,6 +12,8 @@ class Equipment extends Model
         'eqp_status',
         'alloc_type',
         'oee_capa',
+        'ongoing_lot',
+        'est_endtime',
         'remarks',
         'modified_by',
     ];
