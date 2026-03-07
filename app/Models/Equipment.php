@@ -15,6 +15,7 @@ class Equipment extends Model
         'ongoing_lot',
         'est_endtime',
         'remarks',
+        'mc_rack',
         'modified_by',
     ];
 

@@ -65,8 +65,17 @@ const formData = ref({
     reason_others_text: '',
 });
 
-// Predefined reason options
-const reasonOptions = [
+// Predefined reason options - different for EARLY vs LATE
+const reasonOptionsEarly = [
+    'high loading %',
+    'maximize sharing',
+    'no R/L',
+    'derive split (LIPAS)',
+    'wrong endtime',
+    'others',
+];
+
+const reasonOptionsLate = [
     'machine error',
     'maintenance',
     'experiment',
@@ -80,6 +89,16 @@ const reasonOptions = [
     'wrong endtime',
     'others',
 ];
+
+// Computed property for reason options based on remarks
+const reasonOptions = computed(() => {
+    if (remarks.value === 'EARLY') {
+        return reasonOptionsEarly;
+    } else if (remarks.value === 'LATE') {
+        return reasonOptionsLate;
+    }
+    return [];
+});
 
 // Watch for initialLotNo prop and auto-populate when modal opens
 watch(() => props.open, async (newValue) => {
@@ -287,7 +306,7 @@ const resetFormExceptLotId = () => {
 
 
 
-// Watch remarks and auto-fill submission_notes when OK
+// Watch remarks and auto-fill submission_notes when OK, clear reason when changing
 watch(remarks, (newRemarks) => {
     if (newRemarks === 'OK') {
         formData.value.submission_notes = 'OK';
@@ -295,6 +314,9 @@ watch(remarks, (newRemarks) => {
         formData.value.reason_others_text = '';
     } else if (formData.value.submission_notes === 'OK') {
         formData.value.submission_notes = '';
+        // Clear reason when switching between EARLY and LATE to avoid invalid selections
+        formData.value.reason_category = '';
+        formData.value.reason_others_text = '';
     }
 });
 
@@ -516,9 +538,14 @@ const handleSubmit = async () => {
             submission_notes: finalSubmissionNotes.value,
             employee_id: formData.value.employee_id,
         }, {
+            preserveScroll: true,
+            preserveState: true,
+            only: [], // Don't reload any props
             onSuccess: () => {
                 showToast('Lot submitted successfully!', 'success');
                 closeModal();
+                // Optionally reload the current page data without navigation
+                router.reload({ only: ['endtimeData', 'equipmentData'] });
             },
             onError: () => {
                 showToast('Failed to submit lot. Please try again.', 'danger');

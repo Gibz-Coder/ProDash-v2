@@ -355,14 +355,16 @@ class MachineUtilizationTrendController extends Controller
         $date = $request->input('date', null);
         $workType = $request->input('workType', null);
         $statusFilter = $request->input('status', 'all'); // 'all', 'ongoing', 'submitted'
+        $lipas = $request->input('lipas', null);
         
         try {
-            $data = \App\Models\Endtime::getEndtimePerCutoff($date, $workType, $statusFilter);
+            $data = \App\Models\Endtime::getEndtimePerCutoff($date, $workType, $statusFilter, $lipas);
             
             return response()->json([
                 'date' => $date,
                 'workType' => $workType,
                 'status' => $statusFilter,
+                'lipas' => $lipas,
                 'data' => $data,
                 'timestamp' => now()->toIso8601String(),
             ]);

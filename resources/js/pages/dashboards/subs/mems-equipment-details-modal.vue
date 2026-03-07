@@ -22,6 +22,9 @@ interface Equipment {
     output_capa?: number;
     waiting_time?: string;
     remarks?: string;
+    ongoing_lot?: string;
+    est_endtime?: string;
+    lot_request_status?: string;
 }
 
 interface Props {
@@ -61,6 +64,44 @@ const getSizeLabel = (size: string): string => {
     };
     return mapping[size] || size;
 };
+
+const getCurrentStatus = computed(() => {
+    if (!props.equipment) return { label: 'N/A', class: '' };
+    
+    if (props.equipment.ongoing_lot && props.equipment.ongoing_lot.trim() !== '') {
+        return {
+            label: 'Running',
+            class: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+        };
+    } else {
+        return {
+            label: 'Waiting',
+            class: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+        };
+    }
+});
+
+const formatEndtime = (endtime: string | undefined): string => {
+    if (!endtime || endtime === 'N/A') return 'N/A';
+    
+    try {
+        const date = new Date(endtime);
+        if (isNaN(date.getTime())) return endtime;
+        
+        const options: Intl.DateTimeFormatOptions = {
+            month: 'short',
+            day: 'numeric',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit',
+            hour12: false
+        };
+        
+        return date.toLocaleString('en-US', options);
+    } catch (error) {
+        return endtime;
+    }
+};
 </script>
 
 <template>
@@ -82,66 +123,90 @@ const getSizeLabel = (size: string): string => {
 
             <!-- Content -->
             <div v-if="equipment" class="flex-1 overflow-y-auto px-5 py-4 bg-background space-y-4">
-                <!-- Basic Information -->
-                <div class="rounded-lg border-2 border-blue-400 dark:border-blue-600 overflow-hidden">
-                    <div class="px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
-                        <span class="text-xs font-bold">📋 Basic Information</span>
-                    </div>
-                    <div class="p-3 bg-blue-50/50 dark:bg-blue-900/20 grid grid-cols-3 gap-3">
-                        <div>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">Equipment Number:</span>
-                            <p class="font-bold text-blue-700 dark:text-blue-300">{{ equipment.eqp_no }}</p>
-                        </div>
-                        <div>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">Line:</span>
-                            <p class="font-bold text-gray-700 dark:text-gray-200">{{ equipment.eqp_line }}</p>
-                        </div>
-                        <div>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">Area:</span>
-                            <p class="font-bold text-gray-700 dark:text-gray-200">{{ equipment.eqp_area }}</p>
-                        </div>
-                        <div>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">Equipment Type:</span>
-                            <p class="font-bold text-gray-700 dark:text-gray-200">{{ equipment.eqp_type || 'N/A' }}</p>
-                        </div>
-                        <div>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">Maker:</span>
-                            <p class="font-bold text-gray-700 dark:text-gray-200">{{ equipment.eqp_maker }}</p>
-                        </div>
-                        <div>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">Size:</span>
-                            <p class="font-bold text-gray-700 dark:text-gray-200">{{ getSizeLabel(equipment.size) }}</p>
-                        </div>
-                    </div>
-                </div>
-
                 <!-- Status & Allocation -->
                 <div class="rounded-lg border-2 border-purple-400 dark:border-purple-600 overflow-hidden">
                     <div class="px-3 py-2 bg-gradient-to-r from-purple-500 to-purple-600 text-white">
                         <span class="text-xs font-bold">📊 Status & Allocation</span>
                     </div>
-                    <div class="p-3 bg-purple-50/50 dark:bg-purple-900/20 grid grid-cols-2 gap-3">
-                        <div>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">Allocation Type:</span>
-                            <p class="font-bold text-purple-700 dark:text-purple-300">{{ equipment.alloc_type || 'N/A' }}</p>
+                    <div class="p-3 bg-purple-50/50 dark:bg-purple-900/20 space-y-3">
+                        <!-- First Row -->
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Allocation Type:</span>
+                                <p class="font-bold text-purple-700 dark:text-purple-300">{{ equipment.alloc_type || 'N/A' }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Equipment Status:</span>
+                                <span class="inline-block px-2 py-1 rounded text-xs font-bold" :class="{
+                                    'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300': equipment.eqp_status === 'OPERATIONAL',
+                                    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300': equipment.eqp_status === 'BREAKDOWN',
+                                    'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300': equipment.eqp_status === 'IDDLE',
+                                }">
+                                    {{ equipment.eqp_status }}
+                                </span>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Current Status:</span>
+                                <span class="inline-block px-2 py-1 rounded text-xs font-bold" :class="getCurrentStatus.class">
+                                    {{ getCurrentStatus.label }}
+                                </span>
+                            </div>
                         </div>
-                        <div>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">Equipment Status:</span>
-                            <span class="inline-block px-2 py-1 rounded text-xs font-bold" :class="{
-                                'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300': equipment.eqp_status === 'OPERATIONAL',
-                                'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300': equipment.eqp_status === 'BREAKDOWN',
-                                'bg-gray-100 text-gray-700 dark:bg-gray-900/30 dark:text-gray-300': equipment.eqp_status === 'IDDLE',
-                            }">
-                                {{ equipment.eqp_status }}
-                            </span>
+                        <!-- Second Row -->
+                        <div class="grid grid-cols-3 gap-3">
+                            <div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Waiting Time:</span>
+                                <p class="font-bold text-orange-700 dark:text-orange-300">{{ equipment.waiting_time || 'N/A' }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Est. Endtime:</span>
+                                <p class="font-bold text-blue-700 dark:text-blue-300 text-xs">{{ formatEndtime(equipment.est_endtime) }}</p>
+                            </div>
+                            <div>
+                                <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Lot Request:</span>
+                                <span v-if="equipment.lot_request_status" class="inline-block px-2 py-1 rounded text-xs font-bold" :class="{
+                                    'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300': equipment.lot_request_status === 'PENDING',
+                                    'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300': equipment.lot_request_status === 'COMPLETED',
+                                    'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300': equipment.lot_request_status === 'REJECTED',
+                                }">
+                                    {{ equipment.lot_request_status }}
+                                </span>
+                                <p v-else class="font-bold text-gray-500 dark:text-gray-400">None</p>
+                            </div>
                         </div>
-                        <div>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">Waiting Time:</span>
-                            <p class="font-bold text-orange-700 dark:text-orange-300">{{ equipment.waiting_time || 'N/A' }}</p>
+                    </div>
+                    <!-- Remarks Row (Always Visible) -->
+                    <div class="px-3 py-2 bg-purple-50/30 dark:bg-purple-900/10 border-t border-purple-200 dark:border-purple-800">
+                        <span class="text-xs text-gray-500 dark:text-gray-400 block mb-1">Remarks:</span>
+                        <p class="text-sm font-medium text-gray-700 dark:text-gray-300">{{ equipment.remarks || '-' }}</p>
+                    </div>
+                </div>
+
+                <!-- Basic Information -->
+                <div class="rounded-lg border-2 border-blue-400 dark:border-blue-600 overflow-hidden">
+                    <div class="px-3 py-2 bg-gradient-to-r from-blue-500 to-blue-600 text-white">
+                        <span class="text-xs font-bold">📋 Basic Information</span>
+                    </div>
+                    <div class="p-3 bg-blue-50/50 dark:bg-blue-900/20 grid grid-cols-12 gap-3">
+                        <div class="col-span-2">
+                            <span class="text-xs text-gray-500 dark:text-gray-400">Equipment No:</span>
+                            <p class="font-bold text-blue-700 dark:text-blue-300">{{ equipment.eqp_no }}</p>
                         </div>
-                        <div>
-                            <span class="text-xs text-gray-500 dark:text-gray-400">Remarks:</span>
-                            <p class="font-bold text-gray-700 dark:text-gray-300">{{ equipment.remarks || '-' }}</p>
+                        <div class="col-span-2">
+                            <span class="text-xs text-gray-500 dark:text-gray-400">Line:</span>
+                            <p class="font-bold text-gray-700 dark:text-gray-200">{{ equipment.eqp_line }}</p>
+                        </div>
+                        <div class="col-span-2">
+                            <span class="text-xs text-gray-500 dark:text-gray-400">Area:</span>
+                            <p class="font-bold text-gray-700 dark:text-gray-200">{{ equipment.eqp_area }}</p>
+                        </div>
+                        <div class="col-span-4">
+                            <span class="text-xs text-gray-500 dark:text-gray-400">Type:</span>
+                            <p class="font-bold text-gray-700 dark:text-gray-200">{{ equipment.eqp_type || 'N/A' }}</p>
+                        </div>
+                        <div class="col-span-2">
+                            <span class="text-xs text-gray-500 dark:text-gray-400">Size:</span>
+                            <p class="font-bold text-gray-700 dark:text-gray-200">{{ getSizeLabel(equipment.size) }}</p>
                         </div>
                     </div>
                 </div>

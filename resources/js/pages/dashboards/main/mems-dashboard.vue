@@ -8,6 +8,7 @@ import { useMemsCharts } from '@/composables/useMemsCharts';
 import { useMemsData } from '@/composables/useMemsData';
 import MemsEquipmentDetailsModal from '@/pages/dashboards/subs/mems-equipment-details-modal.vue';
 import MemsAssignLotModal from '@/pages/dashboards/subs/mems-assign-lot-modal.vue';
+import LotRequestModal from '@/pages/dashboards/subs/lot-request-modal.vue';
 import MemsRemarksModal from '@/pages/dashboards/subs/mems-remarks-modal.vue';
 import EndtimeSubmitModal from '@/pages/dashboards/subs/endtime-submit-modal.vue';
 import '@/../../resources/css/mems-dashboard.css';
@@ -133,6 +134,42 @@ const getEndtimeRemainingRow = (className: string) => {
 
 // Helper function to get endtime per cutoff row by cutoff name
 const getEndtimePerCutoffRow = (cutoffName: string) => {
+    if (cutoffName === 'TOTAL') {
+        // Check if backend already provided a TOTAL row
+        const backendTotal = endtimePerCutoffData.value.find(r => r.cutoff === 'TOTAL');
+        if (backendTotal) {
+            return backendTotal;
+        }
+        
+        // Otherwise calculate total from all cutoff rows (excluding TOTAL)
+        const total = {
+            cutoff: 'TOTAL',
+            count: 0,
+            qty: 0,
+            '0603': 0,
+            '1005': 0,
+            '1608': 0,
+            '2012': 0,
+            '3216': 0,
+            '3225': 0
+        };
+        
+        endtimePerCutoffData.value.forEach(row => {
+            if (row.cutoff !== 'TOTAL') {
+                total.count += row.count;
+                total.qty += row.qty;
+                total['0603'] += row['0603'];
+                total['1005'] += row['1005'];
+                total['1608'] += row['1608'];
+                total['2012'] += row['2012'];
+                total['3216'] += row['3216'];
+                total['3225'] += row['3225'];
+            }
+        });
+        
+        return total;
+    }
+    
     const row = endtimePerCutoffData.value.find(r => r.cutoff === cutoffName);
     if (row) return row;
     // Return empty structure if no data
@@ -284,7 +321,9 @@ const fetchMachineTypeStatusDataBySize = async () => {
 const fetchEndtimeRemainingData = async () => {
     try {
         const data = await fetchEndtimeRemaining(
-            selectedDate.value
+            selectedDate.value,
+            selectedLotWorktype.value,
+            selectedLipas.value
         );
         endtimeRemainingData.value = data;
         return data;
@@ -300,7 +339,8 @@ const fetchEndtimePerCutoffData = async () => {
         const data = await fetchEndtimePerCutoff(
             selectedDate.value,
             selectedLotWorktype.value,
-            'all' // Can be 'all', 'ongoing', or 'submitted'
+            'all', // Get all entries (ongoing and submitted) - duplicates handled by backend
+            selectedLipas.value
         );
         endtimePerCutoffData.value = data;
         return data;
@@ -335,6 +375,8 @@ const fetchRawLotsData = async () => {
     try {
         const response = await fetch(`/api/mems/endtime/raw-lots?` + new URLSearchParams({
             date: selectedDate.value,
+            workType: selectedLotWorktype.value,
+            lipas: selectedLipas.value,
         }));
         
         if (!response.ok) {
@@ -373,6 +415,7 @@ const selectedDate = ref<string>(`${year}-${month}-${day}`);
 const selectedMcStatus = ref<string>('OPERATIONAL');
 const selectedMcWorktype = ref<string>('NORMAL');
 const selectedLotWorktype = ref<string>('NORMAL');
+const selectedLipas = ref<string>('ALL');
 // Restore QTY unit from localStorage or default to PCS
 const savedQtyUnit = localStorage.getItem('memsQtyUnit');
 const selectedQtyUnit = ref<string>(savedQtyUnit && ['PCS', 'KPCS', 'MPCS'].includes(savedQtyUnit) ? savedQtyUnit : 'PCS');
@@ -386,6 +429,7 @@ const showDatePicker = ref(false);
 const showMcStatusDropdown = ref(false);
 const showMcWorktypeDropdown = ref(false);
 const showLotWorktypeDropdown = ref(false);
+const showLipasDropdown = ref(false);
 const showRefreshModal = ref(false);
 
 // Sorting state for raw data tables
@@ -405,6 +449,7 @@ const showQtyUnitDropdown = ref(false);
 const mcStatusOptions = ref<string[]>(['ALL']);
 const mcWorktypeOptions = ref<string[]>(['ALL']);
 const lotWorktypeOptions = ref<string[]>(['ALL']);
+const lipasOptions = ['ALL', 'Y', 'N'];
 const qtyUnitOptions = ['PCS', 'KPCS', 'MPCS'];
 
 // Next snapshot time display
@@ -454,6 +499,7 @@ const toggleDatePicker = () => {
     showMcStatusDropdown.value = false;
     showMcWorktypeDropdown.value = false;
     showLotWorktypeDropdown.value = false;
+    showLipasDropdown.value = false;
     showRefreshModal.value = false;
     showQtyUnitDropdown.value = false;
     
@@ -473,6 +519,7 @@ const toggleMcStatus = () => {
     showDatePicker.value = false;
     showMcWorktypeDropdown.value = false;
     showLotWorktypeDropdown.value = false;
+    showLipasDropdown.value = false;
     showRefreshModal.value = false;
     showQtyUnitDropdown.value = false;
 };
@@ -482,6 +529,7 @@ const toggleMcWorktype = () => {
     showDatePicker.value = false;
     showMcStatusDropdown.value = false;
     showLotWorktypeDropdown.value = false;
+    showLipasDropdown.value = false;
     showRefreshModal.value = false;
     showQtyUnitDropdown.value = false;
 };
@@ -491,6 +539,17 @@ const toggleLotWorktype = () => {
     showDatePicker.value = false;
     showMcStatusDropdown.value = false;
     showMcWorktypeDropdown.value = false;
+    showLipasDropdown.value = false;
+    showRefreshModal.value = false;
+    showQtyUnitDropdown.value = false;
+};
+
+const toggleLipas = () => {
+    showLipasDropdown.value = !showLipasDropdown.value;
+    showDatePicker.value = false;
+    showMcStatusDropdown.value = false;
+    showMcWorktypeDropdown.value = false;
+    showLotWorktypeDropdown.value = false;
     showRefreshModal.value = false;
     showQtyUnitDropdown.value = false;
 };
@@ -501,6 +560,7 @@ const toggleRefreshModal = () => {
     showMcStatusDropdown.value = false;
     showMcWorktypeDropdown.value = false;
     showLotWorktypeDropdown.value = false;
+    showLipasDropdown.value = false;
     showQtyUnitDropdown.value = false;
 };
 
@@ -715,12 +775,173 @@ const resetStatusFilter = () => {
     rawDataSearchQuery.value = '';
 };
 
+// Export to CSV function
+const exportToCSV = () => {
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const viewType = selectedRawDataView.value.toUpperCase();
+    const filename = `MEMS_RawData_${viewType}_${timestamp}.csv`;
+    
+    let csvContent = '';
+    let data: any[] = [];
+    
+    if (selectedRawDataView.value === 'machine') {
+        // Machine view headers
+        csvContent = 'NO,MC NO.,MC TYPE,LINE,AREA,SIZE,PREV. LOT NO.,PREV. MODEL,WORKTYPE,EST. ENDTIME,WAITING TIME\n';
+        data = filteredRawMachineData.value;
+        
+        // Add data rows
+        data.forEach((item, index) => {
+            const row = [
+                index + 1,
+                item.eqp_no || '',
+                item.eqp_maker || '',
+                item.eqp_line || '',
+                item.eqp_area || '',
+                item.size || '',
+                item.prev_lot || '-',
+                item.prev_model || '-',
+                item.alloc_type || '',
+                item.est_endtime_formatted || '-',
+                item.waiting_time || ''
+            ];
+            csvContent += row.map(field => `"${field}"`).join(',') + '\n';
+        });
+    } else {
+        // Lots view headers
+        csvContent = 'NO,LOT NO.,MODEL,LINE,AREA,SIZE,LOT QTY,MC NO.,WORKTYPE,LIPAS,EST. ENDTIME,ELAPSED TIME\n';
+        data = filteredRawLotsData.value;
+        
+        // Add data rows
+        data.forEach((item, index) => {
+            const row = [
+                index + 1,
+                item.lot_no || '',
+                item.lot_model || '',
+                item.mc_line || '',
+                item.mc_area || '',
+                item.lot_size || '',
+                item.lot_qty || 0,
+                item.mc_no || '',
+                item.lot_worktype || '',
+                item.lipas || '',
+                item.est_endtime_formatted || '',
+                item.elapsed_time || ''
+            ];
+            csvContent += row.map(field => `"${field}"`).join(',') + '\n';
+        });
+    }
+    
+    // Create blob and download
+    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    
+    link.setAttribute('href', url);
+    link.setAttribute('download', filename);
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+};
+
+// Export Endtime Per Cutoff to CSV
+const exportEndtimePerCutoffToCSV = async () => {
+    const now = new Date();
+    const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, -5);
+    const filename = `MEMS_EndtimePerCutoff_RawData_${selectedDate.value}_${timestamp}.csv`;
+    
+    try {
+        // Fetch raw lots data with current filters using the cutoff-specific endpoint
+        const response = await fetch(`/api/mems/endtime/raw-lots-cutoff?` + new URLSearchParams({
+            date: selectedDate.value,
+            workType: selectedLotWorktype.value,
+            lipas: selectedLipas.value,
+            status: 'all', // Get all entries - duplicates handled by backend
+        }));
+        
+        if (!response.ok) {
+            throw new Error('Failed to fetch raw lots data for cutoff');
+        }
+        
+        const result = await response.json();
+        const rawData = result.data || [];
+        
+        // Headers for raw data
+        let csvContent = 'NO,LOT NO.,MODEL,LINE,AREA,SIZE,LOT QTY,MC NO.,WORKTYPE,LIPAS,EST. ENDTIME,CUTOFF TIME RANGE,STATUS\n';
+        
+        // Helper function to determine cutoff range from time
+        const getCutoffRange = (estEndtime: string) => {
+            if (!estEndtime) return 'N/A';
+            const time = new Date(estEndtime);
+            const hour = time.getHours();
+            
+            if (hour >= 0 && hour <= 3) return '00:00~03:59';
+            if (hour >= 4 && hour <= 6) return '04:00~06:59';
+            if (hour >= 7 && hour <= 11) return '07:00~11:59';
+            if (hour >= 12 && hour <= 15) return '12:00~15:59';
+            if (hour >= 16 && hour <= 18) return '16:00~18:59';
+            if (hour >= 19 && hour <= 23) return '19:00~23:59';
+            return 'N/A';
+        };
+        
+        // Add data rows
+        rawData.forEach((item: any, index: number) => {
+            const cutoffRange = getCutoffRange(item.est_endtime);
+            const row = [
+                index + 1,
+                item.lot_no || '',
+                item.lot_model || '',
+                item.mc_line || '',
+                item.mc_area || '',
+                item.lot_size || '',
+                item.lot_qty || 0,
+                item.mc_no || '',
+                item.lot_worktype || '',
+                item.lipas || '',
+                item.est_endtime_formatted || '',
+                cutoffRange,
+                item.status || ''
+            ];
+            csvContent += row.map(field => `"${field}"`).join(',') + '\n';
+        });
+        
+        // Add metadata
+        csvContent += '\n';
+        csvContent += `"Total Records","${rawData.length}"\n`;
+        csvContent += `"Date","${selectedDate.value}"\n`;
+        csvContent += `"LOT WORKTYPE","${selectedLotWorktype.value}"\n`;
+        csvContent += `"LIPAS","${selectedLipas.value}"\n`;
+        csvContent += `"Status Filter","All (Ongoing + Submitted, duplicates removed)"\n`;
+        csvContent += `"Exported","${now.toLocaleString()}"\n`;
+        
+        // Create blob and download
+        const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+        const link = document.createElement('a');
+        const url = URL.createObjectURL(blob);
+        
+        link.setAttribute('href', url);
+        link.setAttribute('download', filename);
+        link.style.visibility = 'hidden';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Show success message
+        console.log(`✅ Exported ${rawData.length} records to ${filename}`);
+    } catch (error) {
+        console.error('❌ Error exporting endtime per cutoff data:', error);
+        alert('Failed to export data. Please try again.');
+    }
+};
+
 // Close all dropdowns when clicking outside
 const closeAllDropdowns = () => {
     showDatePicker.value = false;
     showMcStatusDropdown.value = false;
     showMcWorktypeDropdown.value = false;
     showLotWorktypeDropdown.value = false;
+    showLipasDropdown.value = false;
     showRefreshModal.value = false;
     showQtyUnitDropdown.value = false;
 };
@@ -788,6 +1009,18 @@ watch([selectedDate], () => {
     fetchEndtimePerCutoffData();
     
     // Fetch raw lots data if lots view is selected
+    if (selectedRawDataView.value === 'lots') {
+        fetchRawLotsData();
+    }
+});
+
+// Watch for LOT WORKTYPE and LIPAS changes
+watch([selectedLotWorktype, selectedLipas], () => {
+    // Refresh endtime data when filters change
+    fetchEndtimeRemainingData();
+    fetchEndtimePerCutoffData();
+    
+    // Refresh raw lots data if lots view is selected
     if (selectedRawDataView.value === 'lots') {
         fetchRawLotsData();
     }
@@ -929,6 +1162,7 @@ const toggleCarousel = () => {
 // Modal states
 const showEquipmentDetailsModal = ref(false);
 const showAssignLotModal = ref(false);
+const showLotRequestModal = ref(false);
 const showRemarksModal = ref(false);
 const showSubmitLotModal = ref(false);
 const selectedEquipment = ref<any>(null);
@@ -966,54 +1200,30 @@ const handleViewDetails = async (item: any) => {
     }
 };
 
+const selectedEquipmentForRequest = ref<any>(null);
+
 const handleAssignLot = (item: any) => {
-    // Get equipment number from either eqp_no (machine data) or mc_no (lots data)
-    const equipmentNo = item.eqp_no || item.mc_no;
-    if (!equipmentNo) {
-        alert('Equipment number not found');
-        return;
-    }
-    
-    selectedEquipmentForAssignment.value = {
-        equipmentNo: equipmentNo,
-        // For machine data: prev_model, for lots data: lot_model
-        previousModel: item.prev_model || item.lot_model || null,
-        // For machine data: alloc_type, for lots data: lot_worktype
-        previousWorktype: item.alloc_type || item.lot_worktype || null
+    // Store the selected equipment data
+    // Note: ongoing_lot contains lot number, not model
+    // We should use prev_model as the requested model
+    selectedEquipmentForRequest.value = {
+        machineNo: item.eqp_no,
+        machineLine: item.eqp_line,
+        machineArea: item.eqp_area,
+        ongoingModel: null, // ongoing_lot is lot number, not model
+        previousModel: item.prev_model || null,
     };
-    showAssignLotModal.value = true;
+    // Open the lot request modal
+    showLotRequestModal.value = true;
 };
 
-const handleAssignLotConfirm = async (lot: any) => {
-    try {
-        // TODO: Implement the actual lot assignment API call
-        const response = await fetch('/api/equipment/assign-lot', {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRF-TOKEN': document.querySelector('meta[name="csrf-token"]')?.getAttribute('content') || ''
-            },
-            body: JSON.stringify({
-                equipment_no: selectedEquipmentForAssignment.value.equipmentNo,
-                lot_no: lot.lot_no,
-                lot_model: lot.lot_model,
-                lot_qty: lot.lot_qty,
-                work_type: lot.work_type
-            })
-        });
-        
-        if (!response.ok) {
-            throw new Error('Failed to assign lot');
-        }
-        
-        alert(`Lot ${lot.lot_no} assigned successfully to ${selectedEquipmentForAssignment.value.equipmentNo}`);
-        
-        // Refresh the data
-        fetchRawMachineData();
-    } catch (error) {
-        console.error('Error assigning lot:', error);
-        alert('Failed to assign lot');
-    }
+const handleAssignLotConfirm = async () => {
+    // The lot request was created successfully
+    // Refresh the raw machine data to show any updates
+    await fetchRawMachineData();
+    
+    // Show success message
+    console.log('Lot request created successfully');
 };
 
 const handleRemarks = (item: any) => {
@@ -1322,6 +1532,24 @@ onBeforeUnmount(() => {
                     </div>
                 </div>
 
+                <!-- LIPAS Filter -->
+                <div class="mems-filter-wrapper">
+                    <button class="mems-btn" @click="toggleLipas">
+                        LIPAS: {{ selectedLipas }}
+                    </button>
+                    <div v-if="showLipasDropdown" class="mems-dropdown">
+                        <button 
+                            v-for="lipas in lipasOptions" 
+                            :key="lipas"
+                            class="mems-dropdown-item"
+                            :class="{ active: selectedLipas === lipas }"
+                            @click="selectedLipas = lipas; closeAllDropdowns()"
+                        >
+                            {{ lipas }}
+                        </button>
+                    </div>
+                </div>
+
                 <!-- Auto Refresh Toggle -->
                 <div class="mems-filter-wrapper">
                     <button 
@@ -1329,7 +1557,7 @@ onBeforeUnmount(() => {
                         :class="{ active: autoRefreshEnabled }"
                         @click="toggleRefreshModal"
                     >
-                        🔄 AUTO REFRESH {{ autoRefreshEnabled ? 'ON' : 'OFF' }}
+                        🔄 REFRESH {{ autoRefreshEnabled ? 'ON' : 'OFF' }}
                         <span v-if="autoRefreshEnabled" class="mems-countdown">
                             ({{ formatRefreshCountdown() }})
                         </span>
@@ -1809,23 +2037,36 @@ onBeforeUnmount(() => {
 
                     <!-- Endtime per cutoff -->
                     <div class="mems-panel">
-                        <div class="mems-panel-header">
+                        <div class="mems-panel-header" style="display: flex; justify-content: space-between; align-items: center;">
                             <span>Endtime per cutoff</span>
-                            <div class="mems-panel-header-dropdown" @click.stop>
-                                <button class="mems-panel-header-dropdown-btn" @click="toggleQtyUnit">
-                                    {{ selectedQtyUnit }}
-                                </button>
-                                <div v-if="showQtyUnitDropdown" class="mems-panel-header-dropdown-menu">
-                                    <button 
-                                        v-for="unit in qtyUnitOptions" 
-                                        :key="unit"
-                                        class="mems-panel-header-dropdown-item"
-                                        :class="{ active: selectedQtyUnit === unit }"
-                                        @click="selectedQtyUnit = unit; showQtyUnitDropdown = false"
-                                    >
-                                        {{ unit }}
+                            <div style="display: flex; align-items: center; gap: 10px;">
+                                <!-- QTY Unit Dropdown - Hidden -->
+                                <div class="mems-panel-header-dropdown" @click.stop style="display: none;">
+                                    <button class="mems-panel-header-dropdown-btn" @click="toggleQtyUnit">
+                                        {{ selectedQtyUnit }}
                                     </button>
+                                    <div v-if="showQtyUnitDropdown" class="mems-panel-header-dropdown-menu">
+                                        <button 
+                                            v-for="unit in qtyUnitOptions" 
+                                            :key="unit"
+                                            class="mems-panel-header-dropdown-item"
+                                            :class="{ active: selectedQtyUnit === unit }"
+                                            @click="selectedQtyUnit = unit; showQtyUnitDropdown = false"
+                                        >
+                                            {{ unit }}
+                                        </button>
+                                    </div>
                                 </div>
+                                <!-- Export CSV Button -->
+                                <button 
+                                    class="mems-panel-header-dropdown-btn"
+                                    @click="exportEndtimePerCutoffToCSV"
+                                    title="Export to CSV"
+                                    style="display: flex; align-items: center; gap: 4px; padding: 0px 6px;"
+                                >
+                                    <span style="font-size: 0.9rem;">📥</span>
+                                    <span>CSV</span>
+                                </button>
                             </div>
                         </div>
                         <div class="mems-panel-content" style="padding: 0">
@@ -1954,6 +2195,16 @@ onBeforeUnmount(() => {
                                 <span>Lots</span>
                             </label>
                         </div>
+                        <!-- Separator -->
+                        <div style="width: 1px; height: 20px; background: rgba(255, 255, 255, 0.2);"></div>
+                        <!-- Search Input -->
+                        <input 
+                            type="text" 
+                            placeholder="Search ...." 
+                            class="mems-search-input"
+                            v-model="rawDataSearchQuery"
+                            style="max-width: 250px;"
+                        />
                         <!-- Active Filter Indicator -->
                         <div v-if="activeStatusFilter.line || activeStatusFilter.status || activeStatusFilter.machineTypeOrSize" style="display: flex; align-items: center; gap: 8px; padding: 4px 12px; background: rgba(59, 130, 246, 0.1); border: 1px solid rgba(59, 130, 246, 0.3); border-radius: 6px;">
                             <span style="font-size: 0.7rem; color: var(--mems-accent-primary); font-weight: 600;">
@@ -1976,12 +2227,16 @@ onBeforeUnmount(() => {
                             </button>
                         </div>
                     </div>
-                    <input 
-                        type="text" 
-                        placeholder="Search ...." 
-                        class="mems-search-input"
-                        v-model="rawDataSearchQuery"
-                    />
+                    <!-- Export Button -->
+                    <button 
+                        class="mems-btn"
+                        @click="exportToCSV"
+                        title="Export to CSV"
+                        style="display: flex; align-items: center; gap: 6px; padding: 6px 12px;"
+                    >
+                        <span>📥</span>
+                        <span>Export Data</span>
+                    </button>
                 </div>
                 <div class="mems-panel-content mems-raw-data-content" style="padding: 0">
                     <!-- Machine View -->
@@ -2095,9 +2350,9 @@ onBeforeUnmount(() => {
                                         <button class="mems-action-btn mems-action-view" title="View Details" @click="handleViewDetails(item)">
                                             <span class="action-icon">👁️</span>
                                         </button>
-                                        <button class="mems-action-btn mems-action-assign" title="Assign Lot" @click="handleAssignLot(item)">
+                                        <button class="mems-action-btn mems-action-assign" title="Request Lot" @click="handleAssignLot(item)">
                                             <span class="action-icon">📋</span>
-                                            <span class="action-text">Assign</span>
+                                            <span class="action-text">Request Lot</span>
                                         </button>
                                         <button class="mems-action-btn mems-action-remarks" title="Remarks" @click="handleRemarks(item)">
                                             <span class="action-icon">💬</span>
@@ -2258,10 +2513,26 @@ onBeforeUnmount(() => {
         <MemsAssignLotModal
             :open="showAssignLotModal"
             :equipment-no="selectedEquipmentForAssignment?.equipmentNo ?? null"
+            :equipment-line="selectedEquipmentForAssignment?.equipmentLine ?? null"
+            :equipment-area="selectedEquipmentForAssignment?.equipmentArea ?? null"
             :previous-model="selectedEquipmentForAssignment?.previousModel ?? null"
             :previous-worktype="selectedEquipmentForAssignment?.previousWorktype ?? null"
+            :ongoing-lot="selectedEquipmentForAssignment?.ongoingLot ?? null"
+            :est-endtime="selectedEquipmentForAssignment?.estEndtime ?? null"
+            :waiting-time="selectedEquipmentForAssignment?.waitingTime ?? null"
             @update:open="showAssignLotModal = $event"
             @assign="handleAssignLotConfirm"
+        />
+        
+        <LotRequestModal
+            :open="showLotRequestModal"
+            :machine-no="selectedEquipmentForRequest?.machineNo ?? null"
+            :machine-line="selectedEquipmentForRequest?.machineLine ?? null"
+            :machine-area="selectedEquipmentForRequest?.machineArea ?? null"
+            :ongoing-model="selectedEquipmentForRequest?.ongoingModel ?? null"
+            :previous-model="selectedEquipmentForRequest?.previousModel ?? null"
+            @update:open="showLotRequestModal = $event"
+            @created="handleAssignLotConfirm"
         />
         
         <MemsRemarksModal

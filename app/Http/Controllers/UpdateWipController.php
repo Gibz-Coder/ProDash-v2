@@ -127,4 +127,23 @@ class UpdateWipController extends Controller
         
         return response()->download($filePath, 'updatewip_template.xlsx');
     }
+
+    /**
+     * Get the last update timestamp from updatewip table.
+     */
+    public function getLastUpdate()
+    {
+        try {
+            $lastUpdate = UpdateWip::max('updated_at');
+
+            return response()->json([
+                'last_update' => $lastUpdate,
+            ]);
+        } catch (\Exception $e) {
+            return response()->json([
+                'last_update' => null,
+                'error' => $e->getMessage()
+            ], 500);
+        }
+    }
 }

@@ -20,6 +20,8 @@ class MemsDashboardController extends Controller
     public function getEndtimeRemaining(Request $request): JsonResponse
     {
         $date = $request->input('date', now()->format('Y-m-d'));
+        $workType = $request->input('workType', null);
+        $lipas = $request->input('lipas', null);
         
         // Determine reference time
         $selectedDate = Carbon::parse($date)->startOfDay();
@@ -34,7 +36,19 @@ class MemsDashboardController extends Controller
         
         // Get ALL ongoing lots (including overdue ones)
         // This shows lots that are delayed and need attention
-        $lots = Endtime::where('status', 'Ongoing')->get();
+        $query = Endtime::where('status', 'Ongoing');
+        
+        // Apply work type filter
+        if ($workType && $workType !== 'ALL') {
+            $query->where('work_type', $workType);
+        }
+        
+        // Apply LIPAS filter
+        if ($lipas && $lipas !== 'ALL') {
+            $query->where('lipas_yn', $lipas);
+        }
+        
+        $lots = $query->get();
         
         // Initialize result structure
         // A = 0-1 hrs overdue, B = 1-3 hrs overdue, C = 3-6 hrs overdue, D = 6+ hrs overdue
@@ -128,6 +142,8 @@ class MemsDashboardController extends Controller
     public function getRawLotsData(Request $request): JsonResponse
     {
         $date = $request->input('date', now()->format('Y-m-d'));
+        $workType = $request->input('workType', null);
+        $lipas = $request->input('lipas', null);
         
         // Determine reference time
         $selectedDate = Carbon::parse($date)->startOfDay();
@@ -141,8 +157,19 @@ class MemsDashboardController extends Controller
         }
         
         // Get ALL ongoing lots (including overdue ones)
-        $lots = Endtime::where('status', 'Ongoing')
-            ->orderBy('est_endtime', 'asc') // Oldest est_endtime first (most overdue)
+        $query = Endtime::where('status', 'Ongoing');
+        
+        // Apply work type filter
+        if ($workType && $workType !== 'ALL') {
+            $query->where('work_type', $workType);
+        }
+        
+        // Apply LIPAS filter
+        if ($lipas && $lipas !== 'ALL') {
+            $query->where('lipas_yn', $lipas);
+        }
+        
+        $lots = $query->orderBy('est_endtime', 'asc') // Oldest est_endtime first (most overdue)
             ->get();
         
         // Format data with elapsed time
@@ -191,7 +218,125 @@ class MemsDashboardController extends Controller
 
         return response()->json([
             'date' => $date,
+            'workType' => $workType,
+            'lipas' => $lipas,
             'referenceTime' => $referenceTime->toIso8601String(),
+            'data' => $result,
+            'count' => $result->count(),
+            'timestamp' => now()->toIso8601String(),
+        ]);
+    }
+
+    /**
+     * Get raw lots data for endtime per cutoff export
+     * Returns detailed lot information filtered by date and cutoff criteria
+     */
+    public function getRawLotsForCutoffExport(Request $request): JsonResponse
+    {
+        $date = $request->input('date', now()->format('Y-m-d'));
+        $workType = $request->input('workType', null);
+        $lipas = $request->input('lipas', null);
+        $statusFilter = $request->input('status', 'all'); // 'all', 'ongoing', 'submitted'
+        
+        // Build query using same approach as getEndtimePerCutoff
+        $query = Endtime::query();
+        
+        // Apply date filter based on status
+        if ($statusFilter === 'ongoing') {
+            $query->where('status', 'Ongoing')
+                  ->whereDate('est_endtime', $date);
+            
+            // Apply filters
+            if ($workType && $workType !== 'ALL') {
+                $query->where('work_type', $workType);
+            }
+            if ($lipas && $lipas !== 'ALL') {
+                $query->where('lipas_yn', $lipas);
+            }
+        } elseif ($statusFilter === 'submitted') {
+            $query->where('status', 'Submitted')
+                  ->whereDate('actual_submitted_at', $date);
+            
+            // Apply filters
+            if ($workType && $workType !== 'ALL') {
+                $query->where('work_type', $workType);
+            }
+            if ($lipas && $lipas !== 'ALL') {
+                $query->where('lipas_yn', $lipas);
+            }
+        } else {
+            // For 'all', we need to get one record per lot_id
+            // Use a subquery to find the max id for each lot_id that matches our criteria
+            $subquery = Endtime::query()
+                ->select(\DB::raw('MAX(id) as max_id'))
+                ->where(function($q) use ($date) {
+                    $q->where(function($subQ) use ($date) {
+                        $subQ->where('status', 'Ongoing')
+                             ->whereDate('est_endtime', $date);
+                    })->orWhere(function($subQ) use ($date) {
+                        $subQ->where('status', 'Submitted')
+                             ->whereDate('actual_submitted_at', $date);
+                    });
+                });
+            
+            // Apply filters to subquery
+            if ($workType && $workType !== 'ALL') {
+                $subquery->where('work_type', $workType);
+            }
+            if ($lipas && $lipas !== 'ALL') {
+                $subquery->where('lipas_yn', $lipas);
+            }
+            
+            $subquery->groupBy('lot_id');
+            
+            // Now filter main query to only include these IDs
+            $query->whereIn('id', $subquery->pluck('max_id'));
+        }
+        
+        // Get lots
+        $allLots = $query->orderBy('est_endtime', 'asc')->get();
+        
+        // Log for debugging
+        \Log::info('Raw Lots Cutoff Export - Total lots fetched (unique by lot_id): ' . $allLots->count());
+        
+        // Format data
+        $result = collect($allLots)->map(function($lot) {
+            // Collect all equipment numbers
+            $equipmentList = [];
+            for ($i = 1; $i <= 10; $i++) {
+                $eqpField = "eqp_$i";
+                if (!empty($lot->$eqpField)) {
+                    $equipmentList[] = $lot->$eqpField;
+                }
+            }
+            $allEquipment = !empty($equipmentList) ? implode(', ', $equipmentList) : '-';
+            
+            // Use est_endtime for ongoing, actual_submitted_at for submitted
+            $timeColumn = $lot->status === 'Submitted' ? $lot->actual_submitted_at : $lot->est_endtime;
+            $estEndtime = $timeColumn ? Carbon::parse($timeColumn) : null;
+            
+            return [
+                'id' => $lot->id,
+                'lot_no' => $lot->lot_id ?? '-',
+                'lot_model' => $lot->model_15 ?? '-',
+                'lot_worktype' => $lot->work_type ?? '-',
+                'lipas' => $lot->lipas_yn ?? '-',
+                'mc_no' => $allEquipment,
+                'mc_line' => $lot->eqp_line ?? '-',
+                'mc_area' => $lot->eqp_area ?? '-',
+                'lot_size' => $lot->lot_size ?? '-',
+                'lot_qty' => $lot->lot_qty ?? 0,
+                'est_endtime' => $timeColumn,
+                'est_endtime_formatted' => $estEndtime ? $estEndtime->format('Y-m-d H:i') : '-',
+                'status' => $lot->status,
+            ];
+        });
+        
+        return response()->json([
+            'date' => $date,
+            'workType' => $workType,
+            'lipas' => $lipas,
+            'status' => $statusFilter,
             'data' => $result,
             'count' => $result->count(),
             'timestamp' => now()->toIso8601String(),
@@ -221,6 +366,12 @@ class MemsDashboardController extends Controller
     {
         $query = \App\Models\UpdateWip::query();
 
+        // Exclude lots that are on hold
+        $query->where(function($q) {
+            $q->where('hold', 'N')
+              ->orWhereNull('hold');
+        });
+
         // Apply WIP Status filter (default: Newlot Standby)
         $wipStatus = $request->input('wip_status', 'Newlot Standby');
         if ($wipStatus && $wipStatus !== 'ALL') {
@@ -243,6 +394,7 @@ class MemsDashboardController extends Controller
             'lot_id as lot_no',
             'model_15 as lot_model',
             'lot_qty',
+            'qty_class',
             'stagnant_tat',
             'work_type',
             'wip_status',
@@ -251,13 +403,15 @@ class MemsDashboardController extends Controller
             'lot_location',
             'lot_size'
         ])
-        ->orderBy('created_at', 'desc')
-        ->limit(100)
+        ->orderBy('stagnant_tat', 'desc') // Sort by highest TAT first (most urgent)
+        ->orderBy('created_at', 'desc') // Then by creation date
+        ->limit(1000) // Increased limit to 1000 lots
         ->get();
 
         return response()->json([
             'data' => $lots,
             'count' => $lots->count(),
+            'total_available' => $query->count(), // Total count without limit
             'filters' => [
                 'wip_status' => $wipStatus,
                 'work_type' => $workType,
@@ -287,4 +441,96 @@ class MemsDashboardController extends Controller
             'work_types' => $workTypes,
         ]);
     }
+
+    /**
+     * Create a new lot request
+     */
+    public function createLotRequest(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'mc_no' => 'required|string',
+            'line' => 'required|string',
+            'area' => 'required|string',
+            'requestor_id' => 'required|string',
+            'lot_no' => 'required|string',
+            'model' => 'required|string',
+            'quantity' => 'required|integer',
+            'lipas' => 'required|string|in:Y,N',
+            'lot_tat' => 'nullable|string',
+            'lot_location' => 'nullable|string',
+        ]);
+
+        try {
+            // Get requestor name from users table
+            $user = \App\Models\User::where('emp_no', $validated['requestor_id'])->first();
+            
+            if (!$user) {
+                return response()->json([
+                    'success' => false,
+                    'message' => 'Employee ID not found',
+                ], 404);
+            }
+
+            $lotRequest = \App\Models\LotRequest::create([
+                'request_no' => \App\Models\LotRequest::generateRequestNo(),
+                'mc_no' => $validated['mc_no'],
+                'line' => $validated['line'],
+                'area' => $validated['area'],
+                'requestor' => $user->name,
+                'lot_no' => $validated['lot_no'],
+                'model' => $validated['model'],
+                'quantity' => $validated['quantity'],
+                'lipas' => $validated['lipas'],
+                'lot_tat' => $validated['lot_tat'],
+                'lot_location' => $validated['lot_location'] ?? null,
+                'requested' => now(),
+                'status' => 'PENDING',
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'message' => 'Lot request created successfully',
+                'data' => $lotRequest,
+            ], 201);
+        } catch (\Exception $e) {
+            \Log::error('Error creating lot request: ' . $e->getMessage());
+            
+            return response()->json([
+                'success' => false,
+                'message' => 'Failed to create lot request',
+                'error' => $e->getMessage(),
+            ], 500);
+        }
+    }
+
+    /**
+     * Validate employee ID
+     */
+    public function validateEmployeeId(Request $request): JsonResponse
+    {
+        $employeeId = $request->input('employee_id');
+        
+        if (!$employeeId) {
+            return response()->json([
+                'valid' => false,
+                'message' => 'Employee ID is required',
+            ], 400);
+        }
+
+        $user = \App\Models\User::where('emp_no', $employeeId)->first();
+
+        if ($user) {
+            return response()->json([
+                'valid' => true,
+                'name' => $user->name,
+                'emp_no' => $user->emp_no,
+            ]);
+        }
+
+        return response()->json([
+            'valid' => false,
+            'message' => 'Employee ID not found',
+        ], 404);
+    }
+
 }

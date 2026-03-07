@@ -202,7 +202,9 @@ export function useMemsData() {
      * Fetch endtime remaining data
      */
     const fetchEndtimeRemaining = async (
-        date?: string
+        date?: string,
+        workType?: string,
+        lipas?: string
     ) => {
         isLoading.value = true;
         error.value = null;
@@ -210,6 +212,8 @@ export function useMemsData() {
         try {
             const params = new URLSearchParams({
                 ...(date && { date }),
+                ...(workType && workType !== 'ALL' && { workType }),
+                ...(lipas && lipas !== 'ALL' && { lipas }),
             });
             
             const response = await fetch(`/api/mems/endtime/remaining?${params}`);
@@ -237,7 +241,8 @@ export function useMemsData() {
     const fetchEndtimePerCutoff = async (
         date?: string,
         workType?: string,
-        status: string = 'all'
+        status: string = 'all',
+        lipas?: string
     ) => {
         isLoading.value = true;
         error.value = null;
@@ -247,6 +252,7 @@ export function useMemsData() {
                 ...(date && { date }),
                 ...(workType && workType !== 'ALL' && { workType }),
                 status,
+                ...(lipas && lipas !== 'ALL' && { lipas }),
             });
             
             const response = await fetch(`/api/mems/endtime/per-cutoff?${params}`);

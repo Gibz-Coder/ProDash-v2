@@ -18,3 +18,14 @@ Schedule::command('equipment:capture-snapshot')
 Schedule::command('equipment:cleanup-snapshots')
     ->dailyAt('02:00')
     ->withoutOverlapping();
+
+// Import MES WIP data from Excel files every hour
+Schedule::command('import:mes-wip --archive')
+    ->hourly()
+    ->withoutOverlapping()
+    ->onSuccess(function () {
+        \Illuminate\Support\Facades\Log::info('MES WIP import completed successfully');
+    })
+    ->onFailure(function () {
+        \Illuminate\Support\Facades\Log::error('MES WIP import failed');
+    });

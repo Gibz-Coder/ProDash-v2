@@ -8,13 +8,55 @@ Route::get('/', function () {
     return redirect()->route('login');
 })->name('home');
 
+// Session keep-alive endpoint
+Route::get('api/ping', function () {
+    return response()->json(['status' => 'ok', 'timestamp' => now()]);
+})->middleware(['auth'])->name('api.ping');
+
 Route::get('dashboard', function () {
     return Inertia::render('Home');
 })->middleware(['auth', 'verified'])->name('dashboard');
 
-Route::get('lot-request', function () {
-    return Inertia::render('dashboards/main/lot-request');
-})->middleware(['auth', 'verified'])->name('lot_request');
+Route::get('lot-request', [App\Http\Controllers\LotRequestController::class, 'index'])
+    ->middleware(['auth', 'verified'])
+    ->name('lot_request');
+
+// Lot Request API routes
+Route::get('api/lot-request/data', [App\Http\Controllers\LotRequestController::class, 'getData'])
+    ->middleware(['auth', 'verified'])
+    ->name('lot_request.data');
+
+Route::get('api/lot-request/stats', [App\Http\Controllers\LotRequestController::class, 'getStats'])
+    ->middleware(['auth', 'verified'])
+    ->name('lot_request.stats');
+
+Route::get('api/lot-request/by-size', [App\Http\Controllers\LotRequestController::class, 'getBySize'])
+    ->middleware(['auth', 'verified'])
+    ->name('lot_request.by_size');
+
+Route::get('api/lot-request/by-line', [App\Http\Controllers\LotRequestController::class, 'getByLine'])
+    ->middleware(['auth', 'verified'])
+    ->name('lot_request.by_line');
+
+Route::get('api/lot-request/check-pending', [App\Http\Controllers\LotRequestController::class, 'checkPending'])
+    ->middleware(['auth', 'verified'])
+    ->name('lot_request.check_pending');
+
+Route::post('api/lot-request', [App\Http\Controllers\LotRequestController::class, 'store'])
+    ->middleware(['auth', 'verified'])
+    ->name('lot_request.store');
+
+Route::post('api/lot-request/{id}/assign', [App\Http\Controllers\LotRequestController::class, 'assignLot'])
+    ->middleware(['auth', 'verified'])
+    ->name('lot_request.assign');
+
+Route::post('api/lot-request/{id}/accept', [App\Http\Controllers\LotRequestController::class, 'accept'])
+    ->middleware(['auth', 'verified'])
+    ->name('lot_request.accept');
+
+Route::post('api/lot-request/{id}/reject', [App\Http\Controllers\LotRequestController::class, 'reject'])
+    ->middleware(['auth', 'verified'])
+    ->name('lot_request.reject');
 
 Route::get('dashboard-2', function () {
     return Inertia::render('dashboards/main/dashboard-2');
@@ -227,6 +269,11 @@ Route::get('api/mems/endtime/raw-lots', [App\Http\Controllers\MemsDashboardContr
     ->middleware(['auth', 'verified'])
     ->name('mems.endtime.raw-lots');
 
+// Get raw lots data for cutoff export
+Route::get('api/mems/endtime/raw-lots-cutoff', [App\Http\Controllers\MemsDashboardController::class, 'getRawLotsForCutoffExport'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.endtime.raw-lots-cutoff');
+
 // Get available lots for assignment (from updatewip table)
 Route::get('api/mems/available-lots', [App\Http\Controllers\MemsDashboardController::class, 'getAvailableLotsForAssignment'])
     ->middleware(['auth', 'verified'])
@@ -236,6 +283,16 @@ Route::get('api/mems/available-lots', [App\Http\Controllers\MemsDashboardControl
 Route::get('api/mems/filter-options', [App\Http\Controllers\MemsDashboardController::class, 'getFilterOptions'])
     ->middleware(['auth', 'verified'])
     ->name('mems.filter-options');
+
+// Create lot request
+Route::post('api/mems/lot-request', [App\Http\Controllers\MemsDashboardController::class, 'createLotRequest'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.lot-request.create');
+
+// Validate employee ID
+Route::post('api/mems/validate-employee', [App\Http\Controllers\MemsDashboardController::class, 'validateEmployeeId'])
+    ->middleware(['auth', 'verified'])
+    ->name('mems.validate-employee');
 
 // Get endtime per cutoff
 Route::get('api/mems/endtime/per-cutoff', [App\Http\Controllers\MachineUtilizationTrendController::class, 'getEndtimePerCutoff'])
@@ -297,6 +354,10 @@ Route::get('updatewip/download-template', [App\Http\Controllers\UpdateWipControl
     ->middleware(['auth', 'verified'])
     ->name('updatewip.download_template');
 
+Route::get('api/updatewip/last-update', [App\Http\Controllers\UpdateWipController::class, 'getLastUpdate'])
+    ->middleware(['auth', 'verified'])
+    ->name('updatewip.last_update');
+
 // WIP Trend routes
 Route::post('wip-trend/update', [App\Http\Controllers\WipTrendController::class, 'update'])
     ->middleware(['auth', 'verified'])
@@ -336,6 +397,23 @@ Route::get('monthly-plan/download-template', [App\Http\Controllers\MonthlyPlanCo
 Route::get('endtime-ranking', [App\Http\Controllers\EndtimeRankingController::class, 'index'])
     ->middleware(['auth', 'verified'])
     ->name('endtime_ranking');
+
+// Machine Entry - Standalone page without authentication (for old IE6 machines)
+Route::get('machine-entry', [App\Http\Controllers\MachineEntryController::class, 'index'])
+    ->name('machine_entry');
+
+Route::post('machine-entry/store', [App\Http\Controllers\MachineEntryController::class, 'store'])
+    ->name('machine_entry.store');
+
+// Simple API endpoints for machine entry (no authentication required)
+Route::get('api/updatewip/lookup-simple', [App\Http\Controllers\MachineEntryController::class, 'lookupLotSimple'])
+    ->name('updatewip.lookup_simple');
+
+Route::get('api/employee/lookup-simple', [App\Http\Controllers\MachineEntryController::class, 'lookupEmployeeSimple'])
+    ->name('employee.lookup_simple');
+
+Route::get('api/equipment/lookup-simple', [App\Http\Controllers\MachineEntryController::class, 'lookupEquipmentSimple'])
+    ->name('equipment.lookup_simple');
 
 require __DIR__.'/settings.php';
 require __DIR__.'/admin.php';

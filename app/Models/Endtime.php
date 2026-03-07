@@ -717,7 +717,7 @@ class Endtime extends Model
      * @param string|null $workType Filter by work type
      * @return array
      */
-    public static function getEndtimeRemainingByClass(?string $date = null, ?string $workType = null): array
+    public static function getEndtimeRemainingByClass(?string $date = null, ?string $workType = null, ?string $lipas = null): array
     {
         // Determine reference time
         if ($date) {
@@ -780,6 +780,11 @@ class Endtime extends Model
         // Apply work type filter
         if ($workType && $workType !== 'ALL') {
             $query->where('work_type', $workType);
+        }
+
+        // Apply LIPAS filter
+        if ($lipas && $lipas !== 'ALL') {
+            $query->where('lipas_yn', $lipas);
         }
 
         $lots = $query->get();
@@ -846,7 +851,7 @@ class Endtime extends Model
      * @param string $statusFilter 'all', 'ongoing', or 'submitted'
      * @return array
      */
-    public static function getEndtimePerCutoff(?string $date = null, ?string $workType = null, string $statusFilter = 'all'): array
+    public static function getEndtimePerCutoff(?string $date = null, ?string $workType = null, string $statusFilter = 'all', ?string $lipas = null): array
     {
         // Define cutoff ranges
         $cutoffs = [
@@ -890,12 +895,7 @@ class Endtime extends Model
         }
 
         // Build query based on status filter
-        $query = self::query()->select('lot_id', 'lot_qty', 'lot_size', 'est_endtime', 'actual_submitted_at', 'status');
-
-        // Apply work type filter
-        if ($workType && $workType !== 'ALL') {
-            $query->where('work_type', $workType);
-        }
+        $query = self::query()->select('id', 'lot_id', 'lot_qty', 'lot_size', 'est_endtime', 'actual_submitted_at', 'status');
 
         // CRITICAL: Apply date filter based on status
         // This prevents fetching all data from database
@@ -903,29 +903,115 @@ class Endtime extends Model
             // For ongoing lots, filter by est_endtime date
             $query->where('status', 'Ongoing')
                   ->whereDate('est_endtime', $date);
+            
+            // Apply work type filter
+            if ($workType && $workType !== 'ALL') {
+                $query->where('work_type', $workType);
+            }
+
+            // Apply LIPAS filter
+            if ($lipas && $lipas !== 'ALL') {
+                $query->where('lipas_yn', $lipas);
+            }
         } elseif ($statusFilter === 'submitted') {
             // For submitted lots, filter by actual_submitted_at date
             $query->where('status', 'Submitted')
                   ->whereDate('actual_submitted_at', $date);
+            
+            // Apply work type filter
+            if ($workType && $workType !== 'ALL') {
+                $query->where('work_type', $workType);
+            }
+
+            // Apply LIPAS filter
+            if ($lipas && $lipas !== 'ALL') {
+                $query->where('lipas_yn', $lipas);
+            }
         } else {
-            // For 'all', get both ongoing and submitted for the selected date
-            $query->where(function($q) use ($date) {
-                $q->where(function($subQ) use ($date) {
-                    // Ongoing lots with est_endtime on selected date
-                    $subQ->where('status', 'Ongoing')
-                         ->whereDate('est_endtime', $date);
-                })->orWhere(function($subQ) use ($date) {
-                    // Submitted lots with actual_submitted_at on selected date
-                    $subQ->where('status', 'Submitted')
-                         ->whereDate('actual_submitted_at', $date);
+            // For 'all', we need to get one record per lot_id
+            // Use a subquery to find the max id for each lot_id that matches our criteria
+            $subquery = self::query()
+                ->select(\DB::raw('MAX(id) as max_id'))
+                ->where(function($q) use ($date) {
+                    $q->where(function($subQ) use ($date) {
+                        $subQ->where('status', 'Ongoing')
+                             ->whereDate('est_endtime', $date);
+                    })->orWhere(function($subQ) use ($date) {
+                        $subQ->where('status', 'Submitted')
+                             ->whereDate('actual_submitted_at', $date);
+                    });
                 });
+            
+            // Apply filters to subquery
+            if ($workType && $workType !== 'ALL') {
+                $subquery->where('work_type', $workType);
+            }
+            if ($lipas && $lipas !== 'ALL') {
+                $subquery->where('lipas_yn', $lipas);
+            }
+            
+            $subquery->groupBy('lot_id');
+            
+            // Log the subquery SQL for debugging
+            \Log::info('Subquery SQL: ' . $subquery->toSql());
+            \Log::info('Subquery Bindings: ' . json_encode($subquery->getBindings()));
+            
+            // Use whereIn with subquery directly instead of pluck
+            $query->whereIn('id', function($q) use ($date, $workType, $lipas) {
+                $q->select(\DB::raw('MAX(id)'))
+                  ->from('endtime')
+                  ->where(function($subQ) use ($date) {
+                      $subQ->where(function($innerQ) use ($date) {
+                          $innerQ->where('status', 'Ongoing')
+                                 ->whereDate('est_endtime', $date);
+                      })->orWhere(function($innerQ) use ($date) {
+                          $innerQ->where('status', 'Submitted')
+                                 ->whereDate('actual_submitted_at', $date);
+                      });
+                  });
+                
+                if ($workType && $workType !== 'ALL') {
+                    $q->where('work_type', $workType);
+                }
+                if ($lipas && $lipas !== 'ALL') {
+                    $q->where('lipas_yn', $lipas);
+                }
+                
+                $q->groupBy('lot_id');
             });
         }
 
-        $lots = $query->get();
+        // Log the final query
+        \Log::info('Final Query SQL: ' . $query->toSql());
+        \Log::info('Final Query Bindings: ' . json_encode($query->getBindings()));
 
+        // Get lots
+        $allLots = $query->get();
+        
+        // Log for debugging
+        \Log::info('Endtime Per Cutoff - Date: ' . $date);
+        \Log::info('Endtime Per Cutoff - Status Filter: ' . $statusFilter);
+        \Log::info('Endtime Per Cutoff - Work Type: ' . ($workType ?? 'null'));
+        \Log::info('Endtime Per Cutoff - LIPAS: ' . ($lipas ?? 'null'));
+        \Log::info('Endtime Per Cutoff - Total lots fetched: ' . $allLots->count());
+        
+        // Check for duplicates
+        $uniqueLotIds = $allLots->pluck('lot_id')->unique();
+        \Log::info('Endtime Per Cutoff - Unique lot_ids: ' . $uniqueLotIds->count());
+        
+        if ($allLots->count() !== $uniqueLotIds->count()) {
+            \Log::warning('Endtime Per Cutoff - DUPLICATE lot_ids detected!');
+            $duplicates = $allLots->groupBy('lot_id')->filter(fn($group) => $group->count() > 1);
+            foreach ($duplicates as $lotId => $lots) {
+                \Log::warning("Lot ID $lotId appears " . $lots->count() . " times");
+                foreach ($lots as $lot) {
+                    \Log::warning("  - ID: {$lot->id}, Status: {$lot->status}, est_endtime: {$lot->est_endtime}, actual_submitted_at: {$lot->actual_submitted_at}");
+                }
+            }
+        }
+        
         // Process each lot
-        foreach ($lots as $lot) {
+        foreach ($allLots as $lot) {
             // Use est_endtime for ongoing, actual_submitted_at for submitted
             $timeColumn = $lot->status === 'Submitted' ? $lot->actual_submitted_at : $lot->est_endtime;
             if (!$timeColumn) continue;
@@ -967,13 +1053,17 @@ class Endtime extends Model
             $totalRow[$sizeLabels[$size]] = 0;
         }
 
-        foreach ($result as $row) {
+        \Log::info('Calculating totals from ' . count($result) . ' cutoff rows');
+        foreach ($result as $idx => $row) {
+            \Log::info("Row $idx: count={$row['count']}, qty={$row['qty']}");
             $totalRow['count'] += $row['count'];
             $totalRow['qty'] += $row['qty'];
             foreach ($sizes as $size) {
                 $totalRow[$sizeLabels[$size]] += $row[$sizeLabels[$size]];
             }
         }
+        
+        \Log::info("Final TOTAL: count={$totalRow['count']}, qty={$totalRow['qty']}");
 
         $result[] = $totalRow;
 

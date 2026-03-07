@@ -464,6 +464,13 @@ class EndtimeController extends Controller
             }
         }
 
+        // Check if this is an Inertia request (from modal)
+        if ($request->header('X-Inertia')) {
+            // Return success without redirect for modal submissions
+            return back()->with('success', 'Lot submitted successfully!');
+        }
+
+        // Regular redirect for non-modal submissions
         return redirect()->route('endtime_add')->with('success', 'Lot submitted successfully!');
     }
 
