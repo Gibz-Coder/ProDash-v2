@@ -31,12 +31,23 @@ class LotRequestController extends Controller
             $query->where('status', $request->status);
         }
 
-        // Apply date range filter
-        if ($request->filled('date_from')) {
-            $query->whereDate('requested', '>=', $request->date_from);
-        }
-        if ($request->filled('date_to')) {
-            $query->whereDate('requested', '<=', $request->date_to);
+        // Apply date range filter — but always include PENDING requests regardless of date
+        if ($request->filled('date_from') || $request->filled('date_to')) {
+            $query->where(function ($q) use ($request) {
+                // Match records within the date range
+                $q->where(function ($dateQ) use ($request) {
+                    if ($request->filled('date_from')) {
+                        $dateQ->whereDate('requested', '>=', $request->date_from);
+                    }
+                    if ($request->filled('date_to')) {
+                        $dateQ->whereDate('requested', '<=', $request->date_to);
+                    }
+                });
+
+                // OR always include any PENDING request (regardless of date)
+                // so old unresolved requests are never hidden
+                $q->orWhere('status', 'PENDING');
+            });
         }
 
         // Apply line filter

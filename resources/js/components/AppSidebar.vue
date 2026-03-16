@@ -10,11 +10,22 @@ import {
     SidebarMenuButton,
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
-import { dashboard, lot_request, dashboard_2, dashboard_3, dashboard_5, dashboard_7, data_entry, endline, endtime, escalation, process_wip, mc_allocation, mems_dashboard } from '@/routes';
+import {
+    dashboard,
+    dashboard_7,
+    data_entry,
+    endline_delay,
+    endtime,
+    escalation,
+    lot_request,
+    mc_allocation,
+    mems_dashboard,
+    process_wip,
+} from '@/routes';
 import admin from '@/routes/admin';
 import { type NavItem } from '@/types';
 import { Link, usePage } from '@inertiajs/vue3';
-import { Home, BarChart3, PieChart, LineChart, TrendingUp, Activity, Wrench, Gauge, Clock, Settings, Users, Shield } from 'lucide-vue-next';
+import { Settings, Shield, Users } from 'lucide-vue-next';
 import { computed } from 'vue';
 import AppLogo from './AppLogo.vue';
 
@@ -56,7 +67,7 @@ const allNavItems: NavItem[] = [
     },
     {
         title: 'ENDLINE',
-        href: endline(),
+        href: endline_delay(),
         icon: '🔚',
     },
     {
@@ -79,13 +90,19 @@ const allNavItems: NavItem[] = [
 // Filter navigation items based on user role
 const mainNavItems = computed(() => {
     if (!user) return allNavItems;
-    
-    // Hide DATA ENTRY for users with 'user' role
+
     const userRole = user.role?.toLowerCase();
-    if (userRole === 'user') {
-        return allNavItems.filter(item => item.title !== 'DATA ENTRY');
+
+    // QC Part role can only see ENDLINE
+    if (userRole === 'qc part' || userRole === 'qc-part') {
+        return allNavItems.filter((item) => item.title === 'ENDLINE');
     }
-    
+
+    // Hide DATA ENTRY for users with 'user' role
+    if (userRole === 'user') {
+        return allNavItems.filter((item) => item.title !== 'DATA ENTRY');
+    }
+
     return allNavItems;
 });
 
@@ -97,9 +114,16 @@ const hasPermission = (permission: string): boolean => {
 // Filter admin navigation items based on user permissions
 const footerNavItems = computed(() => {
     if (!user) return [];
-    
+
+    const userRole = user.role?.toLowerCase();
+
+    // QC Part role should not see any admin items
+    if (userRole === 'qc part' || userRole === 'qc-part') {
+        return [];
+    }
+
     const items: NavItem[] = [];
-    
+
     // User Management - requires "Employees Manage" permission
     if (hasPermission('Employees Manage')) {
         items.push({
@@ -108,7 +132,7 @@ const footerNavItems = computed(() => {
             icon: Users,
         });
     }
-    
+
     // Role Management - requires "Roles Manage" permission
     if (hasPermission('Roles Manage')) {
         items.push({
@@ -117,7 +141,7 @@ const footerNavItems = computed(() => {
             icon: Shield,
         });
     }
-    
+
     // System Settings - requires "Settings Manage" permission
     if (hasPermission('Settings Manage')) {
         items.push({
@@ -126,7 +150,7 @@ const footerNavItems = computed(() => {
             icon: Settings,
         });
     }
-    
+
     return items;
 });
 </script>

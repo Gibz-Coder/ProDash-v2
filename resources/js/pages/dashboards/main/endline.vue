@@ -3,31 +3,8 @@ import AppLayout from '@/layouts/AppLayout.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
-import { BarChart, PieChart, LineChart } from 'echarts/charts';
-import {
-    GridComponent,
-    LegendComponent,
-    TitleComponent,
-    ToolboxComponent,
-    TooltipComponent,
-    DataZoomComponent,
-} from 'echarts/components';
-import * as echarts from 'echarts/core';
-import { CanvasRenderer } from 'echarts/renderers';
-import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
-
-echarts.use([
-    TitleComponent,
-    TooltipComponent,
-    GridComponent,
-    LegendComponent,
-    ToolboxComponent,
-    DataZoomComponent,
-    BarChart,
-    PieChart,
-    LineChart,
-    CanvasRenderer,
-]);
+import ApexCharts from 'apexcharts';
+import { onBeforeUnmount, onMounted, ref } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -35,674 +12,776 @@ const breadcrumbs: BreadcrumbItem[] = [
         href: dashboard().url,
     },
     {
-        title: 'Endline Analytics',
+        title: 'Endline Monitoring',
         href: '/endline',
     },
 ];
 
-const isDarkMode = ref(false);
+// Filter states
+const selectedDate = ref('');
+const selectedCutOff = ref('');
+const selectedWorkType = ref('');
+const selectedLIPAS = ref('');
+const autoRefresh = ref(false);
+let refreshInterval: number | null = null;
 
-// Sample data for Endline Analytics
-const endlineData = ref({
-    lastUpdate: 'February 12, 2026 (08:00 AM)',
-    selectedPeriod: 'MONTHLY',
-    selectedSize: 'LIPAS',
-    
-    // Trend data for line charts
-    trendData: {
-        monthly: [
-            { period: 'NOV', value: 105291.752 },
-            { period: 'DEC', value: 102291.752 },
-            { period: 'JAN', value: 106291.752 },
-            { period: 'FEB', value: 102291.752 },
-        ],
-        weekly: [
-            { period: 'WK3', value: 104291.752 },
-            { period: 'WK4', value: 106291.752 },
-            { period: 'WK5', value: 102291.752 },
-            { period: 'WK6', value: 106291.752 },
-        ],
-        daily: [
-            { period: '9-FEB', value: 104291.752 },
-            { period: '10-FEB', value: 102291.752 },
-            { period: '11-FEB', value: 106291.752 },
-            { period: '12-FEB', value: 102291.752 },
-        ],
-    },
-    
-    // Daily trend per size
-    dailyTrendPerSize: {
-        dates: ['8-FEB', '9-FEB', '10-FEB', '11-FEB', '12-FEB'],
-        series: [
-            { name: '0603', data: [95000, 98000, 92000, 96000, 94000], color: '#60a5fa' },
-            { name: '1005', data: [102000, 105000, 98000, 103000, 100000], color: '#818cf8' },
-            { name: '1608', data: [88000, 91000, 85000, 89000, 87000], color: '#a78bfa' },
-            { name: '2012', data: [110000, 115000, 108000, 112000, 110000], color: '#c084fc' },
-            { name: '3216', data: [95000, 98000, 92000, 96000, 94000], color: '#e879f9' },
-            { name: '3225', data: [78000, 82000, 76000, 80000, 78000], color: '#f472b6' },
-        ],
-    },
-    
-    // Per cut off data
-    cutOffData: [
-        {
-            time: '12:00 AM',
-            total: 201497.734,
-            breakdown: [
-                { name: 'Endline', value: 4, color: '#60a5fa' },
-                { name: 'For MC', value: 116, color: '#818cf8' },
-                { name: 'QC', value: 34, color: '#a78bfa' },
-                { name: 'SIMOT', value: 78, color: '#c084fc' },
-                { name: 'TechT', value: 14, color: '#e879f9' },
-            ],
-            detailedData: [
-                { name: 'Endline', value: 105291.752, label: '105,291.752' },
-                { name: 'For MC', value: 33289.126, label: '33,289.126' },
-                { name: 'QC', value: 0, label: '0' },
-                { name: 'SIMOT', value: 0, label: '0' },
-                { name: 'TechT', value: 16906.344, label: '16,906.344' },
-            ],
-        },
-        {
-            time: '04:00 AM',
-            total: 330843.408,
-            breakdown: [
-                { name: 'Endline', value: 0, color: '#60a5fa' },
-                { name: 'For MC', value: 37, color: '#818cf8' },
-                { name: 'QC', value: 0, color: '#a78bfa' },
-                { name: 'SIMOT', value: 138, color: '#c084fc' },
-                { name: 'TechT', value: 27, color: '#e879f9' },
-            ],
-            detailedData: [
-                { name: 'Endline', value: 0, label: '0' },
-                { name: 'For MC', value: 34110.105, label: '34,110.105' },
-                { name: 'QC', value: 173642.327, label: '173,642.327' },
-                { name: 'SIMOT', value: 94413.602, label: '94,413.602' },
-                { name: 'TechT', value: 28779.801, label: '28,779.801' },
-            ],
-        },
-        {
-            time: '08:00 AM',
-            total: 217442.692,
-            breakdown: [
-                { name: 'Endline', value: 0, color: '#60a5fa' },
-                { name: 'For MC', value: 125, color: '#818cf8' },
-                { name: 'QC', value: 68, color: '#a78bfa' },
-                { name: 'SIMOT', value: 72, color: '#c084fc' },
-                { name: 'TechT', value: 0, color: '#e879f9' },
-            ],
-            detailedData: [
-                { name: 'Endline', value: 0, label: '0' },
-                { name: 'For MC', value: 66102.646, label: '66,102.646' },
-                { name: 'QC', value: 23149.205, label: '23,149.205' },
-                { name: 'SIMOT', value: 27545.625, label: '27,545.625' },
-                { name: 'TechT', value: 13456.126, label: '13,456.126' },
-            ],
-        },
-    ],
-    
-    // LIPAS vs VOLIPAS comparison
-    lipasVsVolipas: {
-        sizes: ['0603', '1005', '1608', '2012', '3216', '3225'],
-        lipas: [
-            { size: '0603', value: 105000, label: '105,000 M' },
-            { size: '1005', value: 98000, label: '98,000 M' },
-            { size: '1608', value: 92000, label: '92,000 M' },
-            { size: '2012', value: 115000, label: '115,000 M' },
-            { size: '3216', value: 88000, label: '88,000 M' },
-            { size: '3225', value: 76000, label: '76,000 M' },
-        ],
-        volipas: [
-            { size: '0603', value: 95000, label: '95,000 M' },
-            { size: '1005', value: 89000, label: '89,000 M' },
-            { size: '1608', value: 85000, label: '85,000 M' },
-            { size: '2012', value: 105000, label: '105,000 M' },
-            { size: '3216', value: 82000, label: '82,000 M' },
-            { size: '3225', value: 70000, label: '70,000 M' },
-        ],
-    },
-});
+// Auto refresh function
+const toggleAutoRefresh = () => {
+    autoRefresh.value = !autoRefresh.value;
 
-// Chart refs
-const trendChartRef = ref<HTMLElement | null>(null);
-const dailyTrendChartRef = ref<HTMLElement | null>(null);
-const cutOff1ChartRef = ref<HTMLElement | null>(null);
-const cutOff2ChartRef = ref<HTMLElement | null>(null);
-const cutOff3ChartRef = ref<HTMLElement | null>(null);
-const lipasChartRef = ref<HTMLElement | null>(null);
-const volipasChartRef = ref<HTMLElement | null>(null);
-
-let trendChart: echarts.ECharts | null = null;
-let dailyTrendChart: echarts.ECharts | null = null;
-let cutOff1Chart: echarts.ECharts | null = null;
-let cutOff2Chart: echarts.ECharts | null = null;
-let cutOff3Chart: echarts.ECharts | null = null;
-let lipasChart: echarts.ECharts | null = null;
-let volipasChart: echarts.ECharts | null = null;
-let resizeObserver: ResizeObserver | null = null;
-
-const formatNumber = (value: number): string => {
-    return value.toLocaleString('en-US');
-};
-
-const initCharts = () => {
-    const chartColor = isDarkMode.value ? '#e5e7eb' : '#374151';
-    const gridColor = 'rgba(142, 156, 173, 0.1)';
-    const bgColor = isDarkMode.value ? '#1f2937' : '#f9fafb';
-    
-    // Get current trend data based on selected period
-    const getTrendData = () => {
-        switch (endlineData.value.selectedPeriod) {
-            case 'WEEKLY':
-                return endlineData.value.trendData.weekly;
-            case 'DAILY':
-                return endlineData.value.trendData.daily;
-            default:
-                return endlineData.value.trendData.monthly;
+    if (autoRefresh.value) {
+        // Refresh every 30 seconds
+        refreshInterval = window.setInterval(() => {
+            console.log('Auto refreshing data...');
+            // Add your refresh logic here
+        }, 30000);
+    } else {
+        if (refreshInterval) {
+            clearInterval(refreshInterval);
+            refreshInterval = null;
         }
-    };
-    
-    // Overall Endline Delay Trend Chart
-    if (trendChartRef.value) {
-        if (trendChart) trendChart.dispose();
-        trendChart = echarts.init(trendChartRef.value, isDarkMode.value ? 'dark' : undefined);
-
-        const trendData = getTrendData();
-        const option = {
-            backgroundColor: 'transparent',
-            tooltip: {
-                trigger: 'axis',
-                formatter: (params: any) => {
-                    const item = params[0];
-                    return `${item.name}<br/>${item.marker} ${formatNumber(item.value)}`;
-                },
-            },
-            grid: {
-                left: '3%',
-                right: '4%',
-                bottom: '10%',
-                top: '10%',
-                containLabel: true,
-            },
-            xAxis: {
-                type: 'category',
-                data: trendData.map((item) => item.period),
-                axisLabel: { color: chartColor, fontSize: 11 },
-                axisLine: { lineStyle: { color: gridColor } },
-            },
-            yAxis: {
-                type: 'value',
-                splitLine: { lineStyle: { color: gridColor } },
-                axisLabel: {
-                    color: chartColor,
-                    formatter: (value: number) => formatNumber(value),
-                },
-            },
-            series: [
-                {
-                    type: 'line',
-                    data: trendData.map((item) => item.value),
-                    smooth: true,
-                    symbol: 'circle',
-                    symbolSize: 8,
-                    itemStyle: { color: '#60a5fa' },
-                    lineStyle: { width: 3, color: '#60a5fa' },
-                    label: {
-                        show: true,
-                        position: 'top',
-                        formatter: (params: any) => formatNumber(params.value),
-                        color: chartColor,
-                        fontSize: 10,
-                    },
-                },
-            ],
-        };
-
-        trendChart.setOption(option);
-    }
-
-    // Daily Trend Per Size Chart
-    if (dailyTrendChartRef.value) {
-        if (dailyTrendChart) dailyTrendChart.dispose();
-        dailyTrendChart = echarts.init(dailyTrendChartRef.value, isDarkMode.value ? 'dark' : undefined);
-
-        const option = {
-            backgroundColor: 'transparent',
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'shadow' },
-            },
-            legend: {
-                data: endlineData.value.dailyTrendPerSize.series.map((s) => s.name),
-                top: '0%',
-                textStyle: { color: chartColor, fontSize: 10 },
-            },
-            grid: {
-                left: '3%',
-                right: '4%',
-                bottom: '8%',
-                top: '15%',
-                containLabel: true,
-            },
-            xAxis: {
-                type: 'category',
-                data: endlineData.value.dailyTrendPerSize.dates,
-                axisLabel: { color: chartColor, fontSize: 10 },
-            },
-            yAxis: {
-                type: 'value',
-                splitLine: { lineStyle: { color: gridColor } },
-                axisLabel: {
-                    color: chartColor,
-                    formatter: (value: number) => formatNumber(value),
-                },
-            },
-            series: endlineData.value.dailyTrendPerSize.series.map((s) => ({
-                name: s.name,
-                type: 'bar',
-                data: s.data,
-                itemStyle: { color: s.color },
-            })),
-        };
-
-        dailyTrendChart.setOption(option);
-    }
-
-    // Cut Off Charts (3 charts)
-    const cutOffCharts = [
-        { ref: cutOff1ChartRef, chart: cutOff1Chart, data: endlineData.value.cutOffData[0] },
-        { ref: cutOff2ChartRef, chart: cutOff2Chart, data: endlineData.value.cutOffData[1] },
-        { ref: cutOff3ChartRef, chart: cutOff3Chart, data: endlineData.value.cutOffData[2] },
-    ];
-
-    cutOffCharts.forEach((item, index) => {
-        if (item.ref.value) {
-            if (item.chart) item.chart.dispose();
-            const chart = echarts.init(item.ref.value, isDarkMode.value ? 'dark' : undefined);
-
-            const option = {
-                backgroundColor: 'transparent',
-                tooltip: {
-                    trigger: 'axis',
-                    axisPointer: { type: 'shadow' },
-                },
-                grid: {
-                    left: '3%',
-                    right: '4%',
-                    bottom: '3%',
-                    top: '3%',
-                    containLabel: true,
-                },
-                xAxis: {
-                    type: 'category',
-                    data: item.data.detailedData.map((d) => d.name),
-                    axisLabel: { color: chartColor, fontSize: 9, rotate: 0 },
-                },
-                yAxis: {
-                    type: 'value',
-                    splitLine: { lineStyle: { color: gridColor } },
-                    axisLabel: {
-                        color: chartColor,
-                        formatter: (value: number) => formatNumber(value),
-                        fontSize: 9,
-                    },
-                },
-                series: [
-                    {
-                        type: 'bar',
-                        data: item.data.detailedData.map((d, idx) => ({
-                            value: d.value,
-                            itemStyle: { color: item.data.breakdown[idx]?.color || '#60a5fa' },
-                        })),
-                        label: {
-                            show: true,
-                            position: 'top',
-                            formatter: (params: any) => {
-                                const dataItem = item.data.detailedData[params.dataIndex];
-                                return dataItem.label;
-                            },
-                            color: chartColor,
-                            fontSize: 8,
-                        },
-                        barWidth: '50%',
-                    },
-                ],
-            };
-
-            chart.setOption(option);
-
-            // Update the chart reference
-            if (index === 0) cutOff1Chart = chart;
-            if (index === 1) cutOff2Chart = chart;
-            if (index === 2) cutOff3Chart = chart;
-        }
-    });
-
-    // LIPAS Chart
-    if (lipasChartRef.value) {
-        if (lipasChart) lipasChart.dispose();
-        lipasChart = echarts.init(lipasChartRef.value, isDarkMode.value ? 'dark' : undefined);
-
-        const option = {
-            backgroundColor: 'transparent',
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'shadow' },
-            },
-            grid: {
-                left: '3%',
-                right: '4%',
-                bottom: '8%',
-                top: '5%',
-                containLabel: true,
-            },
-            xAxis: {
-                type: 'category',
-                data: endlineData.value.lipasVsVolipas.sizes,
-                axisLabel: { color: chartColor, fontSize: 10 },
-            },
-            yAxis: {
-                type: 'value',
-                splitLine: { lineStyle: { color: gridColor } },
-                axisLabel: {
-                    color: chartColor,
-                    formatter: (value: number) => formatNumber(value),
-                },
-            },
-            series: [
-                {
-                    name: 'LIPAS',
-                    type: 'bar',
-                    data: endlineData.value.lipasVsVolipas.lipas.map((item) => item.value),
-                    itemStyle: { color: '#60a5fa' },
-                    label: {
-                        show: true,
-                        position: 'top',
-                        formatter: (params: any) => {
-                            return endlineData.value.lipasVsVolipas.lipas[params.dataIndex].label;
-                        },
-                        color: chartColor,
-                        fontSize: 9,
-                    },
-                },
-            ],
-        };
-
-        lipasChart.setOption(option);
-    }
-
-    // VOLIPAS Chart
-    if (volipasChartRef.value) {
-        if (volipasChart) volipasChart.dispose();
-        volipasChart = echarts.init(volipasChartRef.value, isDarkMode.value ? 'dark' : undefined);
-
-        const option = {
-            backgroundColor: 'transparent',
-            tooltip: {
-                trigger: 'axis',
-                axisPointer: { type: 'shadow' },
-            },
-            grid: {
-                left: '3%',
-                right: '4%',
-                bottom: '8%',
-                top: '5%',
-                containLabel: true,
-            },
-            xAxis: {
-                type: 'category',
-                data: endlineData.value.lipasVsVolipas.sizes,
-                axisLabel: { color: chartColor, fontSize: 10 },
-            },
-            yAxis: {
-                type: 'value',
-                splitLine: { lineStyle: { color: gridColor } },
-                axisLabel: {
-                    color: chartColor,
-                    formatter: (value: number) => formatNumber(value),
-                },
-            },
-            series: [
-                {
-                    name: 'VOLIPAS',
-                    type: 'bar',
-                    data: endlineData.value.lipasVsVolipas.volipas.map((item) => item.value),
-                    itemStyle: { color: '#818cf8' },
-                    label: {
-                        show: true,
-                        position: 'top',
-                        formatter: (params: any) => {
-                            return endlineData.value.lipasVsVolipas.volipas[params.dataIndex].label;
-                        },
-                        color: chartColor,
-                        fontSize: 9,
-                    },
-                },
-            ],
-        };
-
-        volipasChart.setOption(option);
     }
 };
 
-watch(isDarkMode, () => {
-    initCharts();
-});
+// Manual refresh function
+const manualRefresh = () => {
+    console.log('Manual refresh triggered');
+    // Add your refresh logic here
+};
 
-watch(() => endlineData.value.selectedPeriod, () => {
-    initCharts();
-});
+let pieChart: ApexCharts | null = null;
+let barChart: ApexCharts | null = null;
+let columnChart: ApexCharts | null = null;
 
-watch(() => endlineData.value.selectedSize, () => {
-    initCharts();
+onBeforeUnmount(() => {
+    if (pieChart) {
+        (pieChart as ApexCharts).destroy();
+    }
+    if (barChart) {
+        (barChart as ApexCharts).destroy();
+    }
+    if (columnChart) {
+        (columnChart as ApexCharts).destroy();
+    }
+    if (refreshInterval) {
+        clearInterval(refreshInterval);
+    }
 });
 
 onMounted(() => {
-    isDarkMode.value = document.documentElement.classList.contains('dark');
+    // Basic Pie Chart
+    const pieOptions = {
+        series: [350, 280, 190],
+        chart: {
+            height: '100%',
+            type: 'pie',
+        },
+        colors: [
+            '#3b82f6', // Blue - Main
+            '#10b981', // Green - R-rework
+            '#f59e0b', // Amber - L-rework
+        ],
+        labels: ['Main', 'R-rework', 'L-rework'],
+        legend: {
+            position: 'bottom',
+            fontSize: '11px',
+            horizontalAlign: 'center',
+            floating: false,
+            offsetY: 0,
+            markers: {
+                width: 10,
+                height: 10,
+                radius: 2,
+            },
+            itemMargin: {
+                horizontal: 8,
+                vertical: 4,
+            },
+        },
+        dataLabels: {
+            enabled: true,
+            formatter: function (val: number) {
+                return val.toFixed(1) + '%';
+            },
+            dropShadow: {
+                enabled: false,
+            },
+        },
+        responsive: [
+            {
+                breakpoint: 480,
+                options: {
+                    chart: {
+                        width: '100%',
+                    },
+                    legend: {
+                        position: 'bottom',
+                        fontSize: '10px',
+                    },
+                },
+            },
+        ],
+    };
 
-    nextTick(() => {
-        initCharts();
+    const pieChart = new ApexCharts(
+        document.querySelector('#pie-chart'),
+        pieOptions,
+    );
+    pieChart.render();
 
-        resizeObserver = new ResizeObserver(() => {
-            if (trendChart) trendChart.resize();
-            if (dailyTrendChart) dailyTrendChart.resize();
-            if (cutOff1Chart) cutOff1Chart.resize();
-            if (cutOff2Chart) cutOff2Chart.resize();
-            if (cutOff3Chart) cutOff3Chart.resize();
-            if (lipasChart) lipasChart.resize();
-            if (volipasChart) volipasChart.resize();
-        });
+    // Horizontal Bar Chart
+    const barOptions = {
+        series: [
+            {
+                name: 'Main',
+                data: [120, 85, 95, 110, 90, 80],
+            },
+            {
+                name: 'R-rework',
+                data: [80, 65, 75, 85, 70, 60],
+            },
+            {
+                name: 'L-rework',
+                data: [50, 40, 45, 55, 45, 40],
+            },
+        ],
+        chart: {
+            type: 'bar',
+            height: '100%',
+            stacked: true,
+            toolbar: {
+                show: false,
+            },
+        },
+        plotOptions: {
+            bar: {
+                horizontal: true,
+                borderRadius: 2,
+            },
+        },
+        stroke: {
+            width: 1,
+            colors: ['#fff'],
+        },
+        colors: [
+            '#3b82f6', // Blue - Main
+            '#10b981', // Green - R-rework
+            '#f59e0b', // Amber - L-rework
+        ],
+        grid: {
+            borderColor: '#f2f5f7',
+        },
+        xaxis: {
+            categories: ['03', '05', '10', '21', '31', '32'],
+            labels: {
+                show: true,
+                style: {
+                    colors: '#8c9097',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cssClass: 'apexcharts-xaxis-label',
+                },
+            },
+        },
+        yaxis: {
+            labels: {
+                show: true,
+                style: {
+                    colors: '#8c9097',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cssClass: 'apexcharts-yaxis-label',
+                },
+            },
+        },
+        tooltip: {
+            y: {
+                formatter: function (val: number) {
+                    return val.toString();
+                },
+            },
+        },
+        fill: {
+            opacity: 1,
+        },
+        legend: {
+            position: 'bottom',
+            horizontalAlign: 'center',
+            fontSize: '11px',
+            markers: {
+                width: 10,
+                height: 10,
+                radius: 2,
+            },
+            itemMargin: {
+                horizontal: 8,
+                vertical: 4,
+            },
+        },
+        dataLabels: {
+            enabled: false,
+        },
+    };
 
-        if (trendChartRef.value) resizeObserver.observe(trendChartRef.value);
-        if (dailyTrendChartRef.value) resizeObserver.observe(dailyTrendChartRef.value);
-        if (cutOff1ChartRef.value) resizeObserver.observe(cutOff1ChartRef.value);
-        if (cutOff2ChartRef.value) resizeObserver.observe(cutOff2ChartRef.value);
-        if (cutOff3ChartRef.value) resizeObserver.observe(cutOff3ChartRef.value);
-        if (lipasChartRef.value) resizeObserver.observe(lipasChartRef.value);
-        if (volipasChartRef.value) resizeObserver.observe(volipasChartRef.value);
+    const barChart = new ApexCharts(
+        document.querySelector('#bar-chart'),
+        barOptions,
+    );
+    barChart.render();
 
-        window.addEventListener('resize', () => {
-            if (trendChart) trendChart.resize();
-            if (dailyTrendChart) dailyTrendChart.resize();
-            if (cutOff1Chart) cutOff1Chart.resize();
-            if (cutOff2Chart) cutOff2Chart.resize();
-            if (cutOff3Chart) cutOff3Chart.resize();
-            if (lipasChart) lipasChart.resize();
-            if (volipasChart) volipasChart.resize();
-        });
+    // Stacked Column Chart
+    const columnOptions = {
+        series: [
+            {
+                name: '03',
+                data: [
+                    20, 15, 18, 22, 12, 15, 18, 10, 13, 25, 20, 18, 16, 14, 12,
+                    10,
+                ],
+            },
+            {
+                name: '05',
+                data: [
+                    18, 12, 16, 20, 10, 13, 16, 8, 11, 22, 18, 16, 14, 12, 10,
+                    8,
+                ],
+            },
+            {
+                name: '10',
+                data: [
+                    22, 16, 19, 24, 14, 17, 20, 12, 15, 28, 22, 20, 18, 16, 14,
+                    12,
+                ],
+            },
+            {
+                name: '21',
+                data: [
+                    16, 11, 14, 18, 9, 12, 15, 7, 10, 20, 16, 14, 12, 10, 8, 6,
+                ],
+            },
+            {
+                name: '31',
+                data: [
+                    19, 14, 17, 21, 12, 15, 18, 10, 13, 24, 19, 17, 15, 13, 11,
+                    9,
+                ],
+            },
+            {
+                name: '32',
+                data: [14, 9, 12, 16, 8, 11, 13, 6, 9, 18, 14, 12, 10, 8, 6, 5],
+            },
+        ],
+        chart: {
+            type: 'bar',
+            height: '100%',
+            stacked: true,
+            toolbar: {
+                show: false,
+            },
+            zoom: {
+                enabled: true,
+            },
+        },
+        grid: {
+            borderColor: '#f2f5f7',
+        },
+        colors: [
+            '#3b82f6', // Blue - 03
+            '#10b981', // Green - 05
+            '#f59e0b', // Amber - 10
+            '#ef4444', // Red - 21
+            '#8b5cf6', // Purple - 31
+            '#06b6d4', // Cyan - 32
+        ],
+        responsive: [
+            {
+                breakpoint: 480,
+                options: {
+                    legend: {
+                        position: 'bottom',
+                        offsetX: -10,
+                        offsetY: 0,
+                    },
+                },
+            },
+        ],
+        plotOptions: {
+            bar: {
+                horizontal: false,
+                borderRadius: 2,
+            },
+        },
+        xaxis: {
+            categories: [
+                'Lot weighing',
+                'Low Yield',
+                'R/L Rework',
+                'Vi Barcode',
+                'Problem Lot',
+                'Decision (QC NG)',
+                'Decision (Yield)',
+                'DRB Approval',
+                'Experiment',
+                'QC Inspection',
+                'QC Analysis',
+                'QC OK (MOLD)',
+                'QC OK (RELI)',
+                'QC OK (DIPPING)',
+                'QC Barcode',
+                'QC Decision',
+            ],
+            labels: {
+                show: true,
+                rotate: -45,
+                rotateAlways: true,
+                style: {
+                    colors: '#8c9097',
+                    fontSize: '10px',
+                    fontWeight: 600,
+                    cssClass: 'apexcharts-xaxis-label',
+                },
+            },
+        },
+        legend: {
+            position: 'top',
+            horizontalAlign: 'center',
+            fontSize: '11px',
+            markers: {
+                width: 10,
+                height: 10,
+                radius: 2,
+            },
+            itemMargin: {
+                horizontal: 8,
+                vertical: 4,
+            },
+        },
+        fill: {
+            opacity: 1,
+        },
+        yaxis: {
+            labels: {
+                show: true,
+                style: {
+                    colors: '#8c9097',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    cssClass: 'apexcharts-yaxis-label',
+                },
+            },
+        },
+    };
 
-        const themeObserver = new MutationObserver(() => {
-            const newDarkMode = document.documentElement.classList.contains('dark');
-            if (newDarkMode !== isDarkMode.value) {
-                isDarkMode.value = newDarkMode;
-            }
-        });
-
-        themeObserver.observe(document.documentElement, {
-            attributes: true,
-            attributeFilter: ['class'],
-        });
-
-        (window as any).__themeObserver = themeObserver;
-    });
-});
-
-onUnmounted(() => {
-    if (resizeObserver) resizeObserver.disconnect();
-    if (trendChart) trendChart.dispose();
-    if (dailyTrendChart) dailyTrendChart.dispose();
-    if (cutOff1Chart) cutOff1Chart.dispose();
-    if (cutOff2Chart) cutOff2Chart.dispose();
-    if (cutOff3Chart) cutOff3Chart.dispose();
-    if (lipasChart) lipasChart.dispose();
-    if (volipasChart) volipasChart.dispose();
-    if ((window as any).__themeObserver) {
-        (window as any).__themeObserver.disconnect();
-        delete (window as any).__themeObserver;
-    }
+    const columnChart = new ApexCharts(
+        document.querySelector('#column-chart'),
+        columnOptions,
+    );
+    columnChart.render();
 });
 </script>
 
 <template>
-    <Head title="Endline Delay Status" />
+    <Head title="Endline" />
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <template #filters>
-            <div class="flex items-center gap-2 text-xs">
-                <span class="font-medium text-muted-foreground">Endline Delay Status as of</span>
-                <span class="font-semibold text-foreground">{{ endlineData.lastUpdate }}</span>
+            <div class="flex items-center gap-2">
+                <!-- Date Picker -->
+                <input
+                    v-model="selectedDate"
+                    type="date"
+                    class="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                />
+
+                <!-- Cut-Off Selection -->
+                <select
+                    v-model="selectedCutOff"
+                    class="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                >
+                    <option value="">Cut-Off: All</option>
+                    <option value="DAY_1ST">DAY 1ST</option>
+                    <option value="DAY_2ND">DAY 2ND</option>
+                    <option value="DAY_3RD">DAY 3RD</option>
+                    <option value="NIGHT_1ST">NIGHT 1ST</option>
+                    <option value="NIGHT_2ND">NIGHT 2ND</option>
+                    <option value="NIGHT_3RD">NIGHT 3RD</option>
+                </select>
+
+                <!-- Work Type -->
+                <select
+                    v-model="selectedWorkType"
+                    class="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                >
+                    <option value="">Work Type: All</option>
+                    <option value="NORMAL">NORMAL</option>
+                    <option value="REWORK">REWORK</option>
+                    <option value="URGENT">URGENT</option>
+                </select>
+
+                <!-- LIPAS -->
+                <select
+                    v-model="selectedLIPAS"
+                    class="rounded-md border border-input bg-background px-2 py-1 text-xs text-foreground focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus:outline-none"
+                >
+                    <option value="">LIPAS: All</option>
+                    <option value="Y">Yes</option>
+                    <option value="N">No</option>
+                </select>
+
+                <!-- Refresh Button -->
+                <button
+                    @click="manualRefresh"
+                    class="flex items-center gap-1 rounded-md border border-blue-600 bg-transparent px-2 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-600 hover:text-white"
+                    title="Refresh"
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-3.5 w-3.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path
+                            d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"
+                        />
+                    </svg>
+                    Refresh
+                </button>
+
+                <!-- Auto Refresh Toggle -->
+                <button
+                    @click="toggleAutoRefresh"
+                    :class="[
+                        'flex items-center gap-1 rounded-md border px-2 py-1 text-xs font-medium transition-colors',
+                        autoRefresh
+                            ? 'border-green-600 bg-green-600 text-white hover:bg-green-700'
+                            : 'border-gray-600 bg-transparent text-gray-600 hover:bg-gray-600 hover:text-white dark:text-gray-400',
+                    ]"
+                    :title="
+                        autoRefresh ? 'Auto Refresh ON' : 'Auto Refresh OFF'
+                    "
+                >
+                    <svg
+                        xmlns="http://www.w3.org/2000/svg"
+                        class="h-3.5 w-3.5"
+                        viewBox="0 0 24 24"
+                        fill="none"
+                        stroke="currentColor"
+                        stroke-width="2"
+                        stroke-linecap="round"
+                        stroke-linejoin="round"
+                    >
+                        <path
+                            d="M21.5 2v6h-6M2.5 22v-6h6M2 11.5a10 10 0 0 1 18.8-4.3M22 12.5a10 10 0 0 1-18.8 4.2"
+                        />
+                    </svg>
+                    Auto {{ autoRefresh ? 'ON' : 'OFF' }}
+                </button>
             </div>
         </template>
 
-        <div class="flex h-full flex-1 flex-col gap-3 overflow-auto p-3">
-            <!-- Top Row: Trend Charts -->
-            <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                <!-- Overall Endline Delay Trend -->
-                <div class="rounded-lg border border-sidebar-border/70 bg-card shadow dark:border-sidebar-border">
-                    <div class="border-b border-border p-3">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-sm font-semibold text-foreground uppercase">Overall Endline Delay Trend</h3>
-                            <div class="flex gap-1">
-                                <button
-                                    v-for="period in ['MONTHLY', 'WEEKLY', 'DAILY']"
-                                    :key="period"
-                                    @click="endlineData.selectedPeriod = period"
-                                    :class="[
-                                        'rounded px-3 py-1 text-xs font-medium transition-colors',
-                                        endlineData.selectedPeriod === period
-                                            ? 'bg-blue-500 text-white'
-                                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                    ]"
-                                >
-                                    {{ period }}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="p-3">
-                        <div ref="trendChartRef" class="h-[200px] w-full"></div>
-                    </div>
-                </div>
-
-                <!-- Daily Trend Per Size -->
-                <div class="rounded-lg border border-sidebar-border/70 bg-card shadow dark:border-sidebar-border">
-                    <div class="border-b border-border p-3">
-                        <div class="flex items-center justify-between">
-                            <h3 class="text-sm font-semibold text-foreground uppercase">Daily Trend Per Size</h3>
-                            <div class="flex gap-1">
-                                <button
-                                    v-for="size in ['LIPAS', 'HM03']"
-                                    :key="size"
-                                    @click="endlineData.selectedSize = size"
-                                    :class="[
-                                        'rounded px-3 py-1 text-xs font-medium transition-colors',
-                                        endlineData.selectedSize === size
-                                            ? 'bg-blue-500 text-white'
-                                            : 'bg-muted text-muted-foreground hover:bg-muted/80'
-                                    ]"
-                                >
-                                    {{ size }}
-                                </button>
-                            </div>
-                        </div>
-                    </div>
-                    <div class="p-3">
-                        <div ref="dailyTrendChartRef" class="h-[200px] w-full"></div>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Middle Row: Per Cut Off -->
-            <div class="grid grid-cols-1 gap-3 lg:grid-cols-3">
+        <div
+            class="flex h-full flex-1 flex-col gap-4 overflow-x-auto rounded-xl p-4"
+        >
+            <div class="grid gap-4 md:grid-cols-4 md:grid-rows-1">
                 <div
-                    v-for="(cutOff, index) in endlineData.cutOffData"
-                    :key="index"
-                    class="rounded-lg border border-sidebar-border/70 bg-card shadow dark:border-sidebar-border"
+                    class="relative min-h-[400px] overflow-hidden rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border"
                 >
-                    <div class="border-b border-border p-3">
-                        <h3 class="text-sm font-semibold text-foreground uppercase">Per Cut Off</h3>
+                    <div
+                        class="mb-3 flex justify-center border-b border-sidebar-border/50 pb-2"
+                    >
+                        <h3 class="text-sm font-bold text-foreground">
+                            Summary of Endline Delay
+                        </h3>
                     </div>
-                    <div class="p-3">
-                        <!-- Time and Total -->
-                        <div class="mb-3 text-center">
-                            <div class="text-lg font-bold text-foreground">{{ cutOff.time }}</div>
-                            <div class="text-2xl font-bold text-blue-600 dark:text-blue-400">
-                                {{ formatNumber(cutOff.total) }}
-                            </div>
-                        </div>
-
-                        <!-- Small Bar Chart with Counts -->
-                        <div class="mb-3 flex items-end justify-between gap-1" style="height: 80px;">
-                            <div
-                                v-for="item in cutOff.breakdown"
-                                :key="item.name"
-                                class="flex flex-1 flex-col items-center justify-end gap-1"
+                    <div id="pie-chart" class="h-full w-full pb-2"></div>
+                </div>
+                <div
+                    class="relative min-h-[400px] overflow-hidden rounded-xl border border-sidebar-border/70 p-4 dark:border-sidebar-border"
+                >
+                    <div class="mb-2 flex justify-center">
+                        <h3 class="text-sm font-bold text-foreground">
+                            Per Size Endline Delay
+                        </h3>
+                    </div>
+                    <div id="bar-chart" class="h-full w-full"></div>
+                </div>
+                <div
+                    class="relative min-h-[400px] overflow-hidden rounded-xl border border-sidebar-border/70 p-4 md:col-span-2 dark:border-sidebar-border"
+                >
+                    <div class="mb-2 flex justify-between">
+                        <!-- Left side - 3 button group -->
+                        <div
+                            class="inline-flex rounded-md shadow-sm"
+                            role="group"
+                        >
+                            <button
+                                type="button"
+                                class="rounded-l-md border border-green-600 bg-transparent px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-600 hover:text-white focus:z-10 focus:bg-green-600 focus:text-white focus:ring-1 focus:ring-green-600 dark:border-green-500 dark:text-green-500 dark:hover:bg-green-500 dark:hover:text-white dark:focus:bg-green-500"
                             >
-                                <div class="text-xs font-semibold text-foreground">{{ item.value }}</div>
-                                <div
-                                    class="w-full rounded-t"
-                                    :style="{
-                                        height: `${(item.value / Math.max(...cutOff.breakdown.map(b => b.value))) * 60}px`,
-                                        backgroundColor: item.color,
-                                        minHeight: '10px'
-                                    }"
-                                ></div>
-                                <div class="text-[10px] font-medium text-muted-foreground">{{ item.name }}</div>
-                            </div>
+                                Mainlot
+                            </button>
+                            <button
+                                type="button"
+                                class="border border-x-0 border-green-600 bg-transparent px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-600 hover:text-white focus:z-10 focus:bg-green-600 focus:text-white focus:ring-1 focus:ring-green-600 dark:border-green-500 dark:text-green-500 dark:hover:bg-green-500 dark:hover:text-white dark:focus:bg-green-500"
+                            >
+                                R-rework
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-r-md border border-green-600 bg-transparent px-2 py-1 text-xs font-medium text-green-600 hover:bg-green-600 hover:text-white focus:z-10 focus:bg-green-600 focus:text-white focus:ring-1 focus:ring-green-600 dark:border-green-500 dark:text-green-500 dark:hover:bg-green-500 dark:hover:text-white dark:focus:bg-green-500"
+                            >
+                                L-rework
+                            </button>
                         </div>
 
-                        <!-- Detailed Chart -->
-                        <div :ref="el => { if (index === 0) cutOff1ChartRef = el; else if (index === 1) cutOff2ChartRef = el; else cutOff3ChartRef = el; }" class="h-[180px] w-full"></div>
+                        <h3 class="text-sm font-bold text-foreground">
+                            Detailed Endline Delay
+                        </h3>
+
+                        <!-- Right side - Technical/QC Analysis -->
+                        <div
+                            class="inline-flex rounded-md shadow-sm"
+                            role="group"
+                        >
+                            <button
+                                type="button"
+                                class="rounded-l-md border border-blue-600 bg-transparent px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-600 hover:text-white focus:z-10 focus:bg-blue-600 focus:text-white focus:ring-1 focus:ring-blue-600 dark:border-blue-500 dark:text-blue-500 dark:hover:bg-blue-500 dark:hover:text-white dark:focus:bg-blue-500"
+                            >
+                                Technical
+                            </button>
+                            <button
+                                type="button"
+                                class="rounded-r-md border border-blue-600 bg-transparent px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-600 hover:text-white focus:z-10 focus:bg-blue-600 focus:text-white focus:ring-1 focus:ring-blue-600 dark:border-blue-500 dark:text-blue-500 dark:hover:bg-blue-500 dark:hover:text-white dark:focus:bg-blue-500"
+                            >
+                                QC Analysis
+                            </button>
+                        </div>
                     </div>
+                    <div id="column-chart" class="h-full w-full"></div>
                 </div>
             </div>
-
-            <!-- Bottom Row: LIPAS vs VOLIPAS -->
-            <div class="grid grid-cols-1 gap-3 lg:grid-cols-2">
-                <!-- LIPAS -->
-                <div class="rounded-lg border border-sidebar-border/70 bg-card shadow dark:border-sidebar-border">
-                    <div class="border-b border-border p-3">
-                        <h3 class="text-sm font-semibold text-foreground uppercase">LIPAS vs. VOLIPAS Per Size</h3>
-                    </div>
-                    <div class="p-3">
-                        <div class="mb-2 text-center">
-                            <span class="inline-block rounded bg-blue-500 px-3 py-1 text-xs font-semibold text-white">LIPAS</span>
-                        </div>
-                        <div ref="lipasChartRef" class="h-[200px] w-full"></div>
-                    </div>
-                </div>
-
-                <!-- VOLIPAS -->
-                <div class="rounded-lg border border-sidebar-border/70 bg-card shadow dark:border-sidebar-border">
-                    <div class="border-b border-border p-3">
-                        <h3 class="text-sm font-semibold text-foreground uppercase">LIPAS vs. VOLIPAS Per Size</h3>
-                    </div>
-                    <div class="p-3">
-                        <div class="mb-2 text-center">
-                            <span class="inline-block rounded bg-indigo-500 px-3 py-1 text-xs font-semibold text-white">VOLIPAS</span>
-                        </div>
-                        <div ref="volipasChartRef" class="h-[200px] w-full"></div>
-                    </div>
+            <div
+                class="relative flex-1 rounded-xl border border-sidebar-border/70 md:min-h-min dark:border-sidebar-border"
+            >
+                <div class="overflow-x-auto">
+                    <table class="w-full text-sm">
+                        <thead
+                            class="border-b border-sidebar-border/70 bg-muted/50"
+                        >
+                            <tr>
+                                <th class="px-4 py-3 text-left font-semibold">
+                                    No.
+                                </th>
+                                <th class="px-4 py-3 text-left font-semibold">
+                                    Lot No.
+                                </th>
+                                <th class="px-4 py-3 text-left font-semibold">
+                                    Model
+                                </th>
+                                <th class="px-4 py-3 text-right font-semibold">
+                                    Quantity
+                                </th>
+                                <th class="px-4 py-3 text-center font-semibold">
+                                    LIPAS
+                                </th>
+                                <th class="px-4 py-3 text-center font-semibold">
+                                    QC NG?
+                                </th>
+                                <th class="px-4 py-3 text-left font-semibold">
+                                    Defect
+                                </th>
+                                <th class="px-4 py-3 text-left font-semibold">
+                                    Defect Class
+                                </th>
+                                <th class="px-4 py-3 text-left font-semibold">
+                                    Date
+                                </th>
+                                <th class="px-4 py-3 text-center font-semibold">
+                                    TAT
+                                </th>
+                                <th class="px-4 py-3 text-left font-semibold">
+                                    Last Decision
+                                </th>
+                                <th class="px-4 py-3 text-left font-semibold">
+                                    Updated By
+                                </th>
+                                <th class="px-4 py-3 text-center font-semibold">
+                                    Action
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-sidebar-border/50">
+                            <tr class="transition-colors hover:bg-muted/30">
+                                <td class="px-4 py-3">1</td>
+                                <td class="px-4 py-3 font-mono text-xs">
+                                    LOT001
+                                </td>
+                                <td class="px-4 py-3">10A106MQ8NNN</td>
+                                <td class="px-4 py-3 text-right font-mono">
+                                    1,500
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span
+                                        class="inline-flex items-center rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-300"
+                                        >Y</span
+                                    >
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span
+                                        class="inline-flex items-center rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-300"
+                                        >Main</span
+                                    >
+                                </td>
+                                <td class="px-4 py-3">Scratch</td>
+                                <td class="px-4 py-3">
+                                    <span
+                                        class="inline-flex items-center rounded-full bg-amber-500/20 px-2 py-0.5 text-xs font-medium text-amber-700 dark:text-amber-300"
+                                        >Analysis</span
+                                    >
+                                </td>
+                                <td class="px-4 py-3 text-xs">
+                                    2024-03-11 14:30
+                                </td>
+                                <td
+                                    class="px-4 py-3 text-center font-mono text-xs"
+                                >
+                                    2.5h
+                                </td>
+                                <td class="px-4 py-3">Dipping</td>
+                                <td class="px-4 py-3">John Doe</td>
+                                <td class="px-4 py-3 text-center">
+                                    <div
+                                        class="flex items-center justify-center gap-2"
+                                    >
+                                        <button
+                                            class="rounded-md border border-blue-600 bg-transparent px-2 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-600 hover:text-white"
+                                        >
+                                            View
+                                        </button>
+                                        <button
+                                            class="rounded-md border border-green-600 bg-transparent px-2 py-1 text-xs font-medium text-green-600 transition-colors hover:bg-green-600 hover:text-white"
+                                        >
+                                            Edit
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr class="transition-colors hover:bg-muted/30">
+                                <td class="px-4 py-3">2</td>
+                                <td class="px-4 py-3 font-mono text-xs">
+                                    LOT002
+                                </td>
+                                <td class="px-4 py-3">10B104KA8NNP</td>
+                                <td class="px-4 py-3 text-right font-mono">
+                                    2,300
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span
+                                        class="inline-flex items-center rounded-full bg-gray-500/20 px-2 py-0.5 text-xs font-medium text-gray-700 dark:text-gray-300"
+                                        >N</span
+                                    >
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span
+                                        class="inline-flex items-center rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-300"
+                                        >OK</span
+                                    >
+                                </td>
+                                <td class="px-4 py-3">-</td>
+                                <td class="px-4 py-3">
+                                    <span
+                                        class="inline-flex items-center rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-300"
+                                        >OK</span
+                                    >
+                                </td>
+                                <td class="px-4 py-3 text-xs">
+                                    2024-03-11 15:45
+                                </td>
+                                <td
+                                    class="px-4 py-3 text-center font-mono text-xs"
+                                >
+                                    1.2h
+                                </td>
+                                <td class="px-4 py-3">Low Yield</td>
+                                <td class="px-4 py-3">Jane Smith</td>
+                                <td class="px-4 py-3 text-center">
+                                    <div
+                                        class="flex items-center justify-center gap-2"
+                                    >
+                                        <button
+                                            class="rounded-md border border-blue-600 bg-transparent px-2 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-600 hover:text-white"
+                                        >
+                                            View
+                                        </button>
+                                        <button
+                                            class="rounded-md border border-green-600 bg-transparent px-2 py-1 text-xs font-medium text-green-600 transition-colors hover:bg-green-600 hover:text-white"
+                                        >
+                                            Edit
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr class="transition-colors hover:bg-muted/30">
+                                <td class="px-4 py-3">3</td>
+                                <td class="px-4 py-3 font-mono text-xs">
+                                    LOT003
+                                </td>
+                                <td class="px-4 py-3">10C223JB8NNN</td>
+                                <td class="px-4 py-3 text-right font-mono">
+                                    1,800
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span
+                                        class="inline-flex items-center rounded-full bg-green-500/20 px-2 py-0.5 text-xs font-medium text-green-700 dark:text-green-300"
+                                        >Y</span
+                                    >
+                                </td>
+                                <td class="px-4 py-3 text-center">
+                                    <span
+                                        class="inline-flex items-center rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-300"
+                                        >Yes</span
+                                    >
+                                </td>
+                                <td class="px-4 py-3">EER</td>
+                                <td class="px-4 py-3">
+                                    <span
+                                        class="inline-flex items-center rounded-full bg-red-500/20 px-2 py-0.5 text-xs font-medium text-red-700 dark:text-red-300"
+                                        >Major</span
+                                    >
+                                </td>
+                                <td class="px-4 py-3 text-xs">
+                                    2024-03-11 16:20
+                                </td>
+                                <td
+                                    class="px-4 py-3 text-center font-mono text-xs"
+                                >
+                                    3.8h
+                                </td>
+                                <td class="px-4 py-3">DRB Approval</td>
+                                <td class="px-4 py-3">Mike Johnson</td>
+                                <td class="px-4 py-3 text-center">
+                                    <div
+                                        class="flex items-center justify-center gap-2"
+                                    >
+                                        <button
+                                            class="rounded-md border border-blue-600 bg-transparent px-2 py-1 text-xs font-medium text-blue-600 transition-colors hover:bg-blue-600 hover:text-white"
+                                        >
+                                            View
+                                        </button>
+                                        <button
+                                            class="rounded-md border border-green-600 bg-transparent px-2 py-1 text-xs font-medium text-green-600 transition-colors hover:bg-green-600 hover:text-white"
+                                        >
+                                            Edit
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>

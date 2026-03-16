@@ -100,7 +100,38 @@ Route::get('dashboard-3', function () {
 
 Route::get('endline', function () {
     return Inertia::render('dashboards/main/endline');
-})->middleware(['auth', 'verified'])->name('endline');
+})->middleware(['auth', 'verified', 'permission:Manage Endline'])->name('endline');
+
+Route::get('endline-details', function () {
+    return Inertia::render('dashboards/subs/endline-details');
+})->middleware(['auth', 'verified', 'permission:Manage Endline'])->name('endline_details');
+
+// Endline Delay data entry
+Route::get('endline-delay', function () {
+    return Inertia::render('dashboards/main/endline-delay');
+})->middleware(['auth', 'verified', 'permission:Manage Endline'])->name('endline_delay');
+
+Route::middleware(['auth', 'verified', 'permission:Manage Endline'])->group(function () {
+    Route::get('api/endline-delay', [App\Http\Controllers\EndlineDelayController::class, 'index']);
+    Route::get('api/endline-delay/export', [App\Http\Controllers\EndlineDelayController::class, 'export']);
+    Route::get('api/endline-delay/lot-lookup', [App\Http\Controllers\EndlineDelayController::class, 'lotLookup']);
+    Route::get('api/endline-delay/defect-codes', [App\Http\Controllers\EndlineDelayController::class, 'defectCodeSearch']);
+    Route::post('api/endline-delay', [App\Http\Controllers\EndlineDelayController::class, 'store']);
+    Route::put('api/endline-delay/{id}', [App\Http\Controllers\EndlineDelayController::class, 'update']);
+    Route::delete('api/endline-delay/{id}', [App\Http\Controllers\EndlineDelayController::class, 'destroy']);
+});
+
+// QC Defect Class data entry
+Route::get('qc-defect-class', function () {
+    return Inertia::render('dashboards/main/qc-defect-class');
+})->middleware(['auth', 'verified', 'permission:Manage Endline'])->name('qc_defect_class');
+
+Route::middleware(['auth', 'verified', 'permission:Manage Endline'])->group(function () {
+    Route::get('api/qc-defect-class', [App\Http\Controllers\QcDefectClassController::class, 'index']);
+    Route::post('api/qc-defect-class', [App\Http\Controllers\QcDefectClassController::class, 'store']);
+    Route::put('api/qc-defect-class/{id}', [App\Http\Controllers\QcDefectClassController::class, 'update']);
+    Route::delete('api/qc-defect-class/{id}', [App\Http\Controllers\QcDefectClassController::class, 'destroy']);
+});
 
 Route::get('mems-dashboard', function () {
     return Inertia::render('dashboards/main/mems-dashboard');

@@ -20,23 +20,23 @@ ProDash V2 follows a modern SPA architecture:
 
 ```
 ┌─────────────────────────────────────────────────────────┐
-│                     Frontend (Vue.js)                    │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │   Pages      │  │  Components  │  │  Composables │  │
-│  └──────────────┘  └──────────────┘  └──────────────┘  │
+│                     Frontend (Vue.js)                   │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│  │   Pages      │  │  Components  │  │  Composables │   │
+│  └──────────────┘  └──────────────┘  └──────────────┘   │
 └─────────────────────────────────────────────────────────┘
                            │
                     Inertia.js Bridge
                            │
 ┌─────────────────────────────────────────────────────────┐
-│                   Backend (Laravel)                      │
-│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐  │
-│  │ Controllers  │  │    Models    │  │  Middleware  │  │
-│  └──────────────┘  └──────────────┘  └──────────────┘  │
+│                   Backend (Laravel)                     │
+│  ┌──────────────┐  ┌──────────────┐  ┌──────────────┐   │
+│  │ Controllers  │  │    Models    │  │  Middleware  │   │
+│  └──────────────┘  └──────────────┘  └──────────────┘   │
 └─────────────────────────────────────────────────────────┘
                            │
 ┌─────────────────────────────────────────────────────────┐
-│                  Database (SQLite/MySQL)                 │
+│                  Database (SQLite/MySQL)                │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -189,6 +189,50 @@ UpdateWip {
 }
 ```
 
+### QcDefectClass (Table: `qc_defect_class`)
+
+```php
+QcDefectClass {
+    id: integer
+    defect_code: string (unique)
+    defect_name: string
+    defect_class: string          // 'QC Analysis' | "Tech'l Verification"
+    defect_flow: string           // 'QC Analysis' | "Tech'l Verification"
+    created_by: string
+    remarks: text (nullable)
+    created_at: timestamp
+    updated_at: timestamp
+}
+```
+
+### EndlineDelay (Table: `endline_delay`)
+
+```php
+EndlineDelay {
+    id: integer
+    lot_id: string
+    model: string (nullable)
+    lot_qty: integer (nullable)
+    lipas_yn: string (nullable)
+    qc_result: string (nullable)  // QC NG: 'Main' | 'RR' | 'LY' | 'OK'
+    qc_defect: string (nullable)  // comma-separated defect codes
+    defect_class: string (nullable) // 'QC Analysis' | "Tech'l Verification"
+    qc_ana_start: datetime (nullable)
+    qc_ana_result: string (nullable)
+    qc_ana_tat: integer (nullable)
+    vi_techl_start: datetime (nullable)
+    vi_techl_result: string (nullable)
+    vi_techl_tat: integer (nullable)
+    final_decision: string (nullable) // 'Proceed' | 'Rework' | 'Low Yield'
+    total_tat: integer (nullable)
+    work_type: string (nullable)
+    remarks: text (nullable)
+    updated_by: string
+    created_at: timestamp
+    updated_at: timestamp
+}
+```
+
 ### Role Model
 
 ```php
@@ -200,10 +244,6 @@ Role {
     updated_at: timestamp
 }
 ```
-
----
-
-## API Endpoints
 
 ### Authentication Endpoints
 
@@ -359,6 +399,52 @@ POST   /api/session/keep-alive         - Refresh session
 GET    /api/health/scheduler           - Check scheduler health
 ```
 
+### Endline Delay API
+
+```
+GET    /endline-delay                          - Endline delay dashboard (Inertia)
+GET    /api/endline-delay                      - Get records (filterable)
+POST   /api/endline-delay                      - Create record(s)
+PUT    /api/endline-delay/{id}                 - Update record
+DELETE /api/endline-delay/{id}                 - Delete record
+GET    /api/endline-delay/export               - Export to CSV
+GET    /api/endline-delay/lot-lookup           - Lookup lot from WIP
+GET    /api/endline-delay/defect-code-search   - Search defect codes
+```
+
+**Query Parameters for GET `/api/endline-delay`:**
+| Param | Description |
+|---|---|
+| `search` | Filter by lot_id or model |
+| `date` | Filter by specific date |
+| `date_from` / `date_to` | Date range (export) |
+| `shift` | `DAY` (07:00–19:00) or `NIGHT` |
+| `cutoff` | Time window e.g. `07:00~11:59` |
+| `work_type` | `NORMAL`, `PROCESS RW`, etc. |
+| `lipas_yn` | `Y` or `N` |
+| `final_decision` | `Proceed`, `Rework`, `Low Yield` |
+
+**Summary Cards (computed client-side):**
+
+- Total — all records count + total qty
+- QC Analysis — `defect_class = 'QC Analysis'`
+- VI Technical — `defect_class = "Tech'l Verification"`
+- Mainlot — `qc_result = 'Main'`
+- R-Rework — `qc_result = 'RR'`
+- L-Rework — `qc_result IN ('LY', 'OK')`
+
+**Unit Filter:** Persistent (localStorage) toggle between `pcs`, `Kpcs`, `Mpcs` applied to all qty displays.
+
+### QC Defect Class API
+
+```
+GET    /qc-defect-class                - QC defect class management page (Inertia)
+GET    /api/qc-defect-class            - List all defect codes
+POST   /api/qc-defect-class            - Create defect code
+PUT    /api/qc-defect-class/{id}       - Update defect code
+DELETE /api/qc-defect-class/{id}       - Delete defect code
+```
+
 ---
 
 ## User Roles & Permissions
@@ -375,18 +461,18 @@ Super Admin (Full Access)
 
 ### Permission Matrix
 
-| Feature                | Super Admin | Admin | Manager | Supervisor | User |
-| ---------------------- | ----------- | ----- | ------- | ---------- | ---- |
-| View Dashboards        | ✅          | ✅    | ✅      | ✅         | ✅   |
-| Endtime View           | ✅          | ✅    | ✅      | ✅         | ✅   |
-| Endtime Manage         | ✅          | ✅    | ✅      | ✅         | ❌   |
-| Endtime Delete         | ✅          | ✅    | ❌      | ❌         | ❌   |
-| Lot Request Create     | ✅          | ✅    | ✅      | ✅         | ✅   |
-| Lot Request Assign     | ✅          | ✅    | ✅      | ✅         | ❌   |
-| Data Entry             | ✅          | ✅    | ✅      | ✅         | ❌   |
-| User Management        | ✅          | ✅    | ❌      | ❌         | ❌   |
-| Role Management        | ✅          | ❌    | ❌      | ❌         | ❌   |
-| System Settings        | ✅          | ✅    | ❌      | ❌         | ❌   |
+| Feature            | Super Admin | Admin | Manager | Supervisor | User |
+| ------------------ | ----------- | ----- | ------- | ---------- | ---- |
+| View Dashboards    | ✅          | ✅    | ✅      | ✅         | ✅   |
+| Endtime View       | ✅          | ✅    | ✅      | ✅         | ✅   |
+| Endtime Manage     | ✅          | ✅    | ✅      | ✅         | ❌   |
+| Endtime Delete     | ✅          | ✅    | ❌      | ❌         | ❌   |
+| Lot Request Create | ✅          | ✅    | ✅      | ✅         | ✅   |
+| Lot Request Assign | ✅          | ✅    | ✅      | ✅         | ❌   |
+| Data Entry         | ✅          | ✅    | ✅      | ✅         | ❌   |
+| User Management    | ✅          | ✅    | ❌      | ❌         | ❌   |
+| Role Management    | ✅          | ❌    | ❌      | ❌         | ❌   |
+| System Settings    | ✅          | ✅    | ❌      | ❌         | ❌   |
 
 ### Permission Definitions
 
@@ -491,6 +577,7 @@ Add to your crontab:
 ```
 
 Scheduled commands:
+
 - `equipment:capture-snapshot` - Every 30 minutes
 - `equipment:cleanup-snapshots` - Daily at 2:00 AM
 
@@ -501,29 +588,34 @@ Scheduled commands:
 ### Setting Up Development Environment
 
 1. **Install Dependencies**
+
 ```bash
 composer install
 npm install
 ```
 
 2. **Configure Environment**
+
 ```bash
 cp .env.example .env
 php artisan key:generate
 ```
 
 3. **Setup Database**
+
 ```bash
 php artisan migrate
 php artisan db:seed
 ```
 
 4. **Start Development Servers**
+
 ```bash
 composer dev
 ```
 
 This runs:
+
 - Laravel development server (port 8000)
 - Queue worker
 - Vite development server (port 5173)
@@ -531,11 +623,13 @@ This runs:
 ### Code Style
 
 #### PHP (Laravel Pint)
+
 ```bash
 composer pint
 ```
 
 #### JavaScript/TypeScript (ESLint + Prettier)
+
 ```bash
 npm run lint
 npm run format
@@ -544,26 +638,31 @@ npm run format
 ### Creating New Features
 
 #### 1. Create Migration
+
 ```bash
 php artisan make:migration create_table_name
 ```
 
 #### 2. Create Model
+
 ```bash
 php artisan make:model ModelName
 ```
 
 #### 3. Create Controller
+
 ```bash
 php artisan make:controller ControllerName
 ```
 
 #### 4. Create Vue Page
+
 ```
 resources/js/pages/YourPage.vue
 ```
 
 #### 5. Add Route
+
 ```php
 // routes/web.php
 Route::get('/your-route', [YourController::class, 'index'])
@@ -687,29 +786,35 @@ php artisan backup:run
 ### Common Issues
 
 #### 1. Session Timeout
+
 **Problem**: Users getting logged out frequently
 **Solution**: Increase `SESSION_LIFETIME` in `.env` or implement session keep-alive
 
 #### 2. Queue Not Processing
+
 **Problem**: Background jobs not running
 **Solution**: Ensure queue worker is running: `php artisan queue:work`
 
 #### 3. Scheduler Not Running
+
 **Problem**: Snapshots not being captured
 **Solution**: Verify cron job is configured correctly
 
 #### 4. Permission Denied
+
 **Problem**: Cannot write to storage
 **Solution**: Set proper permissions: `chmod -R 775 storage bootstrap/cache`
 
 ### Debug Mode
 
 Enable debug mode for development:
+
 ```env
 APP_DEBUG=true
 ```
 
 View logs:
+
 ```bash
 tail -f storage/logs/laravel.log
 ```
@@ -812,12 +917,26 @@ php artisan view:clear
 ## Support & Contact
 
 For technical support or questions:
+
 - Internal Documentation: [Link to internal docs]
 - Development Team: [Contact information]
 - Issue Tracker: [Link to issue tracker]
 
 ---
 
-**Last Updated**: March 2026
-**Version**: 2.0
+## Changelog
+
+### March 2026
+
+- **Endline Delay module** — Full CRUD dashboard for QC endline delay tracking with multi-row entry modal, lot lookup from WIP, defect code autocomplete, and CSV export
+- **QC Defect Class module** — Management page and seeder for 80+ defect codes with `QC Analysis` / `Tech'l Verification` classification
+- **Endline Delay cards** — Summary cards showing qty (primary) and lot count (secondary) for Total, QC Analysis, VI Technical, Mainlot, R-Rework, L-Rework
+- **Unit filter** — Persistent `pcs` / `Kpcs` / `Mpcs` toggle in the header bar; applies to all qty displays across cards and table
+- **Badge color coding** — QC NG: Main=Blue, RR=Orange, LY=Purple, OK=Green; Defect Class: QC Analysis=Green, Tech'l Verification=Yellow; Decision: Pending=Gray, Proceed=Blue, Rework=Red, Low Yield=Purple
+- **DB migrations** — `qc_defect_class`, `endline_delay` tables; added `work_type` column and changed `qc_result` to string type
+
+---
+
+**Last Updated**: March 16, 2026
+**Version**: 2.1
 **Maintained By**: VICIS Development Team

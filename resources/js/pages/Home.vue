@@ -1,6 +1,15 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import { dashboard, lot_request, mems_dashboard, endline, endtime, escalation, process_wip, mc_allocation } from '@/routes';
+import {
+    dashboard,
+    endline_delay,
+    endtime,
+    escalation,
+    lot_request,
+    mc_allocation,
+    mems_dashboard,
+    process_wip,
+} from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link } from '@inertiajs/vue3';
 import { onMounted, ref } from 'vue';
@@ -40,7 +49,7 @@ function revealOnScroll() {
     <div class="home-wrapper">
         <div class="background-animation"></div>
         <div class="honeycomb-bg"></div>
-        
+
         <div class="floating-element"></div>
         <div class="floating-element"></div>
         <div class="floating-element"></div>
@@ -48,7 +57,6 @@ function revealOnScroll() {
         <AppLayout :breadcrumbs="breadcrumbs">
             <div class="home-container">
                 <section class="gallery-section">
-
                     <div class="hexagon-grid">
                         <!-- Row 1: 2 hexagons -->
                         <div class="hex-row">
@@ -57,22 +65,31 @@ function revealOnScroll() {
                                     <div class="hexagon-inner">
                                         <div class="hexagon-content">
                                             <div class="hex-icon">⏳</div>
-                                            <h3 class="hex-title">Endtime Dashboard</h3>
+                                            <h3 class="hex-title">
+                                                Endtime Dashboard
+                                            </h3>
                                             <p class="hex-desc">
-                                                Forecasting of lot that can be track-out every cutoff.
+                                                Forecasting of lot that can be
+                                                track-out every cutoff.
                                             </p>
                                         </div>
                                     </div>
                                 </div>
                             </Link>
-                            <Link :href="lot_request().url" class="hexagon-link">
+                            <Link
+                                :href="lot_request().url"
+                                class="hexagon-link"
+                            >
                                 <div class="hexagon reveal">
                                     <div class="hexagon-inner">
                                         <div class="hexagon-content">
                                             <div class="hex-icon">🛒</div>
-                                            <h3 class="hex-title">Lot Request</h3>
+                                            <h3 class="hex-title">
+                                                Lot Request
+                                            </h3>
                                             <p class="hex-desc">
-                                                Fifo, LIPAS and other Urgent lot management.
+                                                Fifo, LIPAS and other Urgent lot
+                                                management.
                                             </p>
                                         </div>
                                     </div>
@@ -82,12 +99,17 @@ function revealOnScroll() {
 
                         <!-- Row 2: 3 hexagons -->
                         <div class="hex-row">
-                            <Link :href="process_wip().url" class="hexagon-link">
+                            <Link
+                                :href="process_wip().url"
+                                class="hexagon-link"
+                            >
                                 <div class="hexagon reveal">
                                     <div class="hexagon-inner">
                                         <div class="hexagon-content">
                                             <div class="hex-icon">📜</div>
-                                            <h3 class="hex-title">WIP Management</h3>
+                                            <h3 class="hex-title">
+                                                WIP Management
+                                            </h3>
                                             <p class="hex-desc">
                                                 Visual WIP Summary.
                                             </p>
@@ -95,25 +117,39 @@ function revealOnScroll() {
                                     </div>
                                 </div>
                             </Link>
-                            <Link :href="mems_dashboard().url" class="hexagon-link">
+                            <Link
+                                :href="mems_dashboard().url"
+                                class="hexagon-link"
+                            >
                                 <div class="hexagon reveal">
                                     <div class="hexagon-inner">
                                         <div class="hexagon-content">
                                             <div class="hex-icon">📊</div>
-                                            <h3 class="hex-title">MEMS Dashboard</h3>
-                                            <p class="hex-desc">Machine and Endtime Monitoring System</p>
+                                            <h3 class="hex-title">
+                                                MEMS Dashboard
+                                            </h3>
+                                            <p class="hex-desc">
+                                                Machine and Endtime Monitoring
+                                                System
+                                            </p>
                                         </div>
                                     </div>
                                 </div>
                             </Link>
-                            <Link :href="mc_allocation().url" class="hexagon-link">
+                            <Link
+                                :href="mc_allocation().url"
+                                class="hexagon-link"
+                            >
                                 <div class="hexagon reveal">
                                     <div class="hexagon-inner">
                                         <div class="hexagon-content">
                                             <div class="hex-icon">🏪</div>
-                                            <h3 class="hex-title">Machine Allocation</h3>
+                                            <h3 class="hex-title">
+                                                Machine Allocation
+                                            </h3>
                                             <p class="hex-desc">
-                                                Machine allocation and CAPA management.
+                                                Machine allocation and CAPA
+                                                management.
                                             </p>
                                         </div>
                                     </div>
@@ -123,12 +159,17 @@ function revealOnScroll() {
 
                         <!-- Row 3: 2 hexagons -->
                         <div class="hex-row">
-                            <Link :href="endline().url" class="hexagon-link">
+                            <Link
+                                :href="endline_delay().url"
+                                class="hexagon-link"
+                            >
                                 <div class="hexagon reveal">
                                     <div class="hexagon-inner">
                                         <div class="hexagon-content">
                                             <div class="hex-icon">🔚</div>
-                                            <h3 class="hex-title">Endline Management</h3>
+                                            <h3 class="hex-title">
+                                                Endline Management
+                                            </h3>
                                             <p class="hex-desc">
                                                 Visual Endline wip management.
                                             </p>
@@ -141,9 +182,12 @@ function revealOnScroll() {
                                     <div class="hexagon-inner">
                                         <div class="hexagon-content">
                                             <div class="hex-icon">🛠️</div>
-                                            <h3 class="hex-title">Machine Escalation</h3>
+                                            <h3 class="hex-title">
+                                                Machine Escalation
+                                            </h3>
                                             <p class="hex-desc">
-                                                Machine escalation request and response.
+                                                Machine escalation request and
+                                                response.
                                             </p>
                                         </div>
                                     </div>
@@ -170,7 +214,7 @@ function revealOnScroll() {
 }
 
 /* Override SidebarInset to add equal margins */
-.home-wrapper :deep([data-slot="sidebar-inset"]) {
+.home-wrapper :deep([data-slot='sidebar-inset']) {
     margin: 0.5rem !important;
     height: calc(100vh - 1rem) !important;
     overflow: hidden !important;
@@ -188,9 +232,22 @@ function revealOnScroll() {
     width: 100%;
     height: 100%;
     z-index: 0;
-    background: radial-gradient(circle at 20% 20%, rgba(0, 255, 255, 0.25) 0%, transparent 50%),
-        radial-gradient(circle at 80% 80%, rgba(255, 0, 255, 0.25) 0%, transparent 50%),
-        radial-gradient(circle at 40% 60%, rgba(0, 255, 0, 0.15) 0%, transparent 50%);
+    background:
+        radial-gradient(
+            circle at 20% 20%,
+            rgba(0, 255, 255, 0.25) 0%,
+            transparent 50%
+        ),
+        radial-gradient(
+            circle at 80% 80%,
+            rgba(255, 0, 255, 0.25) 0%,
+            transparent 50%
+        ),
+        radial-gradient(
+            circle at 40% 60%,
+            rgba(0, 255, 0, 0.15) 0%,
+            transparent 50%
+        );
     animation: backgroundPulse 8s ease-in-out infinite alternate;
     pointer-events: none;
 }
@@ -202,7 +259,8 @@ function revealOnScroll() {
     width: 100%;
     height: 100%;
     z-index: 0;
-    background-image: linear-gradient(
+    background-image:
+        linear-gradient(
             30deg,
             transparent 24%,
             rgba(0, 255, 255, 0.12) 25%,
@@ -275,10 +333,14 @@ function revealOnScroll() {
 
 @keyframes honeycombMove {
     0% {
-        background-position: 0 0, 0 0;
+        background-position:
+            0 0,
+            0 0;
     }
     100% {
-        background-position: 60px 104px, -60px -104px;
+        background-position:
+            60px 104px,
+            -60px -104px;
     }
 }
 
@@ -386,9 +448,15 @@ function revealOnScroll() {
 }
 
 .hexagon:hover .hexagon-inner {
-    background: linear-gradient(135deg, rgba(0, 255, 255, 0.2), rgba(255, 0, 255, 0.2));
+    background: linear-gradient(
+        135deg,
+        rgba(0, 255, 255, 0.2),
+        rgba(255, 0, 255, 0.2)
+    );
     border-color: rgba(0, 255, 255, 0.8);
-    box-shadow: 0 0 30px rgba(0, 255, 255, 0.3), inset 0 0 30px rgba(0, 255, 255, 0.1);
+    box-shadow:
+        0 0 30px rgba(0, 255, 255, 0.3),
+        inset 0 0 30px rgba(0, 255, 255, 0.1);
 }
 
 .hex-icon {

@@ -1,19 +1,19 @@
 <script setup lang="ts">
+import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
+import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Input } from '@/components/ui/input';
 import AppLayout from '@/layouts/AppLayout.vue';
+import EndtimeWipupdateModal from '@/pages/dashboards/subs/endtime-wipupdate-modal.vue';
+import LotRequestViewModal from '@/pages/dashboards/subs/lot-request-view-modal.vue';
+import MemsAssignLotModal from '@/pages/dashboards/subs/mems-assign-lot-modal.vue';
 import { dashboard } from '@/routes';
 import { type BreadcrumbItem } from '@/types';
 import { Head } from '@inertiajs/vue3';
-import { ref, computed, onMounted, watch, onUnmounted } from 'vue';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Calendar, RefreshCw } from 'lucide-vue-next';
 import ApexCharts from 'apexcharts';
 import axios from 'axios';
-import MemsAssignLotModal from '@/pages/dashboards/subs/mems-assign-lot-modal.vue';
-import LotRequestViewModal from '@/pages/dashboards/subs/lot-request-view-modal.vue';
-import EndtimeWipupdateModal from '@/pages/dashboards/subs/endtime-wipupdate-modal.vue';
+import { Calendar, RefreshCw } from 'lucide-vue-next';
+import { computed, onMounted, onUnmounted, ref, watch } from 'vue';
 
 const breadcrumbs: BreadcrumbItem[] = [
     {
@@ -45,6 +45,11 @@ interface LotRequest {
     response_time?: string;
     status: 'PENDING' | 'COMPLETED' | 'REJECTED';
     remarks?: string;
+    // Additional equipment data properties
+    ongoing_lot?: string | null;
+    est_endtime?: string | null;
+    waiting_time?: string | null;
+    mc_rack?: string | null;
 }
 
 interface Stats {
@@ -80,7 +85,7 @@ const stats = ref<Stats>({
     completed: 0,
     rejected: 0,
     completionRate: 0,
-    avgResponseTime: 0
+    avgResponseTime: 0,
 });
 const sizeData = ref<SizeData[]>([]);
 const lineData = ref<LineData[]>([]);
@@ -90,15 +95,14 @@ const statusFilter = ref<string>('ALL');
 const sortColumn = ref<string>('');
 const sortDirection = ref<'asc' | 'desc'>('asc');
 
-// Date filter state with persistence
-const dateFrom = ref<string>('');
-const dateTo = ref<string>('');
+// Single date filter (Asia/Manila timezone)
+const selectedDate = ref<string>('');
 
 // Auto-refresh state with persistence
 const autoRefresh = ref<boolean>(false);
+const refreshIntervalSecs = ref<number>(5); // user-configurable interval
 const refreshInterval = ref<number | null>(null);
 const sessionKeepAliveInterval = ref<number | null>(null);
-const REFRESH_INTERVAL_MS = 5000; // 5 seconds
 const SESSION_KEEPALIVE_MS = 240000; // 4 minutes (keep session alive)
 
 // Modal state
@@ -111,16 +115,23 @@ const showWipUpdateModal = ref(false);
 // WIP last update state
 const wipLastUpdate = ref<string | null>(null);
 
+// Get today's date in YYYY-MM-DD format (Asia/Manila timezone)
+const getTodayDate = () => {
+    return new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' });
+};
+
 // Load persisted settings from localStorage
 const loadPersistedSettings = () => {
     try {
-        const savedDateFrom = localStorage.getItem('lotRequest_dateFrom');
-        const savedDateTo = localStorage.getItem('lotRequest_dateTo');
+        const savedDate = localStorage.getItem('lotRequest_selectedDate');
         const savedAutoRefresh = localStorage.getItem('lotRequest_autoRefresh');
-        
-        if (savedDateFrom) dateFrom.value = savedDateFrom;
-        if (savedDateTo) dateTo.value = savedDateTo;
+        const savedInterval = localStorage.getItem(
+            'lotRequest_refreshInterval',
+        );
+
+        if (savedDate) selectedDate.value = savedDate;
         if (savedAutoRefresh) autoRefresh.value = savedAutoRefresh === 'true';
+        if (savedInterval) refreshIntervalSecs.value = Number(savedInterval);
     } catch (error) {
         console.error('Error loading persisted settings:', error);
     }
@@ -129,9 +140,15 @@ const loadPersistedSettings = () => {
 // Save settings to localStorage
 const saveSettings = () => {
     try {
-        localStorage.setItem('lotRequest_dateFrom', dateFrom.value);
-        localStorage.setItem('lotRequest_dateTo', dateTo.value);
-        localStorage.setItem('lotRequest_autoRefresh', String(autoRefresh.value));
+        localStorage.setItem('lotRequest_selectedDate', selectedDate.value);
+        localStorage.setItem(
+            'lotRequest_autoRefresh',
+            String(autoRefresh.value),
+        );
+        localStorage.setItem(
+            'lotRequest_refreshInterval',
+            String(refreshIntervalSecs.value),
+        );
     } catch (error) {
         console.error('Error saving settings:', error);
     }
@@ -141,8 +158,10 @@ const saveSettings = () => {
 const toggleAutoRefresh = () => {
     autoRefresh.value = !autoRefresh.value;
     saveSettings();
-    
+
     if (autoRefresh.value) {
+        // Always snap to today when enabling auto-refresh
+        selectedDate.value = getTodayDate();
         startAutoRefresh();
         startSessionKeepAlive();
     } else {
@@ -151,13 +170,25 @@ const toggleAutoRefresh = () => {
     }
 };
 
+// Update refresh interval and restart if running
+const updateRefreshInterval = (secs: number) => {
+    refreshIntervalSecs.value = secs;
+    saveSettings();
+    if (autoRefresh.value) {
+        stopAutoRefresh();
+        startAutoRefresh();
+    }
+};
+
 // Start auto-refresh interval
 const startAutoRefresh = () => {
     if (refreshInterval.value) return;
-    
+
     refreshInterval.value = window.setInterval(() => {
+        // Always set date to today (Manila) on each auto-refresh tick
+        selectedDate.value = getTodayDate();
         fetchData();
-    }, REFRESH_INTERVAL_MS);
+    }, refreshIntervalSecs.value * 1000);
 };
 
 // Stop auto-refresh interval
@@ -171,7 +202,7 @@ const stopAutoRefresh = () => {
 // Start session keep-alive (ping server to prevent session expiration)
 const startSessionKeepAlive = () => {
     if (sessionKeepAliveInterval.value) return;
-    
+
     sessionKeepAliveInterval.value = window.setInterval(async () => {
         try {
             // Ping a lightweight endpoint to keep session alive
@@ -190,23 +221,12 @@ const stopSessionKeepAlive = () => {
     }
 };
 
-// Clear date filters
-const clearDateFilters = () => {
-    dateFrom.value = '';
-    dateTo.value = '';
+// Clear date filter
+const clearDateFilter = () => {
+    selectedDate.value = '';
     saveSettings();
     fetchData();
 };
-
-// Get today's date in YYYY-MM-DD format (local timezone)
-const getTodayDate = () => {
-    const today = new Date();
-    const year = today.getFullYear();
-    const month = String(today.getMonth() + 1).padStart(2, '0');
-    const day = String(today.getDate()).padStart(2, '0');
-    return `${year}-${month}-${day}`;
-};
-
 
 // Fetch WIP last update timestamp
 const fetchWipLastUpdate = async () => {
@@ -222,7 +242,7 @@ const fetchWipLastUpdate = async () => {
 // Format WIP last update for display
 const formatWipLastUpdate = computed(() => {
     if (!wipLastUpdate.value) return 'No data';
-    
+
     try {
         const date = new Date(wipLastUpdate.value);
         const month = String(date.getMonth() + 1).padStart(2, '0');
@@ -231,7 +251,7 @@ const formatWipLastUpdate = computed(() => {
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
         const seconds = String(date.getSeconds()).padStart(2, '0');
-        
+
         return `${month}/${day}/${year}, ${hours}:${minutes}:${seconds}`;
     } catch (error) {
         return wipLastUpdate.value;
@@ -254,16 +274,33 @@ const fetchData = async () => {
     isLoading.value = true;
     try {
         const params: any = { status: statusFilter.value };
-        
-        // Add date filters if set
-        if (dateFrom.value) params.date_from = dateFrom.value;
-        if (dateTo.value) params.date_to = dateTo.value;
-        
+
+        // Add single date filter if set
+        if (selectedDate.value) {
+            params.date_from = selectedDate.value;
+            params.date_to = selectedDate.value;
+        }
+
         const [requestsRes, statsRes, sizeRes, lineRes] = await Promise.all([
             axios.get('/api/lot-request/data', { params }),
-            axios.get('/api/lot-request/stats', { params: { date_from: dateFrom.value, date_to: dateTo.value } }),
-            axios.get('/api/lot-request/by-size', { params: { date_from: dateFrom.value, date_to: dateTo.value } }),
-            axios.get('/api/lot-request/by-line', { params: { date_from: dateFrom.value, date_to: dateTo.value } })
+            axios.get('/api/lot-request/stats', {
+                params: {
+                    date_from: selectedDate.value,
+                    date_to: selectedDate.value,
+                },
+            }),
+            axios.get('/api/lot-request/by-size', {
+                params: {
+                    date_from: selectedDate.value,
+                    date_to: selectedDate.value,
+                },
+            }),
+            axios.get('/api/lot-request/by-line', {
+                params: {
+                    date_from: selectedDate.value,
+                    date_to: selectedDate.value,
+                },
+            }),
         ]);
 
         lotRequests.value = requestsRes.data.data;
@@ -278,19 +315,22 @@ const fetchData = async () => {
 };
 
 const filteredRequests = computed(() => {
-    let filtered = statusFilter.value === 'ALL' 
-        ? lotRequests.value 
-        : lotRequests.value.filter(req => req.status === statusFilter.value);
-    
+    let filtered =
+        statusFilter.value === 'ALL'
+            ? lotRequests.value
+            : lotRequests.value.filter(
+                  (req) => req.status === statusFilter.value,
+              );
+
     // Apply sorting
     if (sortColumn.value) {
         filtered = [...filtered].sort((a, b) => {
             const aVal = a[sortColumn.value as keyof LotRequest];
             const bVal = b[sortColumn.value as keyof LotRequest];
-            
+
             if (aVal === undefined || aVal === null) return 1;
             if (bVal === undefined || bVal === null) return -1;
-            
+
             let comparison = 0;
             if (typeof aVal === 'string' && typeof bVal === 'string') {
                 comparison = aVal.localeCompare(bVal);
@@ -299,7 +339,7 @@ const filteredRequests = computed(() => {
             } else {
                 comparison = String(aVal).localeCompare(String(bVal));
             }
-            
+
             return sortDirection.value === 'asc' ? comparison : -comparison;
         });
     } else {
@@ -308,17 +348,16 @@ const filteredRequests = computed(() => {
             // First, sort by status priority (PENDING first)
             if (a.status === 'PENDING' && b.status !== 'PENDING') return -1;
             if (a.status !== 'PENDING' && b.status === 'PENDING') return 1;
-            
+
             // Within same status, sort by requested date (oldest first)
             const dateA = new Date(a.requested).getTime();
             const dateB = new Date(b.requested).getTime();
             return dateA - dateB;
         });
     }
-    
+
     return filtered;
 });
-
 
 const handleSort = (column: string) => {
     if (sortColumn.value === column) {
@@ -353,14 +392,14 @@ const getStatusColor = (status: string) => {
     const colors = {
         PENDING: 'bg-purple-600 text-white dark:bg-purple-700',
         COMPLETED: 'bg-[#32D484] text-white dark:bg-[#32D484]',
-        REJECTED: 'bg-red-600 text-white dark:bg-red-700'
+        REJECTED: 'bg-red-600 text-white dark:bg-red-700',
     };
     return colors[status as keyof typeof colors];
 };
 
 const getCompletionRateColor = computed(() => {
     const rate = stats.value.completionRate;
-    
+
     if (rate >= 80) {
         // High completion rate - Green
         return {
@@ -368,7 +407,7 @@ const getCompletionRateColor = computed(() => {
             ring: 'bg-emerald-500/10 ring-emerald-500/20',
             text: 'text-emerald-700 dark:text-emerald-300',
             value: 'text-emerald-900 dark:text-emerald-100',
-            shadow: 'hover:shadow-emerald-500/10'
+            shadow: 'hover:shadow-emerald-500/10',
         };
     } else if (rate >= 60) {
         // Medium completion rate - Yellow/Amber
@@ -377,7 +416,7 @@ const getCompletionRateColor = computed(() => {
             ring: 'bg-amber-500/10 ring-amber-500/20',
             text: 'text-amber-700 dark:text-amber-300',
             value: 'text-amber-900 dark:text-amber-100',
-            shadow: 'hover:shadow-amber-500/10'
+            shadow: 'hover:shadow-amber-500/10',
         };
     } else if (rate >= 40) {
         // Low completion rate - Orange
@@ -386,7 +425,7 @@ const getCompletionRateColor = computed(() => {
             ring: 'bg-orange-500/10 ring-orange-500/20',
             text: 'text-orange-700 dark:text-orange-300',
             value: 'text-orange-900 dark:text-orange-100',
-            shadow: 'hover:shadow-orange-500/10'
+            shadow: 'hover:shadow-orange-500/10',
         };
     } else {
         // Very low completion rate - Red
@@ -395,7 +434,7 @@ const getCompletionRateColor = computed(() => {
             ring: 'bg-red-500/10 ring-red-500/20',
             text: 'text-red-700 dark:text-red-300',
             value: 'text-red-900 dark:text-red-100',
-            shadow: 'hover:shadow-red-500/10'
+            shadow: 'hover:shadow-red-500/10',
         };
     }
 });
@@ -403,9 +442,11 @@ const getCompletionRateColor = computed(() => {
 const handleAccept = async (request: LotRequest) => {
     try {
         // Fetch equipment data to get ongoing_lot, est_endtime, waiting_time, and mc_rack
-        const response = await axios.get(`/api/equipment/details/${request.mc_no}`);
+        const response = await axios.get(
+            `/api/equipment/details/${request.mc_no}`,
+        );
         const equipmentData = response.data;
-        
+
         // Store the selected request with equipment data and open the modal
         selectedRequestForAssignment.value = {
             ...request,
@@ -413,7 +454,7 @@ const handleAccept = async (request: LotRequest) => {
             est_endtime: equipmentData.est_endtime || null,
             waiting_time: equipmentData.waiting_time || null,
             mc_rack: equipmentData.mc_rack || null,
-        };
+        } as LotRequest;
         showAssignLotModal.value = true;
     } catch (error) {
         console.error('Error fetching equipment data:', error);
@@ -435,9 +476,11 @@ const handleView = (request: LotRequest) => {
 
 const handleDelete = async (requestId: number) => {
     if (!confirm('Are you sure you want to reject this request?')) return;
-    
+
     try {
-        const response = await axios.post(`/api/lot-request/${requestId}/reject`);
+        const response = await axios.post(
+            `/api/lot-request/${requestId}/reject`,
+        );
         if (response.data.success) {
             await fetchData();
         }
@@ -451,7 +494,7 @@ const getPriorityColor = (lipasStatus: string) => {
         URGENT: 'bg-destructive text-destructive-foreground',
         LIPAS: 'bg-secondary text-secondary-foreground',
         FIFO: 'bg-primary text-primary-foreground',
-        NORMAL: 'bg-muted text-muted-foreground'
+        NORMAL: 'bg-muted text-muted-foreground',
     };
     return colors[lipasStatus as keyof typeof colors] || colors.NORMAL;
 };
@@ -459,14 +502,14 @@ const getPriorityColor = (lipasStatus: string) => {
 // Format datetime to short format (MM-DD HH:mm)
 const formatDateTime = (datetime: string | undefined) => {
     if (!datetime) return '-';
-    
+
     try {
         const date = new Date(datetime);
         const month = String(date.getMonth() + 1).padStart(2, '0');
         const day = String(date.getDate()).padStart(2, '0');
         const hours = String(date.getHours()).padStart(2, '0');
         const minutes = String(date.getMinutes()).padStart(2, '0');
-        
+
         return `${month}-${day} ${hours}:${minutes}`;
     } catch (error) {
         return datetime;
@@ -509,7 +552,7 @@ const donutChartOptions = computed(() => ({
                         show: true,
                         fontSize: '20px',
                         color: '#495057',
-                        offsetY: -5
+                        offsetY: -5,
                     },
                     value: {
                         show: true,
@@ -517,8 +560,8 @@ const donutChartOptions = computed(() => ({
                         offsetY: 5,
                         fontWeight: 600,
                         formatter: function (val: number) {
-                            return Math.round(val).toString()
-                        }
+                            return Math.round(val).toString();
+                        },
                     },
                     total: {
                         show: true,
@@ -527,11 +570,11 @@ const donutChartOptions = computed(() => ({
                         fontSize: '14px',
                         fontWeight: 400,
                         color: '#495057',
-                        formatter: () => `${stats.value.completionRate}%`
-                    }
-                }
-            }
-        }
+                        formatter: () => `${stats.value.completionRate}%`,
+                    },
+                },
+            },
+        },
     },
     dataLabels: {
         enabled: false,
@@ -541,12 +584,8 @@ const donutChartOptions = computed(() => ({
 const donutChartSeries = computed(() => {
     const total = stats.value.total;
     if (total === 0) return [0, 0, 0];
-    
-    return [
-        stats.value.pending,
-        stats.value.completed,
-        stats.value.rejected
-    ];
+
+    return [stats.value.pending, stats.value.completed, stats.value.rejected];
 });
 
 // Size Chart Configuration (Stacked Bar)
@@ -556,7 +595,7 @@ const sizeChartOptions = computed(() => ({
         height: 300,
         stacked: true,
         toolbar: {
-            show: false
+            show: false,
         },
         offsetY: -20,
     },
@@ -564,7 +603,7 @@ const sizeChartOptions = computed(() => ({
         bar: {
             horizontal: true,
             barHeight: '60%',
-        }
+        },
     },
     colors: ['#985FFD', '#32D484', '#FDAF22'],
     dataLabels: {
@@ -572,31 +611,31 @@ const sizeChartOptions = computed(() => ({
         style: {
             fontSize: '10px',
             fontWeight: 600,
-            colors: ['#fff']
-        }
+            colors: ['#fff'],
+        },
     },
     grid: {
         borderColor: '#f1f1f1',
         strokeDashArray: 3,
     },
     xaxis: {
-        categories: sizeData.value.map(d => d.size),
+        categories: sizeData.value.map((d) => d.size),
         labels: {
             style: {
-                colors: "#8c9097",
+                colors: '#8c9097',
                 fontSize: '11px',
                 fontWeight: 600,
             },
-        }
+        },
     },
     yaxis: {
         labels: {
             style: {
-                colors: "#8c9097",
+                colors: '#8c9097',
                 fontSize: '11px',
                 fontWeight: 600,
             },
-        }
+        },
     },
     legend: {
         show: true,
@@ -605,30 +644,30 @@ const sizeChartOptions = computed(() => ({
         fontSize: '11px',
     },
     fill: {
-        opacity: 1
+        opacity: 1,
     },
     tooltip: {
         y: {
             formatter: function (val: number) {
-                return val + " requests"
-            }
-        }
-    }
+                return val + ' requests';
+            },
+        },
+    },
 }));
 
 const sizeChartSeries = computed(() => [
     {
         name: 'Pending',
-        data: sizeData.value.map(d => d.pending)
+        data: sizeData.value.map((d) => d.pending),
     },
     {
         name: 'Completed',
-        data: sizeData.value.map(d => d.completed)
+        data: sizeData.value.map((d) => d.completed),
     },
     {
         name: 'Rejected',
-        data: sizeData.value.map(d => d.rejected)
-    }
+        data: sizeData.value.map((d) => d.rejected),
+    },
 ]);
 
 // Stacked Column Chart Configuration
@@ -638,7 +677,7 @@ const combinedChartOptions = computed(() => ({
         height: 300,
         stacked: true,
         toolbar: {
-            show: false
+            show: false,
         },
         offsetY: -10,
     },
@@ -650,36 +689,36 @@ const combinedChartOptions = computed(() => ({
         bar: {
             horizontal: false,
             columnWidth: '55%',
-        }
+        },
     },
     colors: ['#985FFD', '#32D484', '#FDAF22'],
     xaxis: {
-        categories: lineData.value.map(d => d.line),
+        categories: lineData.value.map((d) => d.line),
         axisBorder: {
             color: '#e9e9e9',
         },
         labels: {
             style: {
-                colors: "#8c9097",
+                colors: '#8c9097',
                 fontSize: '11px',
                 fontWeight: 600,
             },
-        }
+        },
     },
     yaxis: {
         title: {
             text: 'Request Count',
             style: {
-                color: "#8c9097",
-            }
+                color: '#8c9097',
+            },
         },
         labels: {
             style: {
-                colors: "#8c9097",
+                colors: '#8c9097',
                 fontSize: '11px',
                 fontWeight: 600,
             },
-        }
+        },
     },
     legend: {
         show: true,
@@ -690,34 +729,34 @@ const combinedChartOptions = computed(() => ({
         enabled: true,
         style: {
             fontSize: '10px',
-            colors: ['#fff']
-        }
+            colors: ['#fff'],
+        },
     },
     fill: {
-        opacity: 1
+        opacity: 1,
     },
     tooltip: {
         y: {
             formatter: function (val: number) {
-                return val + " requests"
-            }
-        }
-    }
+                return val + ' requests';
+            },
+        },
+    },
 }));
 
 const combinedChartSeries = computed(() => [
     {
         name: 'Pending',
-        data: lineData.value.map(d => d.pending)
+        data: lineData.value.map((d) => d.pending),
     },
     {
         name: 'Completed',
-        data: lineData.value.map(d => d.completed)
+        data: lineData.value.map((d) => d.completed),
     },
     {
         name: 'Rejected',
-        data: lineData.value.map(d => d.rejected)
-    }
+        data: lineData.value.map((d) => d.rejected),
+    },
 ]);
 
 // Chart instances
@@ -729,20 +768,20 @@ let sizeChart: ApexCharts | null = null;
 onMounted(async () => {
     // Load persisted settings
     loadPersistedSettings();
-    
+
     // Fetch data first
     await fetchData();
-    
+
     // Fetch WIP last update
     await fetchWipLastUpdate();
-    
+
     // Then initialize charts
     // Donut Chart
     const donutElement = document.querySelector('#donut-chart');
     if (donutElement) {
         donutChart = new ApexCharts(donutElement, {
             ...donutChartOptions.value,
-            series: donutChartSeries.value
+            series: donutChartSeries.value,
         });
         donutChart.render();
     }
@@ -752,7 +791,7 @@ onMounted(async () => {
     if (sizeElement) {
         sizeChart = new ApexCharts(sizeElement, {
             ...sizeChartOptions.value,
-            series: sizeChartSeries.value
+            series: sizeChartSeries.value,
         });
         sizeChart.render();
     }
@@ -762,11 +801,11 @@ onMounted(async () => {
     if (combinedElement) {
         combinedChart = new ApexCharts(combinedElement, {
             ...combinedChartOptions.value,
-            series: combinedChartSeries.value
+            series: combinedChartSeries.value,
         });
         combinedChart.render();
     }
-    
+
     // Start auto-refresh if enabled
     if (autoRefresh.value) {
         startAutoRefresh();
@@ -798,8 +837,8 @@ watch(statusFilter, () => {
     fetchData();
 });
 
-// Watch date filters
-watch([dateFrom, dateTo], () => {
+// Watch date filter
+watch(selectedDate, () => {
     saveSettings();
     fetchData();
 });
@@ -810,76 +849,102 @@ watch([dateFrom, dateTo], () => {
 
     <AppLayout :breadcrumbs="breadcrumbs">
         <template #filters>
-            <div class="flex items-center gap-3 flex-wrap">
+            <div class="flex flex-wrap items-center gap-3">
                 <!-- WIP Last Update Info -->
-                <div class="flex items-center gap-2 px-3 py-1.5 rounded-lg bg-blue-50 dark:bg-blue-950/30 border border-blue-200 dark:border-blue-800">
-                    <span class="text-xs font-medium text-blue-700 dark:text-blue-300">WIP Last Update:</span>
-                    <span class="text-xs font-semibold text-blue-900 dark:text-blue-100">{{ formatWipLastUpdate }}</span>
+                <div
+                    class="flex items-center gap-2 rounded-lg border border-blue-200 bg-blue-50 px-3 py-1.5 dark:border-blue-800 dark:bg-blue-950/30"
+                >
+                    <span
+                        class="text-xs font-medium text-blue-700 dark:text-blue-300"
+                        >WIP Last Update:</span
+                    >
+                    <span
+                        class="text-xs font-semibold text-blue-900 dark:text-blue-100"
+                        >{{ formatWipLastUpdate }}</span
+                    >
                 </div>
-                
+
                 <!-- Update WIP Button -->
                 <Button
                     @click="openWipUpdateModal"
                     variant="default"
                     size="sm"
-                    class="h-8 gap-2 bg-sky-500 hover:bg-sky-600 text-white"
+                    class="h-8 gap-2 bg-sky-500 text-white hover:bg-sky-600"
                     title="Update WIP data"
                 >
                     <span class="text-sm">💾</span>
                     <span class="text-xs">Update WIP</span>
                 </Button>
-                
+
                 <!-- Divider -->
                 <div class="h-6 w-px bg-border"></div>
-                
-                <!-- Date Filters -->
+
+                <!-- Date Filter -->
                 <div class="flex items-center gap-2">
-                    <div class="flex items-center gap-1.5">
-                        <Calendar class="h-4 w-4 text-muted-foreground" />
-                        <Input
-                            v-model="dateFrom"
-                            type="date"
-                            class="h-8 w-36 text-xs"
-                            placeholder="From"
-                            :max="dateTo || undefined"
-                        />
-                    </div>
-                    <span class="text-xs text-muted-foreground">to</span>
+                    <Calendar class="h-4 w-4 text-muted-foreground" />
                     <Input
-                        v-model="dateTo"
+                        v-model="selectedDate"
                         type="date"
                         class="h-8 w-36 text-xs"
-                        placeholder="To"
-                        :min="dateFrom || undefined"
                         :max="getTodayDate()"
+                        :disabled="autoRefresh"
+                        title="Filter by date (Asia/Manila)"
                     />
                     <Button
-                        v-if="dateFrom || dateTo"
-                        @click="clearDateFilters"
+                        v-if="selectedDate"
+                        @click="clearDateFilter"
                         variant="ghost"
                         size="sm"
                         class="h-8 px-2 text-xs"
-                        title="Clear date filters"
+                        title="Clear date filter"
+                        :disabled="autoRefresh"
                     >
                         ✕
                     </Button>
                 </div>
-                
+
                 <!-- Divider -->
                 <div class="h-6 w-px bg-border"></div>
-                
-                <!-- Auto Refresh Toggle -->
-                <Button
-                    @click="toggleAutoRefresh"
-                    :variant="autoRefresh ? 'default' : 'outline'"
-                    size="sm"
-                    class="transition-all gap-2"
-                    title="Auto-refresh every 5 seconds"
-                >
-                    <RefreshCw :class="['h-3.5 w-3.5', autoRefresh ? 'animate-spin' : '']" />
-                    <span class="text-xs">Auto Refresh</span>
-                </Button>
-                
+
+                <!-- Auto Refresh Toggle + Interval -->
+                <div class="flex items-center gap-1.5">
+                    <Button
+                        @click="toggleAutoRefresh"
+                        :variant="autoRefresh ? 'default' : 'outline'"
+                        size="sm"
+                        class="gap-2 transition-all"
+                        title="Auto-refresh (sets date to today)"
+                    >
+                        <RefreshCw
+                            :class="[
+                                'h-3.5 w-3.5',
+                                autoRefresh ? 'animate-spin' : '',
+                            ]"
+                        />
+                        <span class="text-xs">Auto Refresh</span>
+                    </Button>
+                    <select
+                        :value="refreshIntervalSecs"
+                        @change="
+                            updateRefreshInterval(
+                                Number(
+                                    ($event.target as HTMLSelectElement).value,
+                                ),
+                            )
+                        "
+                        class="h-8 rounded-md border border-input bg-background px-2 text-xs text-foreground focus:ring-1 focus:ring-ring focus:outline-none"
+                        title="Refresh interval"
+                    >
+                        <option
+                            v-for="s in [5, 10, 15, 20, 30, 45, 60]"
+                            :key="s"
+                            :value="s"
+                        >
+                            {{ s }}s
+                        </option>
+                    </select>
+                </div>
+
                 <!-- Manual Refresh -->
                 <Button
                     @click="fetchData"
@@ -889,76 +954,138 @@ watch([dateFrom, dateTo], () => {
                     :disabled="isLoading"
                     title="Refresh now"
                 >
-                    <RefreshCw :class="['h-3.5 w-3.5', isLoading ? 'animate-spin' : '']" />
+                    <RefreshCw
+                        :class="[
+                            'h-3.5 w-3.5',
+                            isLoading ? 'animate-spin' : '',
+                        ]"
+                    />
                 </Button>
             </div>
         </template>
 
-        <div class="flex h-full flex-1 flex-col gap-3 overflow-auto p-4 bg-gradient-to-br from-background via-background to-muted/10">
+        <div
+            class="flex h-full flex-1 flex-col gap-3 overflow-auto bg-gradient-to-br from-background via-background to-muted/10 p-4"
+        >
             <!-- Top Section: Donut Chart Left, Stats + Bar Chart Right -->
             <div class="grid gap-3 md:grid-cols-4">
                 <!-- Donut Chart (Left) -->
-                <Card class="overflow-hidden flex flex-col md:col-span-1">
-                    <CardHeader class="pb-0 pt-2 px-3">
-                        <CardTitle class="text-sm">LOT REQUEST SUMMARY</CardTitle>
+                <Card class="flex flex-col overflow-hidden md:col-span-1">
+                    <CardHeader class="px-3 pt-2 pb-0">
+                        <CardTitle class="text-sm"
+                            >LOT REQUEST SUMMARY</CardTitle
+                        >
                     </CardHeader>
-                    <CardContent class="p-0 flex-1 flex items-center justify-center">
+                    <CardContent
+                        class="flex flex-1 items-center justify-center p-0"
+                    >
                         <div id="donut-chart" class="w-full"></div>
                     </CardContent>
                     <div class="border-t">
                         <div class="grid grid-cols-4">
-                            <div class="py-2 px-2 text-center border-r">
-                                <div class="flex items-center justify-center gap-1 mb-1">
-                                    <div class="w-2.5 h-2.5 rounded-full" style="background-color: rgb(0, 201, 255);"></div>
-                                    <span class="text-xs font-medium text-muted-foreground">Total</span>
+                            <div class="border-r px-2 py-2 text-center">
+                                <div
+                                    class="mb-1 flex items-center justify-center gap-1"
+                                >
+                                    <div
+                                        class="h-2.5 w-2.5 rounded-full"
+                                        style="
+                                            background-color: rgb(0, 201, 255);
+                                        "
+                                    ></div>
+                                    <span
+                                        class="text-xs font-medium text-muted-foreground"
+                                        >Total</span
+                                    >
                                 </div>
-                                <h5 class="text-lg font-semibold mb-0">{{ stats.total }}</h5>
+                                <h5 class="mb-0 text-lg font-semibold">
+                                    {{ stats.total }}
+                                </h5>
                             </div>
-                            <div class="py-2 px-2 text-center border-r">
-                                <div class="flex items-center justify-center gap-1 mb-1">
-                                    <div class="w-2.5 h-2.5 rounded-full bg-[#985FFD]"></div>
-                                    <span class="text-xs font-medium text-muted-foreground">Pending</span>
+                            <div class="border-r px-2 py-2 text-center">
+                                <div
+                                    class="mb-1 flex items-center justify-center gap-1"
+                                >
+                                    <div
+                                        class="h-2.5 w-2.5 rounded-full bg-[#985FFD]"
+                                    ></div>
+                                    <span
+                                        class="text-xs font-medium text-muted-foreground"
+                                        >Pending</span
+                                    >
                                 </div>
-                                <h5 class="text-lg font-semibold mb-0">{{ stats.pending }}</h5>
+                                <h5 class="mb-0 text-lg font-semibold">
+                                    {{ stats.pending }}
+                                </h5>
                             </div>
-                            <div class="py-2 px-2 text-center border-r">
-                                <div class="flex items-center justify-center gap-1 mb-1">
-                                    <div class="w-2.5 h-2.5 rounded-full bg-[#32D484]"></div>
-                                    <span class="text-xs font-medium text-muted-foreground">Completed</span>
+                            <div class="border-r px-2 py-2 text-center">
+                                <div
+                                    class="mb-1 flex items-center justify-center gap-1"
+                                >
+                                    <div
+                                        class="h-2.5 w-2.5 rounded-full bg-[#32D484]"
+                                    ></div>
+                                    <span
+                                        class="text-xs font-medium text-muted-foreground"
+                                        >Completed</span
+                                    >
                                 </div>
-                                <h5 class="text-lg font-semibold mb-0">{{ stats.completed }}</h5>
+                                <h5 class="mb-0 text-lg font-semibold">
+                                    {{ stats.completed }}
+                                </h5>
                             </div>
-                            <div class="py-2 px-2 text-center">
-                                <div class="flex items-center justify-center gap-1 mb-1">
-                                    <div class="w-2.5 h-2.5 rounded-full bg-[#FDAF22]"></div>
-                                    <span class="text-xs font-medium text-muted-foreground">Rejected</span>
+                            <div class="px-2 py-2 text-center">
+                                <div
+                                    class="mb-1 flex items-center justify-center gap-1"
+                                >
+                                    <div
+                                        class="h-2.5 w-2.5 rounded-full bg-[#FDAF22]"
+                                    ></div>
+                                    <span
+                                        class="text-xs font-medium text-muted-foreground"
+                                        >Rejected</span
+                                    >
                                 </div>
-                                <h5 class="text-lg font-semibold mb-0">{{ stats.rejected }}</h5>
+                                <h5 class="mb-0 text-lg font-semibold">
+                                    {{ stats.rejected }}
+                                </h5>
                             </div>
                         </div>
                     </div>
                 </Card>
 
                 <!-- Right Side: Stats Cards + Bar Chart -->
-                <div class="md:col-span-3 flex flex-col gap-3">
+                <div class="flex flex-col gap-3 md:col-span-3">
                     <!-- Stats Cards Row -->
-                    <div class="grid gap-2 grid-cols-6">
+                    <div class="grid grid-cols-6 gap-2">
                         <!-- Total Request - Blue -->
                         <button
                             @click="statusFilter = 'ALL'"
-                            class="group relative overflow-hidden rounded-xl border transition-all duration-300 hover:shadow-lg text-left"
-                            :class="statusFilter === 'ALL' 
-                                ? 'border-blue-500 bg-gradient-to-br from-blue-100 to-blue-200/70 shadow-lg shadow-blue-500/20 dark:from-blue-900/50 dark:to-blue-800/50 ring-2 ring-blue-500' 
-                                : 'border-border/50 bg-gradient-to-br from-blue-50 to-blue-100/50 hover:shadow-blue-500/10 dark:from-blue-950/30 dark:to-blue-900/20'"
+                            class="group relative overflow-hidden rounded-xl border text-left transition-all duration-300 hover:shadow-lg"
+                            :class="
+                                statusFilter === 'ALL'
+                                    ? 'border-blue-500 bg-gradient-to-br from-blue-100 to-blue-200/70 shadow-lg ring-2 shadow-blue-500/20 ring-blue-500 dark:from-blue-900/50 dark:to-blue-800/50'
+                                    : 'border-border/50 bg-gradient-to-br from-blue-50 to-blue-100/50 hover:shadow-blue-500/10 dark:from-blue-950/30 dark:to-blue-900/20'
+                            "
                         >
                             <div class="p-2">
                                 <div class="flex items-center gap-2">
-                                    <div class="rounded-full bg-blue-500/10 p-1.5 ring-1 ring-blue-500/20">
+                                    <div
+                                        class="rounded-full bg-blue-500/10 p-1.5 ring-1 ring-blue-500/20"
+                                    >
                                         <span class="text-sm">📊</span>
                                     </div>
                                     <div>
-                                        <p class="text-[10px] font-medium text-blue-700 dark:text-blue-300">Total Request</p>
-                                        <p class="text-lg font-bold text-blue-900 dark:text-blue-100">{{ stats.total }}</p>
+                                        <p
+                                            class="text-[10px] font-medium text-blue-700 dark:text-blue-300"
+                                        >
+                                            Total Request
+                                        </p>
+                                        <p
+                                            class="text-lg font-bold text-blue-900 dark:text-blue-100"
+                                        >
+                                            {{ stats.total }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -967,19 +1094,31 @@ watch([dateFrom, dateTo], () => {
                         <!-- Pending - Purple -->
                         <button
                             @click="statusFilter = 'PENDING'"
-                            class="group relative overflow-hidden rounded-xl border transition-all duration-300 hover:shadow-lg text-left"
-                            :class="statusFilter === 'PENDING' 
-                                ? 'border-purple-500 bg-gradient-to-br from-purple-100 to-purple-200/70 shadow-lg shadow-purple-500/20 dark:from-purple-900/50 dark:to-purple-800/50 ring-2 ring-purple-500' 
-                                : 'border-border/50 bg-gradient-to-br from-purple-50 to-purple-100/50 hover:shadow-purple-500/10 dark:from-purple-950/30 dark:to-purple-900/20'"
+                            class="group relative overflow-hidden rounded-xl border text-left transition-all duration-300 hover:shadow-lg"
+                            :class="
+                                statusFilter === 'PENDING'
+                                    ? 'border-purple-500 bg-gradient-to-br from-purple-100 to-purple-200/70 shadow-lg ring-2 shadow-purple-500/20 ring-purple-500 dark:from-purple-900/50 dark:to-purple-800/50'
+                                    : 'border-border/50 bg-gradient-to-br from-purple-50 to-purple-100/50 hover:shadow-purple-500/10 dark:from-purple-950/30 dark:to-purple-900/20'
+                            "
                         >
                             <div class="p-2">
                                 <div class="flex items-center gap-2">
-                                    <div class="rounded-full bg-purple-500/10 p-1.5 ring-1 ring-purple-500/20">
+                                    <div
+                                        class="rounded-full bg-purple-500/10 p-1.5 ring-1 ring-purple-500/20"
+                                    >
                                         <span class="text-sm">⏳</span>
                                     </div>
                                     <div>
-                                        <p class="text-[10px] font-medium text-purple-700 dark:text-purple-300">Pending</p>
-                                        <p class="text-lg font-bold text-purple-900 dark:text-purple-100">{{ stats.pending }}</p>
+                                        <p
+                                            class="text-[10px] font-medium text-purple-700 dark:text-purple-300"
+                                        >
+                                            Pending
+                                        </p>
+                                        <p
+                                            class="text-lg font-bold text-purple-900 dark:text-purple-100"
+                                        >
+                                            {{ stats.pending }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -988,19 +1127,31 @@ watch([dateFrom, dateTo], () => {
                         <!-- Completed - Green -->
                         <button
                             @click="statusFilter = 'COMPLETED'"
-                            class="group relative overflow-hidden rounded-xl border transition-all duration-300 hover:shadow-lg text-left"
-                            :class="statusFilter === 'COMPLETED' 
-                                ? 'border-emerald-500 bg-gradient-to-br from-emerald-100 to-emerald-200/70 shadow-lg shadow-emerald-500/20 dark:from-emerald-900/50 dark:to-emerald-800/50 ring-2 ring-emerald-500' 
-                                : 'border-border/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 hover:shadow-emerald-500/10 dark:from-emerald-950/30 dark:to-emerald-900/20'"
+                            class="group relative overflow-hidden rounded-xl border text-left transition-all duration-300 hover:shadow-lg"
+                            :class="
+                                statusFilter === 'COMPLETED'
+                                    ? 'border-emerald-500 bg-gradient-to-br from-emerald-100 to-emerald-200/70 shadow-lg ring-2 shadow-emerald-500/20 ring-emerald-500 dark:from-emerald-900/50 dark:to-emerald-800/50'
+                                    : 'border-border/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 hover:shadow-emerald-500/10 dark:from-emerald-950/30 dark:to-emerald-900/20'
+                            "
                         >
                             <div class="p-2">
                                 <div class="flex items-center gap-2">
-                                    <div class="rounded-full bg-emerald-500/10 p-1.5 ring-1 ring-emerald-500/20">
+                                    <div
+                                        class="rounded-full bg-emerald-500/10 p-1.5 ring-1 ring-emerald-500/20"
+                                    >
                                         <span class="text-sm">✅</span>
                                     </div>
                                     <div>
-                                        <p class="text-[10px] font-medium text-emerald-700 dark:text-emerald-300">Completed</p>
-                                        <p class="text-lg font-bold text-emerald-900 dark:text-emerald-100">{{ stats.completed }}</p>
+                                        <p
+                                            class="text-[10px] font-medium text-emerald-700 dark:text-emerald-300"
+                                        >
+                                            Completed
+                                        </p>
+                                        <p
+                                            class="text-lg font-bold text-emerald-900 dark:text-emerald-100"
+                                        >
+                                            {{ stats.completed }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
@@ -1009,69 +1160,118 @@ watch([dateFrom, dateTo], () => {
                         <!-- Rejected - Red -->
                         <button
                             @click="statusFilter = 'REJECTED'"
-                            class="group relative overflow-hidden rounded-xl border transition-all duration-300 hover:shadow-lg text-left"
-                            :class="statusFilter === 'REJECTED' 
-                                ? 'border-red-500 bg-gradient-to-br from-red-100 to-red-200/70 shadow-lg shadow-red-500/20 dark:from-red-900/50 dark:to-red-800/50 ring-2 ring-red-500' 
-                                : 'border-border/50 bg-gradient-to-br from-red-50 to-red-100/50 hover:shadow-red-500/10 dark:from-red-950/30 dark:to-red-900/20'"
+                            class="group relative overflow-hidden rounded-xl border text-left transition-all duration-300 hover:shadow-lg"
+                            :class="
+                                statusFilter === 'REJECTED'
+                                    ? 'border-red-500 bg-gradient-to-br from-red-100 to-red-200/70 shadow-lg ring-2 shadow-red-500/20 ring-red-500 dark:from-red-900/50 dark:to-red-800/50'
+                                    : 'border-border/50 bg-gradient-to-br from-red-50 to-red-100/50 hover:shadow-red-500/10 dark:from-red-950/30 dark:to-red-900/20'
+                            "
                         >
                             <div class="p-2">
                                 <div class="flex items-center gap-2">
-                                    <div class="rounded-full bg-red-500/10 p-1.5 ring-1 ring-red-500/20">
+                                    <div
+                                        class="rounded-full bg-red-500/10 p-1.5 ring-1 ring-red-500/20"
+                                    >
                                         <span class="text-sm">❌</span>
                                     </div>
                                     <div>
-                                        <p class="text-[10px] font-medium text-red-700 dark:text-red-300">Rejected</p>
-                                        <p class="text-lg font-bold text-red-900 dark:text-red-100">{{ stats.rejected }}</p>
+                                        <p
+                                            class="text-[10px] font-medium text-red-700 dark:text-red-300"
+                                        >
+                                            Rejected
+                                        </p>
+                                        <p
+                                            class="text-lg font-bold text-red-900 dark:text-red-100"
+                                        >
+                                            {{ stats.rejected }}
+                                        </p>
                                     </div>
                                 </div>
                             </div>
                         </button>
 
                         <!-- Completion % - Dynamic Color (Not clickable) -->
-                        <div class="group relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br p-2 shadow-sm transition-all duration-300 hover:shadow-lg" :class="[getCompletionRateColor.bg, getCompletionRateColor.shadow]">
+                        <div
+                            class="group relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br p-2 shadow-sm transition-all duration-300 hover:shadow-lg"
+                            :class="[
+                                getCompletionRateColor.bg,
+                                getCompletionRateColor.shadow,
+                            ]"
+                        >
                             <div class="flex items-center gap-2">
-                                <div class="rounded-full p-1.5 ring-1" :class="getCompletionRateColor.ring">
+                                <div
+                                    class="rounded-full p-1.5 ring-1"
+                                    :class="getCompletionRateColor.ring"
+                                >
                                     <span class="text-sm">📈</span>
                                 </div>
                                 <div>
-                                    <p class="text-[10px] font-medium" :class="getCompletionRateColor.text">Completion %</p>
-                                    <p class="text-lg font-bold" :class="getCompletionRateColor.value">{{ stats.completionRate }}%</p>
+                                    <p
+                                        class="text-[10px] font-medium"
+                                        :class="getCompletionRateColor.text"
+                                    >
+                                        Completion %
+                                    </p>
+                                    <p
+                                        class="text-lg font-bold"
+                                        :class="getCompletionRateColor.value"
+                                    >
+                                        {{ stats.completionRate }}%
+                                    </p>
                                 </div>
                             </div>
                         </div>
 
                         <!-- Avg. Time - Dark Blue (Not clickable) -->
-                        <div class="group relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-2 shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/10 dark:from-indigo-950/30 dark:to-indigo-900/20">
+                        <div
+                            class="group relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-2 shadow-sm transition-all duration-300 hover:shadow-lg hover:shadow-indigo-500/10 dark:from-indigo-950/30 dark:to-indigo-900/20"
+                        >
                             <div class="flex items-center gap-2">
-                                <div class="rounded-full bg-indigo-500/10 p-1.5 ring-1 ring-indigo-500/20">
+                                <div
+                                    class="rounded-full bg-indigo-500/10 p-1.5 ring-1 ring-indigo-500/20"
+                                >
                                     <span class="text-sm">⏱️</span>
                                 </div>
                                 <div>
-                                    <p class="text-[10px] font-medium text-indigo-700 dark:text-indigo-300">Avg. Time</p>
-                                    <p class="text-lg font-bold text-indigo-900 dark:text-indigo-100">{{ stats.avgResponseTime }}h</p>
+                                    <p
+                                        class="text-[10px] font-medium text-indigo-700 dark:text-indigo-300"
+                                    >
+                                        Avg. Time
+                                    </p>
+                                    <p
+                                        class="text-lg font-bold text-indigo-900 dark:text-indigo-100"
+                                    >
+                                        {{ stats.avgResponseTime }}h
+                                    </p>
                                 </div>
                             </div>
                         </div>
                     </div>
 
                     <!-- Charts Row: Size Chart (30%) + Production Line Chart (70%) -->
-                    <div class="grid gap-3 grid-cols-10 flex-1">
+                    <div class="grid flex-1 grid-cols-10 gap-3">
                         <!-- Per Size Request Chart (30%) -->
-                        <Card class="overflow-hidden flex flex-col col-span-3">
-                            <CardHeader class="pb-0 pt-1 px-3">
-                                <CardTitle class="text-sm">LOT REQUEST PER SIZE</CardTitle>
+                        <Card class="col-span-3 flex flex-col overflow-hidden">
+                            <CardHeader class="px-3 pt-1 pb-0">
+                                <CardTitle class="text-sm"
+                                    >LOT REQUEST PER SIZE</CardTitle
+                                >
                             </CardHeader>
-                            <CardContent class="p-0 flex-1 flex items-center justify-center -mt-4">
+                            <CardContent
+                                class="-mt-4 flex flex-1 items-center justify-center p-0"
+                            >
                                 <div id="size-chart" class="w-full"></div>
                             </CardContent>
                         </Card>
 
                         <!-- Production Line Chart (70%) -->
-                        <Card class="overflow-hidden flex flex-col col-span-7">
-                            <CardHeader class="pb-0 pt-1 px-3">
-                                <CardTitle class="text-sm">LOT REQUEST PER LINE</CardTitle>
+                        <Card class="col-span-7 flex flex-col overflow-hidden">
+                            <CardHeader class="px-3 pt-1 pb-0">
+                                <CardTitle class="text-sm"
+                                    >LOT REQUEST PER LINE</CardTitle
+                                >
                             </CardHeader>
-                            <CardContent class="p-0 -mt-4">
+                            <CardContent class="-mt-4 p-0">
                                 <div id="combined-chart"></div>
                             </CardContent>
                         </Card>
@@ -1080,169 +1280,400 @@ watch([dateFrom, dateTo], () => {
             </div>
 
             <!-- Table with Fixed Header -->
-            <Card class="overflow-hidden flex flex-col">
-                <div class="overflow-auto max-h-[650px]">
+            <Card class="flex flex-col overflow-hidden">
+                <div class="max-h-[650px] overflow-auto">
                     <table class="w-full">
-                        <thead class="bg-muted border-b sticky top-0 z-10">
+                        <thead class="sticky top-0 z-10 border-b bg-muted">
                             <tr>
-                                <th @click="handleSort('mc_no')" class="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                <th
+                                    @click="handleSort('mc_no')"
+                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                >
                                     <div class="flex items-center gap-1">
                                         MC No.
-                                        <span v-if="sortColumn === 'mc_no'" class="text-xs">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                        <span
+                                            v-if="sortColumn === 'mc_no'"
+                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
                                     </div>
                                 </th>
-                                <th @click="handleSort('area')" class="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                <th
+                                    @click="handleSort('area')"
+                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                >
                                     <div class="flex items-center gap-1">
                                         Area
-                                        <span v-if="sortColumn === 'area'" class="text-xs">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                        <span
+                                            v-if="sortColumn === 'area'"
+                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
                                     </div>
                                 </th>
-                                <th @click="handleSort('requestor')" class="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                <th
+                                    @click="handleSort('requestor')"
+                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                >
                                     <div class="flex items-center gap-1">
                                         Requestor
-                                        <span v-if="sortColumn === 'requestor'" class="text-xs">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                        <span
+                                            v-if="sortColumn === 'requestor'"
+                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
                                     </div>
                                 </th>
-                                <th @click="handleSort('request_model')" class="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                <th
+                                    @click="handleSort('request_model')"
+                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                >
                                     <div class="flex items-center gap-1">
                                         Req. Model
-                                        <span v-if="sortColumn === 'request_model'" class="text-xs">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                        <span
+                                            v-if="
+                                                sortColumn === 'request_model'
+                                            "
+                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
                                     </div>
                                 </th>
-                                <th @click="handleSort('lot_no')" class="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                <th
+                                    @click="handleSort('lot_no')"
+                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                >
                                     <div class="flex items-center gap-1">
                                         Assigned Lot
-                                        <span v-if="sortColumn === 'lot_no'" class="text-xs">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                        <span
+                                            v-if="sortColumn === 'lot_no'"
+                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
                                     </div>
                                 </th>
-                                <th @click="handleSort('model')" class="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                <th
+                                    @click="handleSort('model')"
+                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                >
                                     <div class="flex items-center gap-1">
                                         Assigned Model
-                                        <span v-if="sortColumn === 'model'" class="text-xs">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                        <span
+                                            v-if="sortColumn === 'model'"
+                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
                                     </div>
                                 </th>
-                                <th @click="handleSort('quantity')" class="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                <th
+                                    @click="handleSort('quantity')"
+                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                >
                                     <div class="flex items-center gap-1">
                                         Quantity
-                                        <span v-if="sortColumn === 'quantity'" class="text-xs">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                        <span
+                                            v-if="sortColumn === 'quantity'"
+                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
                                     </div>
                                 </th>
-                                <th @click="handleSort('lipas')" class="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                <th
+                                    @click="handleSort('lipas')"
+                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                >
                                     <div class="flex items-center gap-1">
                                         LIPAS
-                                        <span v-if="sortColumn === 'lipas'" class="text-xs">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                        <span
+                                            v-if="sortColumn === 'lipas'"
+                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
                                     </div>
                                 </th>
-                                <th @click="handleSort('lot_tat')" class="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                <th
+                                    @click="handleSort('lot_tat')"
+                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                >
                                     <div class="flex items-center gap-1">
                                         TAT
-                                        <span v-if="sortColumn === 'lot_tat'" class="text-xs">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                        <span
+                                            v-if="sortColumn === 'lot_tat'"
+                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
                                     </div>
                                 </th>
-                                <th @click="handleSort('requested')" class="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                <th
+                                    @click="handleSort('requested')"
+                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                >
                                     <div class="flex items-center gap-1">
                                         Requested
-                                        <span v-if="sortColumn === 'requested'" class="text-xs">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                        <span
+                                            v-if="sortColumn === 'requested'"
+                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
                                     </div>
                                 </th>
-                                <th @click="handleSort('completed')" class="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                <th
+                                    @click="handleSort('completed')"
+                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                >
                                     <div class="flex items-center gap-1">
                                         Completed
-                                        <span v-if="sortColumn === 'completed'" class="text-xs">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                        <span
+                                            v-if="sortColumn === 'completed'"
+                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
                                     </div>
                                 </th>
-                                <th @click="handleSort('response_time')" class="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                <th
+                                    @click="handleSort('response_time')"
+                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                >
                                     <div class="flex items-center gap-1">
                                         Response Time
-                                        <span v-if="sortColumn === 'response_time'" class="text-xs">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                        <span
+                                            v-if="
+                                                sortColumn === 'response_time'
+                                            "
+                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
                                     </div>
                                 </th>
-                                <th @click="handleSort('status')" class="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                <th
+                                    @click="handleSort('status')"
+                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                >
                                     <div class="flex items-center gap-1">
                                         Status
-                                        <span v-if="sortColumn === 'status'" class="text-xs">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                        <span
+                                            v-if="sortColumn === 'status'"
+                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
                                     </div>
                                 </th>
-                                <th @click="handleSort('remarks')" class="px-4 py-3 text-left text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted cursor-pointer hover:bg-muted/80 transition-colors">
+                                <th
+                                    @click="handleSort('remarks')"
+                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                >
                                     <div class="flex items-center gap-1">
                                         Remarks
-                                        <span v-if="sortColumn === 'remarks'" class="text-xs">{{ sortDirection === 'asc' ? '↑' : '↓' }}</span>
+                                        <span
+                                            v-if="sortColumn === 'remarks'"
+                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
                                     </div>
                                 </th>
-                                <th class="px-4 py-3 text-center text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted">Action</th>
+                                <th
+                                    class="bg-muted px-4 py-3 text-center text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+                                >
+                                    Action
+                                </th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-border">
-                            <tr 
-                                v-for="request in filteredRequests" 
+                            <tr
+                                v-for="request in filteredRequests"
                                 :key="request.id"
-                                class="hover:bg-muted/30 transition-colors"
+                                class="transition-colors hover:bg-muted/30"
                                 :class="{
-                                    'border-l-4 border-l-[hsl(253_175_34%)]': request.status === 'PENDING',
-                                    'border-l-4 border-l-[hsl(142_76%_36%)]': request.status === 'COMPLETED'
+                                    'border-l-4 border-l-[hsl(253_175_34%)]':
+                                        request.status === 'PENDING',
+                                    'border-l-4 border-l-[hsl(142_76%_36%)]':
+                                        request.status === 'COMPLETED',
                                 }"
                             >
                                 <td class="px-4 py-3 text-sm text-foreground">
-                                    <span class="font-medium text-secondary">{{ request.mc_no }}</span>
+                                    <span class="font-medium text-secondary">{{
+                                        request.mc_no
+                                    }}</span>
                                 </td>
                                 <td class="px-4 py-3 text-sm text-foreground">
-                                    <Badge variant="outline" class="text-xs">{{ request.area }}</Badge>
-                                </td>
-                                <td class="px-4 py-3 text-sm text-foreground">{{ request.requestor }}</td>
-                                <td class="px-4 py-3 text-sm text-foreground">
-                                    <span v-if="request.request_model" class="font-medium text-blue-600 dark:text-blue-400">{{ request.request_model }}</span>
-                                    <span v-else class="text-muted-foreground">-</span>
+                                    <Badge variant="outline" class="text-xs">{{
+                                        request.area
+                                    }}</Badge>
                                 </td>
                                 <td class="px-4 py-3 text-sm text-foreground">
-                                    <span v-if="request.lot_no" class="font-medium">{{ request.lot_no }}</span>
-                                    <span v-else class="text-muted-foreground">-</span>
+                                    {{ request.requestor }}
                                 </td>
                                 <td class="px-4 py-3 text-sm text-foreground">
-                                    <span v-if="request.model" class="font-medium text-green-600 dark:text-green-400">{{ request.model }}</span>
-                                    <span v-else class="text-muted-foreground">-</span>
+                                    <span
+                                        v-if="request.request_model"
+                                        class="font-medium text-blue-600 dark:text-blue-400"
+                                        >{{ request.request_model }}</span
+                                    >
+                                    <span v-else class="text-muted-foreground"
+                                        >-</span
+                                    >
                                 </td>
-                                <td class="px-4 py-3 text-sm font-medium text-foreground">
-                                    <span v-if="request.quantity">{{ new Intl.NumberFormat().format(request.quantity) }}</span>
-                                    <span v-else class="text-muted-foreground">-</span>
+                                <td class="px-4 py-3 text-sm text-foreground">
+                                    <span
+                                        v-if="request.lot_no"
+                                        class="font-medium"
+                                        >{{ request.lot_no }}</span
+                                    >
+                                    <span v-else class="text-muted-foreground"
+                                        >-</span
+                                    >
+                                </td>
+                                <td class="px-4 py-3 text-sm text-foreground">
+                                    <span
+                                        v-if="request.model"
+                                        class="font-medium text-green-600 dark:text-green-400"
+                                        >{{ request.model }}</span
+                                    >
+                                    <span v-else class="text-muted-foreground"
+                                        >-</span
+                                    >
+                                </td>
+                                <td
+                                    class="px-4 py-3 text-sm font-medium text-foreground"
+                                >
+                                    <span v-if="request.quantity">{{
+                                        new Intl.NumberFormat().format(
+                                            request.quantity,
+                                        )
+                                    }}</span>
+                                    <span v-else class="text-muted-foreground"
+                                        >-</span
+                                    >
                                 </td>
                                 <td class="px-4 py-3">
-                                    <Badge :class="getLipasColor(request.lipas)" class="text-xs">
+                                    <Badge
+                                        :class="getLipasColor(request.lipas)"
+                                        class="text-xs"
+                                    >
                                         {{ getLipasLabel(request.lipas) }}
                                     </Badge>
                                 </td>
-                                <td class="px-4 py-3 text-xs text-muted-foreground">
-                                    <span v-if="request.lot_tat">{{ request.lot_tat }}</span>
+                                <td
+                                    class="px-4 py-3 text-xs text-muted-foreground"
+                                >
+                                    <span v-if="request.lot_tat">{{
+                                        request.lot_tat
+                                    }}</span>
                                     <span v-else>-</span>
                                 </td>
-                                <td class="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">{{ formatDateTime(request.requested) }}</td>
-                                <td class="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
-                                    <span v-if="request.completed">{{ formatDateTime(request.completed) }}</span>
-                                    <span v-else class="text-muted-foreground">-</span>
+                                <td
+                                    class="px-4 py-3 text-xs whitespace-nowrap text-muted-foreground"
+                                >
+                                    {{ formatDateTime(request.requested) }}
                                 </td>
-                                <td class="px-4 py-3 text-xs text-amber-600 dark:text-amber-400 font-medium whitespace-nowrap">
-                                    <span v-if="request.response_time">{{ request.response_time }}</span>
+                                <td
+                                    class="px-4 py-3 text-xs whitespace-nowrap text-muted-foreground"
+                                >
+                                    <span v-if="request.completed">{{
+                                        formatDateTime(request.completed)
+                                    }}</span>
+                                    <span v-else class="text-muted-foreground"
+                                        >-</span
+                                    >
+                                </td>
+                                <td
+                                    class="px-4 py-3 text-xs font-medium whitespace-nowrap text-amber-600 dark:text-amber-400"
+                                >
+                                    <span v-if="request.response_time">{{
+                                        request.response_time
+                                    }}</span>
                                     <span v-else>-</span>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <Badge :class="getStatusColor(request.status)" class="text-xs">
+                                    <Badge
+                                        :class="getStatusColor(request.status)"
+                                        class="text-xs"
+                                    >
                                         {{ request.status }}
                                     </Badge>
                                 </td>
-                                <td class="px-4 py-3 text-xs text-muted-foreground max-w-[200px]">
-                                    <span v-if="request.remarks" :title="request.remarks" class="line-clamp-2">{{ request.remarks }}</span>
+                                <td
+                                    class="max-w-[200px] px-4 py-3 text-xs text-muted-foreground"
+                                >
+                                    <span
+                                        v-if="request.remarks"
+                                        :title="request.remarks"
+                                        class="line-clamp-2"
+                                        >{{ request.remarks }}</span
+                                    >
                                     <span v-else>-</span>
                                 </td>
                                 <td class="px-4 py-3">
-                                    <div class="flex items-center justify-end gap-2">
-                                        <Button 
+                                    <div
+                                        class="flex items-center justify-end gap-2"
+                                    >
+                                        <Button
                                             @click="handleAccept(request)"
                                             size="sm"
-                                            :disabled="request.status === 'COMPLETED'"
-                                            class="h-7 px-3 text-xs bg-emerald-600 hover:bg-emerald-700 text-white dark:bg-emerald-700 dark:hover:bg-emerald-800 disabled:opacity-50 disabled:cursor-not-allowed"
+                                            :disabled="
+                                                request.status === 'COMPLETED'
+                                            "
+                                            class="h-7 bg-emerald-600 px-3 text-xs text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-700 dark:hover:bg-emerald-800"
                                         >
                                             Accept
                                         </Button>
-                                        <Button 
+                                        <Button
                                             @click="handleView(request)"
                                             size="sm"
                                             variant="outline"
@@ -1259,38 +1690,53 @@ watch([dateFrom, dateTo], () => {
             </Card>
 
             <!-- Enhanced Empty State -->
-            <div v-if="filteredRequests.length === 0" class="flex flex-col items-center justify-center py-16 bg-card/30 rounded-xl border-2 border-dashed">
-                <div class="text-8xl mb-4 animate-pulse">📦</div>
-                <h3 class="text-2xl font-bold text-muted-foreground">No requests found</h3>
-                <p class="text-sm text-muted-foreground mt-2">Try adjusting your filters to see more results</p>
+            <div
+                v-if="filteredRequests.length === 0"
+                class="flex flex-col items-center justify-center rounded-xl border-2 border-dashed bg-card/30 py-16"
+            >
+                <div class="mb-4 animate-pulse text-8xl">📦</div>
+                <h3 class="text-2xl font-bold text-muted-foreground">
+                    No requests found
+                </h3>
+                <p class="mt-2 text-sm text-muted-foreground">
+                    Try adjusting your filters to see more results
+                </p>
             </div>
         </div>
-        
+
         <!-- Assign Lot Modal -->
         <MemsAssignLotModal
             :open="showAssignLotModal"
             :equipment-no="selectedRequestForAssignment?.mc_no ?? null"
             :equipment-line="selectedRequestForAssignment?.line ?? null"
             :equipment-area="selectedRequestForAssignment?.area ?? null"
-            :previous-model="selectedRequestForAssignment?.request_model ?? null"
+            :previous-model="
+                selectedRequestForAssignment?.request_model ?? null
+            "
             :previous-worktype="null"
-            :ongoing-lot="selectedRequestForAssignment?.ongoing_lot ?? null"
-            :est-endtime="selectedRequestForAssignment?.est_endtime ?? null"
-            :waiting-time="selectedRequestForAssignment?.waiting_time ?? null"
+            :ongoing-lot="
+                (selectedRequestForAssignment as any)?.ongoing_lot ?? null
+            "
+            :est-endtime="
+                (selectedRequestForAssignment as any)?.est_endtime ?? null
+            "
+            :waiting-time="
+                (selectedRequestForAssignment as any)?.waiting_time ?? null
+            "
             :request-id="selectedRequestForAssignment?.id ?? null"
-            :mc-rack="selectedRequestForAssignment?.mc_rack ?? null"
+            :mc-rack="(selectedRequestForAssignment as any)?.mc_rack ?? null"
             @update:open="showAssignLotModal = $event"
             @assign="handleAssignLotConfirm"
         />
-        
+
         <!-- View Lot Request Modal -->
         <LotRequestViewModal
             :open="showViewModal"
-            :request="selectedRequestForView"
+            :request="selectedRequestForView as any"
             @update:open="showViewModal = $event"
             @refresh="fetchData"
         />
-        
+
         <!-- WIP Update Modal -->
         <EndtimeWipupdateModal
             :open="showWipUpdateModal"

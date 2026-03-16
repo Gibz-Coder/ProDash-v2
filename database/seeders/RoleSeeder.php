@@ -29,7 +29,8 @@ class RoleSeeder extends Seeder
                     'Settings Manage',
                     'Audit View',
                     'Departments Manage',
-                    'Positions Manage'
+                    'Positions Manage',
+                    'Manage Endline'
                 ]
             ],
             [
@@ -45,7 +46,8 @@ class RoleSeeder extends Seeder
                     'Reports View',
                     'Reports Generate',
                     'Departments Manage',
-                    'Positions Manage'
+                    'Positions Manage',
+                    'Manage Endline'
                 ]
             ],
             [
@@ -83,6 +85,14 @@ class RoleSeeder extends Seeder
                     'Departments Manage',
                     'Reports Generate',
                     'Positions Manage'
+                ]
+            ],
+            [
+                'name' => 'QC Part',
+                'slug' => 'qc-part',
+                'description' => 'Manage Visual Endline WIP particular to QC Inspection',
+                'permissions' => [
+                    'Manage Endline'
                 ]
             ]
         ];

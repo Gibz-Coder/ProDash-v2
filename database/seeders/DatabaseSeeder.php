@@ -14,8 +14,9 @@ class DatabaseSeeder extends Seeder
     public function run(): void
     {
         $this->call([
-            RoleSeeder::class,   // Create default roles first
-            UsersSeeder::class,  // Import all 246 users from SQL dump
+            RoleSeeder::class,
+            UsersSeeder::class,
+            QcDefectClassSeeder::class,
         ]);
     }
 }
