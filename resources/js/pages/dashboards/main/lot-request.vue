@@ -50,6 +50,9 @@ interface LotRequest {
     est_endtime?: string | null;
     waiting_time?: string | null;
     mc_rack?: string | null;
+    // MC status columns shown in table
+    mc_status?: string | null;
+    mc_endtime?: string | null;
 }
 
 interface Stats {
@@ -303,10 +306,42 @@ const fetchData = async () => {
             }),
         ]);
 
-        lotRequests.value = requestsRes.data.data;
+        const requests: LotRequest[] = requestsRes.data.data;
         stats.value = statsRes.data;
         sizeData.value = sizeRes.data.data;
         lineData.value = lineRes.data.data;
+
+        // Enrich each row with live equipment status/endtime
+        const uniqueMachines = [...new Set(requests.map((r) => r.mc_no))];
+        const equipmentMap: Record<string, any> = {};
+
+        await Promise.allSettled(
+            uniqueMachines.map(async (mcNo) => {
+                try {
+                    const res = await axios.get(
+                        `/api/equipment/details/${mcNo}`,
+                    );
+                    equipmentMap[mcNo] = res.data;
+                } catch {
+                    // leave undefined — row will show '-'
+                }
+            }),
+        );
+
+        lotRequests.value = requests.map((r) => {
+            const eq = equipmentMap[r.mc_no];
+            if (!eq) return r;
+            const isRunning = eq.ongoing_lot && eq.ongoing_lot.trim() !== '';
+            return {
+                ...r,
+                ongoing_lot: eq.ongoing_lot || null,
+                est_endtime: eq.est_endtime || null,
+                waiting_time: eq.waiting_time || null,
+                mc_rack: eq.mc_rack || null,
+                mc_status: isRunning ? 'Running' : 'Waiting',
+                mc_endtime: isRunning ? eq.est_endtime || null : null,
+            };
+        });
     } catch (error) {
         console.error('Error fetching lot request data:', error);
     } finally {
@@ -447,18 +482,29 @@ const handleAccept = async (request: LotRequest) => {
         );
         const equipmentData = response.data;
 
-        // Store the selected request with equipment data and open the modal
-        selectedRequestForAssignment.value = {
+        const isRunning =
+            equipmentData.ongoing_lot &&
+            equipmentData.ongoing_lot.trim() !== '';
+        const enriched: LotRequest = {
             ...request,
             ongoing_lot: equipmentData.ongoing_lot || null,
             est_endtime: equipmentData.est_endtime || null,
             waiting_time: equipmentData.waiting_time || null,
             mc_rack: equipmentData.mc_rack || null,
-        } as LotRequest;
+            mc_status: isRunning ? 'Running' : 'Waiting',
+            mc_endtime: isRunning ? equipmentData.est_endtime || null : null,
+        };
+
+        // Also update the row in the table so the columns reflect live data
+        const idx = lotRequests.value.findIndex((r) => r.id === request.id);
+        if (idx !== -1) {
+            lotRequests.value[idx] = { ...lotRequests.value[idx], ...enriched };
+        }
+
+        selectedRequestForAssignment.value = enriched;
         showAssignLotModal.value = true;
     } catch (error) {
         console.error('Error fetching equipment data:', error);
-        // Still open the modal even if equipment data fetch fails
         selectedRequestForAssignment.value = request;
         showAssignLotModal.value = true;
     }
@@ -1282,18 +1328,52 @@ watch(selectedDate, () => {
             <!-- Table with Fixed Header -->
             <Card class="flex flex-col overflow-hidden">
                 <div class="max-h-[650px] overflow-auto">
-                    <table class="w-full">
+                    <table class="w-full min-w-[1400px] table-fixed text-xs">
+                        <colgroup>
+                            <col class="w-[80px]" />
+                            <!-- MC No -->
+                            <col class="w-[46px]" />
+                            <!-- Area -->
+                            <col class="w-[130px]" />
+                            <!-- Requestor -->
+                            <col class="w-[120px]" />
+                            <!-- Req. Model -->
+                            <col class="w-[100px]" />
+                            <!-- Assigned Lot -->
+                            <col class="w-[120px]" />
+                            <!-- Assigned Model -->
+                            <col class="w-[68px]" />
+                            <!-- Qty -->
+                            <col class="w-[62px]" />
+                            <!-- LIPAS -->
+                            <col class="w-[40px]" />
+                            <!-- TAT -->
+                            <col class="w-[82px]" />
+                            <!-- Requested -->
+                            <col class="w-[82px]" />
+                            <!-- Completed -->
+                            <col class="w-[72px]" />
+                            <!-- Resp. Time -->
+                            <col class="w-[72px]" />
+                            <!-- MC Status -->
+                            <col class="w-[100px]" />
+                            <!-- MC Endtime -->
+                            <col class="w-[72px]" />
+                            <!-- Status -->
+                            <col class="w-[72px]" />
+                            <!-- Remarks -->
+                            <col class="w-[140px]" />
+                            <!-- Action -->
+                        </colgroup>
                         <thead class="sticky top-0 z-10 border-b bg-muted">
                             <tr>
                                 <th
                                     @click="handleSort('mc_no')"
-                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
                                 >
-                                    <div class="flex items-center gap-1">
-                                        MC No.
-                                        <span
+                                    <div class="flex items-center gap-0.5">
+                                        MC No.<span
                                             v-if="sortColumn === 'mc_no'"
-                                            class="text-xs"
                                             >{{
                                                 sortDirection === 'asc'
                                                     ? '↑'
@@ -1304,13 +1384,11 @@ watch(selectedDate, () => {
                                 </th>
                                 <th
                                     @click="handleSort('area')"
-                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
                                 >
-                                    <div class="flex items-center gap-1">
-                                        Area
-                                        <span
+                                    <div class="flex items-center gap-0.5">
+                                        Area<span
                                             v-if="sortColumn === 'area'"
-                                            class="text-xs"
                                             >{{
                                                 sortDirection === 'asc'
                                                     ? '↑'
@@ -1321,13 +1399,11 @@ watch(selectedDate, () => {
                                 </th>
                                 <th
                                     @click="handleSort('requestor')"
-                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
                                 >
-                                    <div class="flex items-center gap-1">
-                                        Requestor
-                                        <span
+                                    <div class="flex items-center gap-0.5">
+                                        Requestor<span
                                             v-if="sortColumn === 'requestor'"
-                                            class="text-xs"
                                             >{{
                                                 sortDirection === 'asc'
                                                     ? '↑'
@@ -1338,15 +1414,13 @@ watch(selectedDate, () => {
                                 </th>
                                 <th
                                     @click="handleSort('request_model')"
-                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
                                 >
-                                    <div class="flex items-center gap-1">
-                                        Req. Model
-                                        <span
+                                    <div class="flex items-center gap-0.5">
+                                        Req. Model<span
                                             v-if="
                                                 sortColumn === 'request_model'
                                             "
-                                            class="text-xs"
                                             >{{
                                                 sortDirection === 'asc'
                                                     ? '↑'
@@ -1357,13 +1431,11 @@ watch(selectedDate, () => {
                                 </th>
                                 <th
                                     @click="handleSort('lot_no')"
-                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
                                 >
-                                    <div class="flex items-center gap-1">
-                                        Assigned Lot
-                                        <span
+                                    <div class="flex items-center gap-0.5">
+                                        Assigned Lot<span
                                             v-if="sortColumn === 'lot_no'"
-                                            class="text-xs"
                                             >{{
                                                 sortDirection === 'asc'
                                                     ? '↑'
@@ -1374,13 +1446,11 @@ watch(selectedDate, () => {
                                 </th>
                                 <th
                                     @click="handleSort('model')"
-                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
                                 >
-                                    <div class="flex items-center gap-1">
-                                        Assigned Model
-                                        <span
+                                    <div class="flex items-center gap-0.5">
+                                        Assigned Model<span
                                             v-if="sortColumn === 'model'"
-                                            class="text-xs"
                                             >{{
                                                 sortDirection === 'asc'
                                                     ? '↑'
@@ -1391,13 +1461,11 @@ watch(selectedDate, () => {
                                 </th>
                                 <th
                                     @click="handleSort('quantity')"
-                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
                                 >
-                                    <div class="flex items-center gap-1">
-                                        Quantity
-                                        <span
+                                    <div class="flex items-center gap-0.5">
+                                        Qty<span
                                             v-if="sortColumn === 'quantity'"
-                                            class="text-xs"
                                             >{{
                                                 sortDirection === 'asc'
                                                     ? '↑'
@@ -1408,13 +1476,11 @@ watch(selectedDate, () => {
                                 </th>
                                 <th
                                     @click="handleSort('lipas')"
-                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
                                 >
-                                    <div class="flex items-center gap-1">
-                                        LIPAS
-                                        <span
+                                    <div class="flex items-center gap-0.5">
+                                        LIPAS<span
                                             v-if="sortColumn === 'lipas'"
-                                            class="text-xs"
                                             >{{
                                                 sortDirection === 'asc'
                                                     ? '↑'
@@ -1425,13 +1491,11 @@ watch(selectedDate, () => {
                                 </th>
                                 <th
                                     @click="handleSort('lot_tat')"
-                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
                                 >
-                                    <div class="flex items-center gap-1">
-                                        TAT
-                                        <span
+                                    <div class="flex items-center gap-0.5">
+                                        TAT<span
                                             v-if="sortColumn === 'lot_tat'"
-                                            class="text-xs"
                                             >{{
                                                 sortDirection === 'asc'
                                                     ? '↑'
@@ -1442,13 +1506,11 @@ watch(selectedDate, () => {
                                 </th>
                                 <th
                                     @click="handleSort('requested')"
-                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
                                 >
-                                    <div class="flex items-center gap-1">
-                                        Requested
-                                        <span
+                                    <div class="flex items-center gap-0.5">
+                                        Requested<span
                                             v-if="sortColumn === 'requested'"
-                                            class="text-xs"
                                             >{{
                                                 sortDirection === 'asc'
                                                     ? '↑'
@@ -1459,13 +1521,11 @@ watch(selectedDate, () => {
                                 </th>
                                 <th
                                     @click="handleSort('completed')"
-                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
                                 >
-                                    <div class="flex items-center gap-1">
-                                        Completed
-                                        <span
+                                    <div class="flex items-center gap-0.5">
+                                        Completed<span
                                             v-if="sortColumn === 'completed'"
-                                            class="text-xs"
                                             >{{
                                                 sortDirection === 'asc'
                                                     ? '↑'
@@ -1476,15 +1536,45 @@ watch(selectedDate, () => {
                                 </th>
                                 <th
                                     @click="handleSort('response_time')"
-                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
                                 >
-                                    <div class="flex items-center gap-1">
-                                        Response Time
-                                        <span
+                                    <div class="flex items-center gap-0.5">
+                                        Resp. Time<span
                                             v-if="
                                                 sortColumn === 'response_time'
                                             "
-                                            class="text-xs"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
+                                    </div>
+                                </th>
+                                <!-- NEW: MC Status -->
+                                <th
+                                    @click="handleSort('mc_status')"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
+                                >
+                                    <div class="flex items-center gap-0.5">
+                                        MC Status<span
+                                            v-if="sortColumn === 'mc_status'"
+                                            >{{
+                                                sortDirection === 'asc'
+                                                    ? '↑'
+                                                    : '↓'
+                                            }}</span
+                                        >
+                                    </div>
+                                </th>
+                                <!-- NEW: MC Endtime -->
+                                <th
+                                    @click="handleSort('mc_endtime')"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
+                                >
+                                    <div class="flex items-center gap-0.5">
+                                        MC Endtime<span
+                                            v-if="sortColumn === 'mc_endtime'"
                                             >{{
                                                 sortDirection === 'asc'
                                                     ? '↑'
@@ -1495,13 +1585,11 @@ watch(selectedDate, () => {
                                 </th>
                                 <th
                                     @click="handleSort('status')"
-                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
                                 >
-                                    <div class="flex items-center gap-1">
-                                        Status
-                                        <span
+                                    <div class="flex items-center gap-0.5">
+                                        Status<span
                                             v-if="sortColumn === 'status'"
-                                            class="text-xs"
                                             >{{
                                                 sortDirection === 'asc'
                                                     ? '↑'
@@ -1512,13 +1600,11 @@ watch(selectedDate, () => {
                                 </th>
                                 <th
                                     @click="handleSort('remarks')"
-                                    class="cursor-pointer bg-muted px-4 py-3 text-left text-xs font-semibold tracking-wider text-muted-foreground uppercase transition-colors hover:bg-muted/80"
+                                    class="cursor-pointer bg-muted px-2 py-2 text-left text-[10px] font-semibold tracking-wider text-muted-foreground uppercase hover:bg-muted/80"
                                 >
-                                    <div class="flex items-center gap-1">
-                                        Remarks
-                                        <span
+                                    <div class="flex items-center gap-0.5">
+                                        Remarks<span
                                             v-if="sortColumn === 'remarks'"
-                                            class="text-xs"
                                             >{{
                                                 sortDirection === 'asc'
                                                     ? '↑'
@@ -1528,7 +1614,7 @@ watch(selectedDate, () => {
                                     </div>
                                 </th>
                                 <th
-                                    class="bg-muted px-4 py-3 text-center text-xs font-semibold tracking-wider text-muted-foreground uppercase"
+                                    class="bg-muted px-2 py-2 text-center text-[10px] font-semibold tracking-wider text-muted-foreground uppercase"
                                 >
                                     Action
                                 </th>
@@ -1546,20 +1632,28 @@ watch(selectedDate, () => {
                                         request.status === 'COMPLETED',
                                 }"
                             >
-                                <td class="px-4 py-3 text-sm text-foreground">
+                                <td class="px-2 py-1.5 text-xs">
                                     <span class="font-medium text-secondary">{{
                                         request.mc_no
                                     }}</span>
                                 </td>
-                                <td class="px-4 py-3 text-sm text-foreground">
-                                    <Badge variant="outline" class="text-xs">{{
-                                        request.area
-                                    }}</Badge>
+                                <td class="px-2 py-1.5 text-xs">
+                                    <Badge
+                                        variant="outline"
+                                        class="px-1 py-0 text-[10px]"
+                                        >{{ request.area }}</Badge
+                                    >
                                 </td>
-                                <td class="px-4 py-3 text-sm text-foreground">
+                                <td
+                                    class="truncate px-2 py-1.5 text-xs text-foreground"
+                                    :title="request.requestor"
+                                >
                                     {{ request.requestor }}
                                 </td>
-                                <td class="px-4 py-3 text-sm text-foreground">
+                                <td
+                                    class="truncate px-2 py-1.5 text-xs"
+                                    :title="request.request_model ?? ''"
+                                >
                                     <span
                                         v-if="request.request_model"
                                         class="font-medium text-blue-600 dark:text-blue-400"
@@ -1569,7 +1663,10 @@ watch(selectedDate, () => {
                                         >-</span
                                     >
                                 </td>
-                                <td class="px-4 py-3 text-sm text-foreground">
+                                <td
+                                    class="truncate px-2 py-1.5 text-xs"
+                                    :title="request.lot_no"
+                                >
                                     <span
                                         v-if="request.lot_no"
                                         class="font-medium"
@@ -1579,7 +1676,10 @@ watch(selectedDate, () => {
                                         >-</span
                                     >
                                 </td>
-                                <td class="px-4 py-3 text-sm text-foreground">
+                                <td
+                                    class="truncate px-2 py-1.5 text-xs"
+                                    :title="request.model"
+                                >
                                     <span
                                         v-if="request.model"
                                         class="font-medium text-green-600 dark:text-green-400"
@@ -1590,7 +1690,7 @@ watch(selectedDate, () => {
                                     >
                                 </td>
                                 <td
-                                    class="px-4 py-3 text-sm font-medium text-foreground"
+                                    class="px-2 py-1.5 text-xs font-medium text-foreground"
                                 >
                                     <span v-if="request.quantity">{{
                                         new Intl.NumberFormat().format(
@@ -1601,29 +1701,27 @@ watch(selectedDate, () => {
                                         >-</span
                                     >
                                 </td>
-                                <td class="px-4 py-3">
+                                <td class="px-2 py-1.5">
                                     <Badge
                                         :class="getLipasColor(request.lipas)"
-                                        class="text-xs"
+                                        class="px-1 py-0 text-[10px]"
+                                        >{{
+                                            getLipasLabel(request.lipas)
+                                        }}</Badge
                                     >
-                                        {{ getLipasLabel(request.lipas) }}
-                                    </Badge>
                                 </td>
                                 <td
-                                    class="px-4 py-3 text-xs text-muted-foreground"
+                                    class="px-2 py-1.5 text-xs text-muted-foreground"
                                 >
-                                    <span v-if="request.lot_tat">{{
-                                        request.lot_tat
-                                    }}</span>
-                                    <span v-else>-</span>
+                                    {{ request.lot_tat ?? '-' }}
                                 </td>
                                 <td
-                                    class="px-4 py-3 text-xs whitespace-nowrap text-muted-foreground"
+                                    class="px-2 py-1.5 text-xs whitespace-nowrap text-muted-foreground"
                                 >
                                     {{ formatDateTime(request.requested) }}
                                 </td>
                                 <td
-                                    class="px-4 py-3 text-xs whitespace-nowrap text-muted-foreground"
+                                    class="px-2 py-1.5 text-xs whitespace-nowrap text-muted-foreground"
                                 >
                                     <span v-if="request.completed">{{
                                         formatDateTime(request.completed)
@@ -1633,23 +1731,54 @@ watch(selectedDate, () => {
                                     >
                                 </td>
                                 <td
-                                    class="px-4 py-3 text-xs font-medium whitespace-nowrap text-amber-600 dark:text-amber-400"
+                                    class="px-2 py-1.5 text-xs font-medium whitespace-nowrap text-amber-600 dark:text-amber-400"
                                 >
-                                    <span v-if="request.response_time">{{
-                                        request.response_time
-                                    }}</span>
-                                    <span v-else>-</span>
+                                    {{ request.response_time ?? '-' }}
                                 </td>
-                                <td class="px-4 py-3">
+                                <!-- MC Status -->
+                                <td class="px-2 py-1.5 text-xs">
+                                    <span
+                                        v-if="request.mc_status"
+                                        class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold"
+                                        :class="
+                                            request.mc_status === 'Running'
+                                                ? 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300'
+                                                : 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-300'
+                                        "
+                                    >
+                                        <span>{{
+                                            request.mc_status === 'Running'
+                                                ? '▶'
+                                                : '⏸'
+                                        }}</span>
+                                        {{ request.mc_status }}
+                                    </span>
+                                    <span v-else class="text-muted-foreground"
+                                        >-</span
+                                    >
+                                </td>
+                                <!-- MC Endtime -->
+                                <td
+                                    class="px-2 py-1.5 text-xs whitespace-nowrap text-muted-foreground"
+                                    :title="request.mc_endtime ?? ''"
+                                >
+                                    <span v-if="request.mc_endtime">{{
+                                        formatDateTime(request.mc_endtime)
+                                    }}</span>
+                                    <span v-else class="text-muted-foreground"
+                                        >-</span
+                                    >
+                                </td>
+                                <td class="px-2 py-1.5">
                                     <Badge
                                         :class="getStatusColor(request.status)"
-                                        class="text-xs"
+                                        class="px-1.5 py-0 text-[10px]"
+                                        >{{ request.status }}</Badge
                                     >
-                                        {{ request.status }}
-                                    </Badge>
                                 </td>
+                                <!-- Remarks -->
                                 <td
-                                    class="max-w-[200px] px-4 py-3 text-xs text-muted-foreground"
+                                    class="max-w-[140px] px-2 py-1.5 text-xs text-muted-foreground"
                                 >
                                     <span
                                         v-if="request.remarks"
@@ -1659,9 +1788,9 @@ watch(selectedDate, () => {
                                     >
                                     <span v-else>-</span>
                                 </td>
-                                <td class="px-4 py-3">
+                                <td class="px-2 py-1.5">
                                     <div
-                                        class="flex items-center justify-end gap-2"
+                                        class="flex items-center justify-end gap-1"
                                     >
                                         <Button
                                             @click="handleAccept(request)"
@@ -1669,7 +1798,7 @@ watch(selectedDate, () => {
                                             :disabled="
                                                 request.status === 'COMPLETED'
                                             "
-                                            class="h-7 bg-emerald-600 px-3 text-xs text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-700 dark:hover:bg-emerald-800"
+                                            class="h-6 bg-emerald-600 px-2 text-[10px] text-white hover:bg-emerald-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-emerald-700 dark:hover:bg-emerald-800"
                                         >
                                             Accept
                                         </Button>
@@ -1677,7 +1806,7 @@ watch(selectedDate, () => {
                                             @click="handleView(request)"
                                             size="sm"
                                             variant="outline"
-                                            class="h-7 px-3 text-xs"
+                                            class="h-6 px-2 text-[10px]"
                                         >
                                             View
                                         </Button>
