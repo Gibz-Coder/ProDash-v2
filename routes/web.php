@@ -111,12 +111,27 @@ Route::get('endline-delay', function () {
     return Inertia::render('dashboards/main/endline-delay');
 })->middleware(['auth', 'verified', 'permission:Manage Endline'])->name('endline_delay');
 
+// QC Analysis monitor
+Route::get('qc-analysis', function () {
+    return Inertia::render('dashboards/main/qc-analysis');
+})->middleware(['auth', 'verified', 'permission:Manage Endline'])->name('qc_analysis');
+
+// VI Technical monitor
+Route::get('vi-technical', function () {
+    return Inertia::render('dashboards/main/vi-technical');
+})->middleware(['auth', 'verified', 'permission:Manage Endline'])->name('vi_technical');
+
 Route::middleware(['auth', 'verified', 'permission:Manage Endline'])->group(function () {
+    Route::get('api/endline-delay/chart-data', [App\Http\Controllers\EndlineDelayController::class, 'chartData']);
     Route::get('api/endline-delay', [App\Http\Controllers\EndlineDelayController::class, 'index']);
     Route::get('api/endline-delay/export', [App\Http\Controllers\EndlineDelayController::class, 'export']);
     Route::get('api/endline-delay/lot-lookup', [App\Http\Controllers\EndlineDelayController::class, 'lotLookup']);
     Route::get('api/endline-delay/defect-codes', [App\Http\Controllers\EndlineDelayController::class, 'defectCodeSearch']);
+    Route::get('api/endline-delay/qc-monitor', [App\Http\Controllers\EndlineDelayController::class, 'qcAnalysisIndex']);
+    Route::get('api/endline-delay/vi-monitor', [App\Http\Controllers\EndlineDelayController::class, 'viTechnicalIndex']);
     Route::post('api/endline-delay', [App\Http\Controllers\EndlineDelayController::class, 'store']);
+    Route::post('api/endline-delay/{id}/start-qc', [App\Http\Controllers\EndlineDelayController::class, 'startQcAnalysis']);
+    Route::post('api/endline-delay/{id}/start-vi', [App\Http\Controllers\EndlineDelayController::class, 'startViTechnical']);
     Route::put('api/endline-delay/{id}', [App\Http\Controllers\EndlineDelayController::class, 'update']);
     Route::delete('api/endline-delay/{id}', [App\Http\Controllers\EndlineDelayController::class, 'destroy']);
 });

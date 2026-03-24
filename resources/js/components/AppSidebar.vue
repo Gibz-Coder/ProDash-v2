@@ -12,15 +12,14 @@ import {
 } from '@/components/ui/sidebar';
 import {
     dashboard,
-    dashboard_7,
-    data_entry,
     endline_delay,
     endtime,
-    escalation,
     lot_request,
     mc_allocation,
     mems_dashboard,
     process_wip,
+    qc_analysis,
+    vi_technical,
 } from '@/routes';
 import admin from '@/routes/admin';
 import { type NavItem } from '@/types';
@@ -71,19 +70,14 @@ const allNavItems: NavItem[] = [
         icon: '🔚',
     },
     {
-        title: 'ESCALATION',
-        href: escalation(),
-        icon: '🛠️',
+        title: 'QC ANALYSIS',
+        href: qc_analysis(),
+        icon: '🔬',
     },
     {
-        title: 'LIPAS',
-        href: dashboard_7(),
-        icon: '💢',
-    },
-    {
-        title: 'DATA ENTRY',
-        href: data_entry(),
-        icon: '📝',
+        title: 'VI TECHNICAL',
+        href: vi_technical(),
+        icon: '🔍',
     },
 ];
 
@@ -93,9 +87,11 @@ const mainNavItems = computed(() => {
 
     const userRole = user.role?.toLowerCase();
 
-    // QC Part role can only see ENDLINE
+    // QC Part role can only see ENDLINE, QC MONITOR, and VI MONITOR
     if (userRole === 'qc part' || userRole === 'qc-part') {
-        return allNavItems.filter((item) => item.title === 'ENDLINE');
+        return allNavItems.filter((item) =>
+            ['ENDLINE', 'QC MONITOR', 'VI MONITOR'].includes(item.title),
+        );
     }
 
     // Hide DATA ENTRY for users with 'user' role

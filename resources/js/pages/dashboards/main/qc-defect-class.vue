@@ -128,7 +128,7 @@
                         >
                             <option value="">All Flows</option>
                             <option value="QC Analysis">QC Analysis</option>
-                            <option value="Tech'l Verfication">
+                            <option value="Tech'l Verification">
                                 Tech'l Verification
                             </option>
                         </select>
@@ -388,7 +388,7 @@
                                     Select flow...
                                 </option>
                                 <option value="QC Analysis">QC Analysis</option>
-                                <option value="Tech'l Verfication">
+                                <option value="Tech'l Verification">
                                     Tech'l Verification
                                 </option>
                             </select>

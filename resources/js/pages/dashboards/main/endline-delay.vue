@@ -120,6 +120,14 @@
                     </select>
                 </div>
 
+                <!-- Reset to Defaults -->
+                <button
+                    class="flex items-center gap-1 rounded-lg border border-violet-600 bg-transparent px-3 py-1.5 text-xs font-medium text-violet-600 shadow-sm transition-colors hover:bg-violet-600 hover:text-white"
+                    @click="resetToDefaults"
+                >
+                    <RotateCcw class="h-3.5 w-3.5" /> Default
+                </button>
+
                 <!-- Refresh -->
                 <button
                     class="flex items-center gap-1 rounded-lg border border-blue-600 bg-transparent px-3 py-1.5 text-xs font-medium text-blue-600 shadow-sm transition-colors hover:bg-blue-600 hover:text-white"
@@ -198,16 +206,71 @@
                         QC analysis and technical verification delay entries
                     </p>
                 </div>
-                <button
-                    class="inline-flex items-center rounded-lg bg-gradient-to-r from-primary to-primary/90 px-6 py-3 text-sm font-semibold text-primary-foreground shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/25"
-                    @click="openCreateModal"
-                >
-                    <PlusCircle class="mr-2 h-4 w-4" /> Add Record
-                    <span
-                        class="ml-2 rounded bg-white/20 px-1.5 py-0.5 font-mono text-xs"
-                        >F2</span
+                <div class="flex items-center gap-3">
+                    <!-- Wildcard search -->
+                    <div class="relative">
+                        <span
+                            class="pointer-events-none absolute inset-y-0 left-3 flex items-center text-muted-foreground"
+                        >
+                            <svg
+                                class="h-4 w-4"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                viewBox="0 0 24 24"
+                            >
+                                <circle cx="11" cy="11" r="8" />
+                                <path d="m21 21-4.35-4.35" />
+                            </svg>
+                        </span>
+                        <input
+                            v-model="searchQuery"
+                            type="text"
+                            class="h-10 w-64 rounded-lg border border-input bg-background pr-4 pl-9 text-sm transition-all placeholder:text-muted-foreground/60 focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                            placeholder="Search lot no, model, defect..."
+                            @input="fetchRecords"
+                        />
+                        <button
+                            v-if="searchQuery"
+                            class="absolute inset-y-0 right-2 flex items-center text-muted-foreground/60 hover:text-muted-foreground"
+                            @click="
+                                searchQuery = '';
+                                fetchRecords();
+                            "
+                        >
+                            <svg
+                                class="h-3.5 w-3.5"
+                                fill="none"
+                                stroke="currentColor"
+                                stroke-width="2"
+                                viewBox="0 0 24 24"
+                            >
+                                <path d="M18 6 6 18M6 6l12 12" />
+                            </svg>
+                        </button>
+                    </div>
+                    <!-- Decision filter -->
+                    <select
+                        v-model="decisionFilter"
+                        class="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground transition-all focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                        @change="fetchRecords"
                     >
-                </button>
+                        <option value="">All Decisions</option>
+                        <option value="Proceed">Proceed</option>
+                        <option value="Rework">Rework</option>
+                        <option value="Low Yield">Low Yield</option>
+                    </select>
+                    <button
+                        class="inline-flex items-center rounded-lg bg-gradient-to-r from-primary to-primary/90 px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/25"
+                        @click="openCreateModal"
+                    >
+                        <PlusCircle class="mr-2 h-4 w-4" /> Add Record
+                        <span
+                            class="ml-2 rounded bg-white/20 px-1.5 py-0.5 font-mono text-xs"
+                            >F2</span
+                        >
+                    </button>
+                </div>
             </div>
 
             <div class="grid grid-cols-6 gap-3">
@@ -283,7 +346,7 @@
                             <p
                                 class="text-xs font-medium text-amber-700 dark:text-amber-300"
                             >
-                                VI Technical
+                                Tech'l Verification
                             </p>
                             <p
                                 class="text-2xl font-bold text-amber-900 dark:text-amber-100"
@@ -291,7 +354,7 @@
                                 {{
                                     formatQty(
                                         sumQtyByDefectClass(
-                                            "Tech'l Verfication",
+                                            "Tech'l Verification",
                                         ),
                                     )
                                 }}
@@ -299,7 +362,7 @@
                             <p
                                 class="text-xs text-amber-600/70 dark:text-amber-400/70"
                             >
-                                {{ countByDefectClass("Tech'l Verfication") }}
+                                {{ countByDefectClass("Tech'l Verification") }}
                                 lots
                             </p>
                         </div>
@@ -404,254 +467,278 @@
                 </div>
             </div>
 
+            <!-- Table -->
             <div
-                class="rounded-xl border border-border/50 bg-card p-4 shadow-lg"
+                class="flex flex-1 flex-col overflow-hidden rounded-xl border border-border/50 bg-card shadow-lg"
             >
-                <div class="grid gap-4 md:grid-cols-12">
-                    <div class="md:col-span-8">
-                        <input
-                            v-model="searchQuery"
-                            type="text"
-                            class="flex h-12 w-full rounded-lg border border-input bg-background px-4 py-3 text-sm shadow-sm placeholder:text-muted-foreground focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none"
-                            placeholder="Search by Lot No or Model..."
-                            @input="fetchRecords"
-                        />
-                    </div>
-                    <div class="md:col-span-2">
-                        <select
-                            v-model="decisionFilter"
-                            class="flex h-12 w-full rounded-lg border border-input bg-background px-4 py-3 text-sm shadow-sm focus-visible:border-primary focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 focus-visible:outline-none"
-                            @change="fetchRecords"
-                        >
-                            <option value="">All Decisions</option>
-                            <option value="Proceed">Proceed</option>
-                            <option value="Rework">Rework</option>
-                            <option value="Low Yield">Low Yield</option>
-                        </select>
-                    </div>
-                    <div class="md:col-span-2">
-                        <button
-                            class="inline-flex h-12 w-full items-center justify-center rounded-lg border border-border bg-background px-4 text-sm font-semibold shadow-sm transition-all hover:bg-muted"
-                            @click="clearFilters"
-                        >
-                            <XCircle class="mr-2 h-4 w-4" /> Clear
-                        </button>
+                <div v-if="loading" class="flex justify-center py-10">
+                    <div
+                        class="h-7 w-7 animate-spin rounded-full border-4 border-primary border-r-transparent"
+                        role="status"
+                    >
+                        <span class="sr-only">Loading...</span>
                     </div>
                 </div>
-            </div>
-
-            <div class="rounded-xl border border-border/50 bg-card shadow-lg">
-                <div class="p-6">
-                    <div v-if="loading" class="flex justify-center py-12">
-                        <div
-                            class="h-8 w-8 animate-spin rounded-full border-4 border-primary border-r-transparent"
-                            role="status"
-                        >
-                            <span class="sr-only">Loading...</span>
-                        </div>
-                    </div>
-                    <div v-if="!loading" class="overflow-x-auto">
-                        <table class="w-full text-sm">
-                            <thead
-                                class="border-b border-border/50 bg-gradient-to-r from-muted/30 to-muted/10"
+                <div v-else class="h-full overflow-auto">
+                    <table class="w-full min-w-[1100px] table-fixed text-xs">
+                        <colgroup>
+                            <col class="w-[40px]" />
+                            <!-- No. -->
+                            <col class="w-[100px]" />
+                            <!-- Lot No -->
+                            <col class="w-[60px]" />
+                            <!-- QC NG -->
+                            <col class="w-[70px]" />
+                            <!-- Defect -->
+                            <col class="w-[130px]" />
+                            <!-- Defect Class -->
+                            <col class="w-[130px]" />
+                            <!-- Model -->
+                            <col class="w-[90px]" />
+                            <!-- Qty -->
+                            <col class="w-[56px]" />
+                            <!-- LIPAS -->
+                            <col class="w-[100px]" />
+                            <!-- WorkType -->
+                            <col class="w-[120px]" />
+                            <!-- Date Time -->
+                            <col class="w-[90px]" />
+                            <!-- Decision -->
+                            <col class="w-[90px]" />
+                            <!-- Elapsed -->
+                            <col class="w-[110px]" />
+                            <!-- Updated By -->
+                            <col class="w-[110px]" />
+                            <!-- Actions -->
+                        </colgroup>
+                        <thead class="sticky top-0 z-10">
+                            <tr
+                                class="via-slate-750 dark:via-slate-850 bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900"
                             >
-                                <tr>
-                                    <th
-                                        class="px-4 py-4 text-left font-bold tracking-wide text-foreground uppercase"
-                                    >
-                                        Lot No
-                                    </th>
-                                    <th
-                                        class="px-4 py-4 text-left font-bold tracking-wide text-foreground uppercase"
-                                    >
-                                        QC NG
-                                    </th>
-                                    <th
-                                        class="px-4 py-4 text-left font-bold tracking-wide text-foreground uppercase"
-                                    >
-                                        Defect
-                                    </th>
-                                    <th
-                                        class="px-4 py-4 text-left font-bold tracking-wide text-foreground uppercase"
-                                    >
-                                        Defect Class
-                                    </th>
-                                    <th
-                                        class="px-4 py-4 text-left font-bold tracking-wide text-foreground uppercase"
-                                    >
-                                        Model
-                                    </th>
-                                    <th
-                                        class="px-4 py-4 text-left font-bold tracking-wide text-foreground uppercase"
-                                    >
-                                        Qty
-                                    </th>
-                                    <th
-                                        class="px-4 py-4 text-left font-bold tracking-wide text-foreground uppercase"
-                                    >
-                                        LIPAS
-                                    </th>
-                                    <th
-                                        class="px-4 py-4 text-left font-bold tracking-wide text-foreground uppercase"
-                                    >
-                                        Date Time
-                                    </th>
-                                    <th
-                                        class="px-4 py-4 text-left font-bold tracking-wide text-foreground uppercase"
-                                    >
-                                        Decision
-                                    </th>
-                                    <th
-                                        class="px-4 py-4 text-left font-bold tracking-wide text-foreground uppercase"
-                                    >
-                                        Elapsed Time
-                                    </th>
-                                    <th
-                                        class="px-4 py-4 text-center font-bold tracking-wide text-foreground uppercase"
-                                    >
-                                        Actions
-                                    </th>
-                                </tr>
-                            </thead>
-                            <tbody class="divide-y divide-border/30">
-                                <tr
-                                    v-for="rec in records"
-                                    :key="rec.id"
-                                    class="transition-colors hover:bg-muted/20"
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-center text-[10px] font-bold tracking-widest text-slate-100 uppercase"
                                 >
-                                    <td
-                                        class="px-4 py-3 font-mono font-semibold text-primary"
+                                    No.
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Lot No
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    QC NG
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Defect
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Defect Class
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Model
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Qty
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    LIPAS
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    WorkType
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Date Time
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Decision
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Elapsed
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Updated By
+                                </th>
+                                <th
+                                    class="px-2 py-2.5 text-center text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border">
+                            <tr
+                                v-for="(rec, index) in records"
+                                :key="rec.id"
+                                class="transition-colors hover:bg-muted/30"
+                            >
+                                <td
+                                    class="px-2 py-1.5 text-center text-xs font-medium text-muted-foreground"
+                                >
+                                    {{ index + 1 }}
+                                </td>
+                                <td
+                                    class="px-2 py-1.5 font-mono text-xs font-semibold text-primary"
+                                >
+                                    {{ rec.lot_id }}
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <span
+                                        v-if="rec.qc_result"
+                                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
+                                        :class="qcNgBadgeClass(rec.qc_result)"
+                                        >{{ rec.qc_result }}</span
                                     >
-                                        {{ rec.lot_id }}
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <span
-                                            v-if="rec.qc_result"
-                                            class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset"
-                                            :class="
-                                                qcNgBadgeClass(rec.qc_result)
-                                            "
-                                            >{{ rec.qc_result }}</span
-                                        >
-                                        <span
-                                            v-else
-                                            class="text-muted-foreground"
-                                            >—</span
-                                        >
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        {{ rec.qc_defect || '—' }}
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <span
-                                            v-if="rec.defect_class"
-                                            class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset"
-                                            :class="
-                                                rec.defect_class ===
-                                                'QC Analysis'
-                                                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400'
-                                                    : 'bg-yellow-50 text-yellow-700 ring-yellow-600/20 dark:bg-yellow-950/30 dark:text-yellow-400'
-                                            "
-                                            >{{ rec.defect_class }}</span
-                                        >
-                                        <span
-                                            v-else
-                                            class="text-muted-foreground"
-                                            >—</span
-                                        >
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        {{ rec.model || '—' }}
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        {{
-                                            rec.lot_qty != null
-                                                ? formatQty(rec.lot_qty)
-                                                : '—'
-                                        }}
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <span
-                                            v-if="rec.lipas_yn"
-                                            class="inline-flex items-center rounded-full px-2 py-0.5 text-xs font-semibold ring-1 ring-inset"
-                                            :class="
-                                                rec.lipas_yn === 'Y'
-                                                    ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400'
-                                                    : 'bg-slate-50 text-slate-600 ring-slate-600/20 dark:bg-slate-950/30 dark:text-slate-400'
-                                            "
-                                            >{{ rec.lipas_yn }}</span
-                                        >
-                                        <span
-                                            v-else
-                                            class="text-muted-foreground"
-                                            >—</span
-                                        >
-                                    </td>
-                                    <td
-                                        class="px-4 py-3 text-xs text-muted-foreground"
+                                    <span v-else class="text-muted-foreground"
+                                        >—</span
                                     >
-                                        {{ getDateTime(rec) }}
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <span
-                                            v-if="getDecision(rec)"
-                                            class="inline-flex items-center rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ring-inset"
-                                            :class="
-                                                decisionBadgeClass(
-                                                    getDecision(rec)!,
-                                                )
-                                            "
-                                            >{{ getDecision(rec) }}</span
-                                        >
-                                        <span
-                                            v-else
-                                            class="text-muted-foreground"
-                                            >—</span
-                                        >
-                                    </td>
-                                    <td
-                                        class="px-4 py-3 text-xs text-muted-foreground"
+                                </td>
+                                <td
+                                    class="truncate px-2 py-1.5 text-xs text-foreground"
+                                    :title="rec.qc_defect ?? ''"
+                                >
+                                    {{ rec.qc_defect || '—' }}
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <span
+                                        v-if="rec.defect_class"
+                                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
+                                        :class="
+                                            rec.defect_class === 'QC Analysis'
+                                                ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400'
+                                                : 'bg-yellow-50 text-yellow-700 ring-yellow-600/20 dark:bg-yellow-950/30 dark:text-yellow-400'
+                                        "
+                                        >{{ rec.defect_class }}</span
                                     >
-                                        {{
-                                            getElapsedTime(rec) != null
-                                                ? getElapsedTime(rec) + ' min'
-                                                : '—'
-                                        }}
-                                    </td>
-                                    <td class="px-4 py-3">
-                                        <div
-                                            class="flex items-center justify-center gap-2"
-                                        >
-                                            <button
-                                                class="flex items-center gap-1.5 rounded-lg border border-primary/20 bg-primary/5 px-3 py-1.5 text-xs font-semibold text-primary transition-all hover:bg-primary/10"
-                                                @click="editRecord(rec)"
-                                            >
-                                                <Pencil class="h-3.5 w-3.5" />
-                                                Edit
-                                            </button>
-                                            <button
-                                                class="flex items-center gap-1.5 rounded-lg border border-destructive/20 bg-destructive/5 px-3 py-1.5 text-xs font-semibold text-destructive transition-all hover:bg-destructive/10"
-                                                @click="confirmDelete(rec)"
-                                            >
-                                                <Trash2 class="h-3.5 w-3.5" />
-                                            </button>
-                                        </div>
-                                    </td>
-                                </tr>
-                                <tr v-if="records.length === 0">
-                                    <td
-                                        colspan="11"
-                                        class="py-12 text-center text-muted-foreground"
+                                    <span v-else class="text-muted-foreground"
+                                        >—</span
                                     >
-                                        <Clock
-                                            class="mx-auto h-16 w-16 opacity-30"
-                                        />
-                                        <p class="mt-3">No records found</p>
-                                    </td>
-                                </tr>
-                            </tbody>
-                        </table>
-                    </div>
+                                </td>
+                                <td
+                                    class="truncate px-2 py-1.5 text-xs text-foreground"
+                                    :title="rec.model ?? ''"
+                                >
+                                    {{ rec.model || '—' }}
+                                </td>
+                                <td
+                                    class="px-2 py-1.5 text-xs font-medium text-foreground"
+                                >
+                                    {{
+                                        rec.lot_qty != null
+                                            ? formatQty(rec.lot_qty)
+                                            : '—'
+                                    }}
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <span
+                                        v-if="rec.lipas_yn"
+                                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
+                                        :class="
+                                            rec.lipas_yn === 'Y'
+                                                ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400'
+                                                : 'bg-slate-50 text-slate-600 ring-slate-600/20 dark:bg-slate-950/30 dark:text-slate-400'
+                                        "
+                                        >{{ rec.lipas_yn }}</span
+                                    >
+                                    <span v-else class="text-muted-foreground"
+                                        >—</span
+                                    >
+                                </td>
+                                <td
+                                    class="truncate px-2 py-1.5 text-xs text-foreground"
+                                    :title="rec.work_type ?? ''"
+                                >
+                                    {{ rec.work_type || '—' }}
+                                </td>
+                                <td
+                                    class="px-2 py-1.5 text-xs whitespace-nowrap text-muted-foreground"
+                                >
+                                    {{ getDateTime(rec) }}
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <span
+                                        v-if="getDecision(rec)"
+                                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
+                                        :class="
+                                            decisionBadgeClass(
+                                                getDecision(rec)!,
+                                            )
+                                        "
+                                        >{{ getDecision(rec) }}</span
+                                    >
+                                    <span v-else class="text-muted-foreground"
+                                        >—</span
+                                    >
+                                </td>
+                                <td
+                                    class="px-2 py-1.5 text-xs whitespace-nowrap text-amber-600 dark:text-amber-400"
+                                >
+                                    {{
+                                        getElapsedTime(rec) != null
+                                            ? getElapsedTime(rec) + ' min'
+                                            : '—'
+                                    }}
+                                </td>
+                                <td
+                                    class="truncate px-2 py-1.5 text-xs text-muted-foreground"
+                                    :title="rec.updated_by ?? ''"
+                                >
+                                    {{ rec.updated_by || '—' }}
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <div
+                                        class="flex items-center justify-center gap-1"
+                                    >
+                                        <button
+                                            class="h-6 rounded border border-primary/20 bg-primary/5 px-2 text-[10px] font-semibold text-primary hover:bg-primary/10"
+                                            @click="editRecord(rec)"
+                                        >
+                                            <Pencil class="inline h-3 w-3" />
+                                            Edit
+                                        </button>
+                                        <button
+                                            class="h-6 rounded border border-destructive/20 bg-destructive/5 px-2 text-[10px] font-semibold text-destructive hover:bg-destructive/10"
+                                            @click="confirmDelete(rec)"
+                                        >
+                                            <Trash2 class="inline h-3 w-3" />
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr v-if="records.length === 0">
+                                <td
+                                    colspan="14"
+                                    class="py-10 text-center text-muted-foreground"
+                                >
+                                    <Clock
+                                        class="mx-auto h-12 w-12 opacity-30"
+                                    />
+                                    <p class="mt-2 text-xs">No records found</p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
                 </div>
             </div>
         </div>
@@ -754,10 +841,10 @@ import {
     Pencil,
     PlusCircle,
     RefreshCw,
+    RotateCcw,
     Trash2,
     Wrench,
     X,
-    XCircle,
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
@@ -794,6 +881,7 @@ interface EndlineRecord {
     work_type: string | null;
     final_decision: string | null;
     remarks: string | null;
+    updated_by: string | null;
     created_at: string | null;
     updated_at: string | null;
 }
@@ -820,18 +908,14 @@ function setUnit(u: 'pcs' | 'Kpcs' | 'Mpcs') {
 
 function formatQty(qty: number): string {
     if (filterUnit.value === 'Kpcs')
-        return (
-            (qty / 1000).toLocaleString(undefined, {
-                maximumFractionDigits: 1,
-            }) + ' Kpcs'
-        );
+        return (qty / 1000).toLocaleString(undefined, {
+            maximumFractionDigits: 1,
+        });
     if (filterUnit.value === 'Mpcs')
-        return (
-            (qty / 1_000_000).toLocaleString(undefined, {
-                maximumFractionDigits: 2,
-            }) + ' Mpcs'
-        );
-    return qty.toLocaleString() + ' pcs';
+        return (qty / 1_000_000).toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+        });
+    return qty.toLocaleString();
 }
 
 // Export date range picker state
@@ -940,6 +1024,17 @@ function decisionBadgeClass(d: string) {
 }
 
 onMounted(() => {
+    if (localStorage.getItem('endline_use_defaults') === '1') {
+        const h = manilaHour();
+        filterDate.value = new Date().toLocaleDateString('en-CA', {
+            timeZone: 'Asia/Manila',
+        });
+        filterShift.value = h >= 7 && h < 19 ? 'DAY' : 'NIGHT';
+        filterCutoff.value = currentCutoff();
+        filterWorktype.value = 'NORMAL';
+        filterLipas.value = '';
+        setUnit('pcs');
+    }
     fetchRecords();
     document.addEventListener('click', onClickOutside);
     document.addEventListener('keydown', onKeydown);
@@ -949,6 +1044,42 @@ onBeforeUnmount(() => {
     document.removeEventListener('click', onClickOutside);
     document.removeEventListener('keydown', onKeydown);
 });
+
+function manilaHour(): number {
+    return parseInt(
+        new Date().toLocaleString('en-US', {
+            timeZone: 'Asia/Manila',
+            hour: 'numeric',
+            hour12: false,
+        }),
+        10,
+    );
+}
+
+function currentCutoff(): string {
+    const h = manilaHour();
+    if (h < 4) return '00:00~03:59';
+    if (h < 7) return '04:00~06:59';
+    if (h < 12) return '07:00~11:59';
+    if (h < 16) return '12:00~15:59';
+    if (h < 19) return '16:00~18:59';
+    return '19:00~23:59';
+}
+
+function resetToDefaults() {
+    const h = manilaHour();
+    filterDate.value = new Date().toLocaleDateString('en-CA', {
+        timeZone: 'Asia/Manila',
+    });
+    filterShift.value = h >= 7 && h < 19 ? 'DAY' : 'NIGHT';
+    filterCutoff.value = currentCutoff();
+    filterWorktype.value = 'NORMAL';
+    filterLipas.value = '';
+    setUnit('pcs');
+    // Persist the intent so page refresh restores defaults
+    localStorage.setItem('endline_use_defaults', '1');
+    fetchRecords();
+}
 
 async function fetchRecords() {
     loading.value = true;
@@ -984,6 +1115,7 @@ function clearFilters() {
     filterShift.value = '';
     filterCutoff.value = '';
     filterWorktype.value = '';
+    localStorage.removeItem('endline_use_defaults');
     fetchRecords();
 }
 

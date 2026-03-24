@@ -2,12 +2,32 @@
 
 namespace App\Http\Controllers;
 
+use App\Services\EndlineChartService;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 
 class EndlineDelayController extends Controller
 {
+    public function __construct(private readonly EndlineChartService $chartService) {}
+
+    public function chartData(Request $request): JsonResponse
+    {
+        $filters = $request->only([
+            'date', 'shift', 'cutoff', 'work_type', 'lipas_yn',
+            'defect_class', 'work_type_filter', 'category',
+        ]);
+
+        $data = $this->chartService->getChartData($filters);
+
+        return response()->json([
+            'success' => true,
+            'data'    => $data,
+            'error'   => null,
+            'meta'    => null,
+        ]);
+    }
+
     public function lotLookup(Request $request): JsonResponse
     {
         $lotId = $request->query('lot_id', '');
@@ -54,27 +74,27 @@ class EndlineDelayController extends Controller
         }
 
         if ($request->filled('date')) {
-            $query->whereDate('created_at', $request->date);
+            $query->whereDate('endline_delay.created_at', $request->date);
         }
 
         if ($request->filled('date_from') || $request->filled('date_to')) {
             if ($request->filled('date_from')) {
-                $query->whereDate('created_at', '>=', $request->date_from);
+                $query->whereDate('endline_delay.created_at', '>=', $request->date_from);
             }
             if ($request->filled('date_to')) {
-                $query->whereDate('created_at', '<=', $request->date_to);
+                $query->whereDate('endline_delay.created_at', '<=', $request->date_to);
             }
         }
 
         if ($request->filled('shift')) {
             $shift = $request->shift;
             if ($shift === 'DAY') {
-                $query->whereTime('created_at', '>=', '07:00:00')
-                      ->whereTime('created_at', '<', '19:00:00');
+                $query->whereTime('endline_delay.created_at', '>=', '07:00:00')
+                      ->whereTime('endline_delay.created_at', '<', '19:00:00');
             } elseif ($shift === 'NIGHT') {
                 $query->where(function ($q) {
-                    $q->whereTime('created_at', '>=', '19:00:00')
-                      ->orWhereTime('created_at', '<', '07:00:00');
+                    $q->whereTime('endline_delay.created_at', '>=', '19:00:00')
+                      ->orWhereTime('endline_delay.created_at', '<', '07:00:00');
                 });
             }
         }
@@ -90,8 +110,8 @@ class EndlineDelayController extends Controller
             ];
             if (isset($ranges[$request->cutoff])) {
                 [$from, $to] = $ranges[$request->cutoff];
-                $query->whereTime('created_at', '>=', $from)
-                      ->whereTime('created_at', '<=', $to);
+                $query->whereTime('endline_delay.created_at', '>=', $from)
+                      ->whereTime('endline_delay.created_at', '<=', $to);
             }
         }
 
@@ -112,6 +132,82 @@ class EndlineDelayController extends Controller
         return response()->json($records);
     }
 
+    public function qcAnalysisIndex(Request $request): JsonResponse
+    {
+        $records = $this->buildQuery($request)
+            ->leftJoin('qc_defect_class', 'endline_delay.qc_defect', '=', 'qc_defect_class.defect_code')
+            ->where('endline_delay.defect_class', 'QC Analysis')
+            ->orderBy('endline_delay.created_at', 'desc')
+            ->select('endline_delay.*', 'qc_defect_class.defect_name')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $records, 'error' => null, 'meta' => null]);
+    }
+
+    public function viTechnicalIndex(Request $request): JsonResponse
+    {
+        $records = $this->buildQuery($request)
+            ->leftJoin('qc_defect_class', 'endline_delay.qc_defect', '=', 'qc_defect_class.defect_code')
+            ->where('endline_delay.defect_class', "Tech'l Verification")
+            ->orderBy('endline_delay.created_at', 'desc')
+            ->select('endline_delay.*', 'qc_defect_class.defect_name')
+            ->get();
+
+        return response()->json(['success' => true, 'data' => $records, 'error' => null, 'meta' => null]);
+    }
+
+    public function startQcAnalysis(int $id): JsonResponse
+    {
+        $row = DB::table('endline_delay')->find($id);
+
+        if (! $row) {
+            return response()->json(['success' => false, 'message' => 'Record not found.'], 404);
+        }
+
+        if (! empty($row->qc_ana_start)) {
+            return response()->json(['success' => false, 'message' => 'Already started.'], 422);
+        }
+
+        DB::table('endline_delay')->where('id', $id)->update([
+            'qc_ana_start' => now(),
+            'updated_by'   => auth()->user()->emp_name ?? auth()->user()->name ?? 'system',
+            'updated_at'   => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data'    => DB::table('endline_delay')->find($id),
+            'error'   => null,
+            'meta'    => null,
+        ]);
+    }
+
+    public function startViTechnical(int $id): JsonResponse
+    {
+        $row = DB::table('endline_delay')->find($id);
+
+        if (! $row) {
+            return response()->json(['success' => false, 'message' => 'Record not found.'], 404);
+        }
+
+        if (! empty($row->vi_techl_start)) {
+            return response()->json(['success' => false, 'message' => 'Already started.'], 422);
+        }
+
+        DB::table('endline_delay')->where('id', $id)->update([
+            'vi_techl_start' => now(),
+            'updated_by'     => auth()->user()->emp_name ?? auth()->user()->name ?? 'system',
+            'updated_at'     => now(),
+        ]);
+
+        return response()->json([
+            'success' => true,
+            'data'    => DB::table('endline_delay')->find($id),
+            'error'   => null,
+            'meta'    => null,
+        ]);
+    }
+
     public function export(Request $request)
     {
         $records = $this->buildQuery($request)->orderBy('created_at', 'desc')->get();
@@ -123,7 +219,7 @@ class EndlineDelayController extends Controller
 
         $columns = ['lot_id','model','lot_qty','lipas_yn','qc_result','qc_defect','defect_class',
                     'qc_ana_start','qc_ana_result','qc_ana_tat','vi_techl_start','vi_techl_result',
-                    'vi_techl_tat','final_decision','total_tat','remarks','updated_by','created_at'];
+                    'vi_techl_tat','final_decision','total_tat','remarks','inspection_times','updated_by','created_at'];
 
         $callback = function () use ($records, $columns) {
             $handle = fopen('php://output', 'w');
@@ -155,8 +251,9 @@ class EndlineDelayController extends Controller
             'vi_techl_tat'     => 'nullable|integer',
             'final_decision'   => 'nullable|string|max:100',
             'total_tat'        => 'nullable|integer',
-            'work_type'        => 'nullable|string|max:100',
-            'remarks'          => 'nullable|string',
+            'work_type'         => 'nullable|string|max:100',
+            'remarks'           => 'nullable|string',
+            'inspection_times'  => 'nullable|integer|min:1|max:255',
         ]);
 
         $id = DB::table('endline_delay')->insertGetId(array_merge($validated, [
@@ -194,8 +291,9 @@ class EndlineDelayController extends Controller
             'vi_techl_tat'     => 'nullable|integer',
             'final_decision'   => 'nullable|string|max:100',
             'total_tat'        => 'nullable|integer',
-            'work_type'        => 'nullable|string|max:100',
-            'remarks'          => 'nullable|string',
+            'work_type'         => 'nullable|string|max:100',
+            'remarks'           => 'nullable|string',
+            'inspection_times'  => 'nullable|integer|min:1|max:255',
         ]);
 
         DB::table('endline_delay')->where('id', $id)->update(array_merge($validated, [

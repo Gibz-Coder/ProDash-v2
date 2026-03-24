@@ -1,29 +1,28 @@
 <?php
 
 use Illuminate\Database\Migrations\Migration;
-use Illuminate\Database\Schema\Blueprint;
-use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Facades\Schema;
 
 return new class extends Migration
 {
     public function up(): void
     {
-        // Disable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=0;');
-        
-        // Drop the lot_requests table
+        // Disable foreign key checks (MySQL only; SQLite uses PRAGMA)
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=0;');
+        }
+
         Schema::dropIfExists('lot_requests');
-        
-        // Re-enable foreign key checks
-        DB::statement('SET FOREIGN_KEY_CHECKS=1;');
-        
-        echo "lot_requests table dropped successfully!\n";
+
+        if (DB::getDriverName() === 'mysql') {
+            DB::statement('SET FOREIGN_KEY_CHECKS=1;');
+        }
     }
 
     public function down(): void
     {
-        // Not needed
+        // Intentionally empty — this migration is a one-way cleanup
     }
 };
 

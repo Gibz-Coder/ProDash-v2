@@ -33,11 +33,12 @@ interface EndlineRecord {
     work_type: string | null;
     final_decision: string | null;
     remarks: string | null;
+    inspection_times: number | null;
 }
 
 interface RowForm {
     lot_id: string;
-    qc_ng: string; // single radio value → qc_result
+    qc_ng: string[]; // multi-select → joined as comma-separated in qc_result
     defect_codes: string[]; // array of codes → joined as comma-separated in qc_defect
     defect_input: string; // current typing buffer
     defect_flow: string; // auto-resolved from defect codes → stored in defect_class col
@@ -47,7 +48,8 @@ interface RowForm {
     work_type: string;
     lipas_yn: string;
     qc_ana_start: string | null; // auto-stamped when defect_flow = 'QC Analysis'
-    vi_techl_start: string | null; // auto-stamped when defect_flow = "Tech'l Verfication"
+    vi_techl_start: string | null; // auto-stamped when defect_flow = "Tech'l Verification"
+    inspection_times: number | null;
     _loading: boolean;
 }
 
@@ -66,7 +68,7 @@ const editId = ref<number | null>(null);
 
 const emptyRow = (): RowForm => ({
     lot_id: '',
-    qc_ng: 'Main',
+    qc_ng: [],
     defect_codes: [],
     defect_input: '',
     defect_flow: '',
@@ -77,6 +79,7 @@ const emptyRow = (): RowForm => ({
     lipas_yn: '',
     qc_ana_start: null,
     vi_techl_start: null,
+    inspection_times: null,
     _loading: false,
 });
 
@@ -93,7 +96,12 @@ watch(
             rows.value = [
                 {
                     lot_id: props.editRecord.lot_id,
-                    qc_ng: props.editRecord.qc_result ?? 'Main',
+                    qc_ng: props.editRecord.qc_result
+                        ? props.editRecord.qc_result
+                              .split(',')
+                              .map((s) => s.trim())
+                              .filter(Boolean)
+                        : [],
                     defect_codes: props.editRecord.qc_defect
                         ? props.editRecord.qc_defect
                               .split(',')
@@ -109,6 +117,7 @@ watch(
                     lipas_yn: props.editRecord.lipas_yn ?? '',
                     qc_ana_start: props.editRecord.qc_ana_start ?? null,
                     vi_techl_start: props.editRecord.vi_techl_start ?? null,
+                    inspection_times: props.editRecord.inspection_times ?? null,
                     _loading: false,
                 },
             ];
@@ -243,7 +252,7 @@ function resolveDefectFlow(row: RowForm) {
     if (flow === 'QC Analysis') {
         if (!row.qc_ana_start) row.qc_ana_start = now;
         row.vi_techl_start = null;
-    } else if (flow === "Tech'l Verfication") {
+    } else if (flow === "Tech'l Verification") {
         if (!row.vi_techl_start) row.vi_techl_start = now;
         row.qc_ana_start = null;
     } else {
@@ -321,10 +330,30 @@ function onLotIdEnter(e: KeyboardEvent, i: number) {
     }
 }
 
+function toggleQcNg(row: RowForm, opt: string) {
+    // Clear any validation error for this row on interaction
+    const idx = rows.value.indexOf(row);
+    if (rowErrors.value[idx]?.qc_ng) {
+        delete rowErrors.value[idx].qc_ng;
+    }
+    if (opt === 'OK') {
+        // OK is exclusive — select only OK or deselect if already selected
+        row.qc_ng = row.qc_ng.includes('OK') ? [] : ['OK'];
+        return;
+    }
+    // For Main/RR/LY: toggle and clear OK if present
+    const without = row.qc_ng.filter((v) => v !== 'OK');
+    if (without.includes(opt)) {
+        row.qc_ng = without.filter((v) => v !== opt);
+    } else {
+        row.qc_ng = [...without, opt];
+    }
+}
+
 function rowToPayload(row: RowForm) {
     return {
         lot_id: row.lot_id || null,
-        qc_result: row.qc_ng || null,
+        qc_result: row.qc_ng.length ? row.qc_ng.join(', ') : null,
         qc_defect: row.defect_codes.length ? row.defect_codes.join(', ') : null,
         defect_class: row.defect_flow || null,
         final_decision: row.final_decision || null,
@@ -334,6 +363,7 @@ function rowToPayload(row: RowForm) {
         lipas_yn: row.lipas_yn || null,
         qc_ana_start: row.qc_ana_start || null,
         vi_techl_start: row.vi_techl_start || null,
+        inspection_times: row.inspection_times ?? null,
     };
 }
 
@@ -349,6 +379,24 @@ async function save() {
         } else {
             const filled = rows.value.filter((r) => r.lot_id.trim() !== '');
             if (filled.length === 0) {
+                submitting.value = false;
+                return;
+            }
+            // Validate: every filled row must have at least one QC NG selected
+            const invalidIndices = rows.value.reduce<number[]>(
+                (acc, r, idx) => {
+                    if (r.lot_id.trim() !== '' && r.qc_ng.length === 0)
+                        acc.push(idx);
+                    return acc;
+                },
+                [],
+            );
+            if (invalidIndices.length > 0) {
+                invalidIndices.forEach((idx) => {
+                    rowErrors.value[idx] = {
+                        qc_ng: 'Select QC Result before saving!',
+                    };
+                });
                 submitting.value = false;
                 return;
             }
@@ -399,7 +447,7 @@ const filledCount = () =>
         @update:open="(value: boolean) => emit('update:open', value)"
     >
         <DialogContent
-            class="flex !max-h-[90vh] !w-[calc(100vw-2rem)] !max-w-[calc(100vw-2rem)] flex-col gap-0 overflow-hidden p-0"
+            class="flex !max-h-[90vh] !w-[calc(100vw-24rem)] !max-w-[calc(100vw-24rem)] flex-col gap-0 overflow-hidden p-0"
         >
             <DialogHeader
                 class="border-b border-border/50 bg-gradient-to-r from-muted/30 to-muted/10 px-6 py-4"
@@ -429,47 +477,47 @@ const filledCount = () =>
                                 No.
                             </th>
                             <th
-                                class="min-w-[160px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                                class="min-w-[70px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
                             >
                                 Lot No <span class="text-destructive">*</span>
                             </th>
                             <th
-                                class="min-w-[240px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                                class="min-w-[130px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
                             >
-                                QC NG
+                                QC Result
                             </th>
                             <th
-                                class="min-w-[160px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                                class="min-w-[60px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                            >
+                                Insp. Times
+                            </th>
+                            <th
+                                class="min-w-[140px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
                             >
                                 Defect (Code)
                             </th>
                             <th
-                                class="min-w-[140px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                                class="min-w-[120px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
                             >
                                 Defect Flow
                             </th>
                             <th
-                                class="min-w-[140px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
-                            >
-                                Final Decision
-                            </th>
-                            <th
-                                class="min-w-[160px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                                class="min-w-[130px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
                             >
                                 Model
                             </th>
                             <th
-                                class="min-w-[80px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                                class="min-w-[70px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
                             >
                                 Qty
                             </th>
                             <th
-                                class="min-w-[130px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                                class="min-w-[110px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
                             >
                                 Worktype
                             </th>
                             <th
-                                class="min-w-[80px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
+                                class="min-w-[70px] px-3 py-2.5 text-left text-xs font-bold tracking-wide text-muted-foreground uppercase"
                             >
                                 LIPAS
                             </th>
@@ -505,12 +553,13 @@ const filledCount = () =>
                                         "
                                         v-model="row.lot_id"
                                         type="text"
-                                        class="h-8 w-full rounded border border-input bg-background px-2 text-sm uppercase placeholder:text-muted-foreground/50 placeholder:normal-case focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                                        class="h-8 w-full rounded border border-input bg-background px-2 text-xs uppercase placeholder:text-muted-foreground/50 placeholder:normal-case focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                                         :class="{
                                             'border-destructive':
                                                 rowErrors[i]?.lot_id,
                                         }"
-                                        placeholder="e.g., LOT-001"
+                                        placeholder="LOT-001"
+                                        maxlength="7"
                                         @input="
                                             row.lot_id = (
                                                 $event.target as HTMLInputElement
@@ -530,10 +579,10 @@ const filledCount = () =>
                                 </div>
                             </td>
 
-                            <!-- QC NG — radio buttons -->
+                            <!-- QC NG — multi-select toggle buttons (OK is exclusive) -->
                             <td class="px-2 py-1.5">
-                                <div class="flex items-center gap-2">
-                                    <label
+                                <div class="flex items-center gap-1.5">
+                                    <button
                                         v-for="opt in [
                                             'Main',
                                             'RR',
@@ -541,34 +590,45 @@ const filledCount = () =>
                                             'OK',
                                         ]"
                                         :key="opt"
-                                        class="flex cursor-pointer items-center gap-1 rounded px-2 py-1 text-xs font-medium transition-colors"
-                                        :class="{
-                                            'bg-red-100 text-red-700 dark:bg-red-950/40 dark:text-red-400':
-                                                opt === 'Main' &&
-                                                row.qc_ng === 'Main',
-                                            'bg-orange-100 text-orange-700 dark:bg-orange-950/40 dark:text-orange-400':
-                                                opt === 'RR' &&
-                                                row.qc_ng === 'RR',
-                                            'bg-yellow-100 text-yellow-700 dark:bg-yellow-950/40 dark:text-yellow-400':
-                                                opt === 'LY' &&
-                                                row.qc_ng === 'LY',
-                                            'bg-emerald-100 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400':
-                                                opt === 'OK' &&
-                                                row.qc_ng === 'OK',
-                                            'text-muted-foreground hover:bg-muted/50':
-                                                row.qc_ng !== opt,
-                                        }"
+                                        type="button"
+                                        class="rounded border px-2 py-0.5 text-xs font-semibold transition-all"
+                                        :class="
+                                            row.qc_ng.includes(opt)
+                                                ? {
+                                                      'border-red-500 bg-red-500 text-white shadow-sm':
+                                                          opt === 'Main',
+                                                      'border-orange-500 bg-orange-500 text-white shadow-sm':
+                                                          opt === 'RR',
+                                                      'border-yellow-500 bg-yellow-500 text-white shadow-sm':
+                                                          opt === 'LY',
+                                                      'border-emerald-500 bg-emerald-500 text-white shadow-sm':
+                                                          opt === 'OK',
+                                                  }
+                                                : 'border-border bg-transparent text-muted-foreground/50 hover:border-muted-foreground/40 hover:text-muted-foreground'
+                                        "
+                                        @click="toggleQcNg(row, opt)"
                                     >
-                                        <input
-                                            type="radio"
-                                            :name="`qc_ng_${i}`"
-                                            :value="opt"
-                                            v-model="row.qc_ng"
-                                            class="h-3.5 w-3.5 accent-primary"
-                                        />
                                         {{ opt }}
-                                    </label>
+                                    </button>
                                 </div>
+                                <p
+                                    v-if="rowErrors[i]?.qc_ng"
+                                    class="mt-0.5 text-[10px] text-destructive"
+                                >
+                                    {{ rowErrors[i].qc_ng }}
+                                </p>
+                            </td>
+
+                            <!-- Inspection Times -->
+                            <td class="px-2 py-1.5">
+                                <input
+                                    v-model.number="row.inspection_times"
+                                    type="number"
+                                    min="1"
+                                    max="255"
+                                    class="h-8 w-full rounded border border-input bg-background px-2 text-center text-xs placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                                    placeholder="—"
+                                />
                             </td>
 
                             <!-- Defect Code -->
@@ -667,19 +727,6 @@ const filledCount = () =>
                                         >Auto</span
                                     >
                                 </div>
-                            </td>
-
-                            <!-- Final Decision -->
-                            <td class="px-2 py-1.5">
-                                <select
-                                    v-model="row.final_decision"
-                                    class="h-8 w-full rounded border border-input bg-background px-2 text-sm focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                                >
-                                    <option value="Pending">Pending</option>
-                                    <option value="Proceed">Proceed</option>
-                                    <option value="Rework">Rework</option>
-                                    <option value="Low Yield">Low Yield</option>
-                                </select>
                             </td>
 
                             <!-- Model (read-only) -->
