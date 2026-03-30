@@ -1,5 +1,5 @@
 import axios from 'axios';
-import { type Ref, computed, onUnmounted, ref } from 'vue';
+import { type Ref, computed, ref } from 'vue';
 
 export interface MonitorRecord {
     id: number;
@@ -11,11 +11,13 @@ export interface MonitorRecord {
     qc_defect: string | null;
     defect_class: string | null;
     qc_ana_start: string | null;
+    qc_ana_prog: string | null;
     qc_ana_result: string | null;
-    qc_ana_tat: number | null;
+    qc_ana_completed_at: string | null;
     vi_techl_start: string | null;
+    vi_techl_prog: string | null;
     vi_techl_result: string | null;
-    vi_techl_tat: number | null;
+    vi_techl_completed_at: string | null;
     defect_name: string | null;
     work_type: string | null;
     final_decision: string | null;
@@ -35,10 +37,17 @@ interface UseMonitorPageOptions {
     unit?: Ref<UnitType>;
 }
 
-const REFRESH_INTERVAL_MS = 30_000;
-
 function sumQty(recs: MonitorRecord[]): number {
     return recs.reduce((acc, r) => acc + (r.lot_qty ?? 0), 0);
+}
+
+export function formatDuration(minutes: number): string {
+    if (minutes < 60) return `${minutes} min`;
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    const mins = minutes % 60;
+    if (days > 0) return `${days}d ${hours}h ${mins}m`;
+    return `${hours}h ${mins}m`;
 }
 
 function formatUnit(qty: number, unit: UnitType): string {
@@ -61,8 +70,11 @@ export function useMonitorPage({
 }: UseMonitorPageOptions) {
     const records = ref<MonitorRecord[]>([]);
     const loading = ref(false);
-
     const error = ref<string | null>(null);
+    const prevDayMeta = ref<{ count: number; qty: number }>({
+        count: 0,
+        qty: 0,
+    });
 
     async function fetchRecords() {
         loading.value = true;
@@ -71,10 +83,15 @@ export function useMonitorPage({
             const { data } = await axios.get<{
                 success: boolean;
                 data: MonitorRecord[];
+                meta: { prev_day_count: number; prev_day_qty: number } | null;
             }>(apiUrl, {
                 params: params?.(),
             });
             records.value = data.data ?? [];
+            prevDayMeta.value = {
+                count: data.meta?.prev_day_count ?? 0,
+                qty: data.meta?.prev_day_qty ?? 0,
+            };
         } catch (e: unknown) {
             error.value =
                 e instanceof Error ? e.message : 'Failed to load records';
@@ -83,48 +100,61 @@ export function useMonitorPage({
         }
     }
 
-    const timer = setInterval(fetchRecords, REFRESH_INTERVAL_MS);
-    onUnmounted(() => clearInterval(timer));
-
     const startKey = mode === 'qc' ? 'qc_ana_start' : 'vi_techl_start';
+    const progKey = mode === 'qc' ? 'qc_ana_prog' : 'vi_techl_prog';
     const resultKey = mode === 'qc' ? 'qc_ana_result' : 'vi_techl_result';
+    const completedAtKey =
+        mode === 'qc' ? 'qc_ana_completed_at' : 'vi_techl_completed_at';
 
     const summaryStats = computed(() => {
-        const pendingRecs = records.value.filter(
-            (r) => !r[startKey] && !r[resultKey],
-        );
-        const inProgressRecs = records.value.filter(
-            (r) => r[startKey] && !r[resultKey],
-        );
+        // COMPLETED: result is not null/empty
         const completedRecs = records.value.filter((r) => !!r[resultKey]);
 
-        const todayStr = new Date().toLocaleDateString('en-CA', {
-            timeZone: 'Asia/Manila',
-        });
-        const prevDayRecs = records.value.filter((r) => {
-            if (r[startKey] || r[resultKey]) return false;
-            if (!r.created_at) return false;
-            const recDate = new Date(r.created_at).toLocaleDateString('en-CA', {
-                timeZone: 'Asia/Manila',
-            });
-            return recDate < todayStr;
-        });
+        // IN PROGRESS: prog is set but no result yet
+        const inProgressRecs = records.value.filter(
+            (r) => !!r[progKey] && !r[resultKey],
+        );
+
+        // PENDING: no prog and no result
+        const pendingRecs = records.value.filter(
+            (r) => !r[progKey] && !r[resultKey],
+        );
 
         const u = unit?.value ?? 'pcs';
 
+        // AVERAGE TAT: all records with a start time
+        // - completed: completed_at minus start
+        // - pending/in-progress: now minus start
+        const avgTat = (() => {
+            const now = Date.now();
+            const minutes = records.value
+                .filter((r) => !!r[startKey])
+                .map((r) => {
+                    const start = new Date(r[startKey] as string).getTime();
+                    const end = r[completedAtKey]
+                        ? new Date(r[completedAtKey] as string).getTime()
+                        : now;
+                    return Math.round((end - start) / 60_000);
+                })
+                .filter((m) => m > 0);
+            if (minutes.length === 0) return '—';
+            return formatDuration(
+                Math.round(minutes.reduce((a, b) => a + b, 0) / minutes.length),
+            );
+        })();
+
         return {
-            // counts
             total: records.value.length,
             pending: pendingRecs.length,
             inProgress: inProgressRecs.length,
             completed: completedRecs.length,
-            prevDayPending: prevDayRecs.length,
-            // qty formatted by unit
+            prevDayPending: prevDayMeta.value.count,
             totalQty: formatUnit(sumQty(records.value), u),
             pendingQty: formatUnit(sumQty(pendingRecs), u),
             inProgressQty: formatUnit(sumQty(inProgressRecs), u),
             completedQty: formatUnit(sumQty(completedRecs), u),
-            prevDayQty: formatUnit(sumQty(prevDayRecs), u),
+            prevDayQty: formatUnit(prevDayMeta.value.qty, u),
+            avgTat,
         };
     });
 

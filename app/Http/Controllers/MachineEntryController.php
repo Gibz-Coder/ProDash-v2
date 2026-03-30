@@ -383,9 +383,32 @@ class MachineEntryController extends Controller
             ]);
         }
 
-        // Query the updatewip table
-        $lot = \DB::table('updatewip')
-            ->where('lot_id', $lotId)
+        // Query mes_data.wip_status
+        $lot = \DB::table('mes_data.wip_status as w')
+            ->leftJoin('mes_data.monthly_plan as mp', 'mp.chip_model', '=', 'w.model_id')
+            ->where('w.lot_no', $lotId)
+            ->select(
+                'w.lot_no',
+                'w.model_id as model_15',
+                'w.current_qty as lot_qty',
+                \DB::raw("CASE w.size
+                    WHEN '0603' THEN '03'
+                    WHEN '1005' THEN '05'
+                    WHEN '1608' THEN '10'
+                    WHEN '2012' THEN '21'
+                    WHEN '3216' THEN '31'
+                    WHEN '3225' THEN '32'
+                    ELSE '10'
+                END as lot_size"),
+                \DB::raw("CASE
+                    WHEN w.warehouse_rework_yn = 'Y' THEN 'WH REWORK'
+                    WHEN w.rework_type = 'Normal' THEN 'NORMAL'
+                    WHEN w.rework_type = 'Process Rework' THEN 'PROCESS RW'
+                    WHEN w.rework_type = 'Outgoing NG' THEN 'OI REWORK'
+                    ELSE 'NORMAL'
+                END as work_type"),
+                'mp.vi_lipas_yn as lipas_yn',
+            )
             ->first();
 
         if (!$lot) {
@@ -398,7 +421,7 @@ class MachineEntryController extends Controller
         return response()->json([
             'success' => true,
             'lot' => [
-                'lot_id' => $lot->lot_id,
+                'lot_id' => $lot->lot_no,
                 'lot_qty' => $lot->lot_qty ?? 0,
                 'lot_size' => $lot->lot_size ?? '10',
                 'model_15' => $lot->model_15 ?? '',

@@ -33,6 +33,14 @@ return Application::configure(basePath: dirname(__DIR__))
         ]);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
+        // Redirect unauthenticated Inertia requests back to login cleanly
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, $request) {
+            if ($request->header('X-Inertia')) {
+                return response('', 409)->header('X-Inertia-Location', route('login'));
+            }
+            return redirect()->guest(route('login'));
+        });
+
         // Handle HTTP exceptions with custom error pages
         $exceptions->render(function (\Throwable $e, $request) {
             // Handle 503 Service Unavailable (Maintenance Mode)

@@ -5,7 +5,7 @@
         @click="$emit('update:open', false)"
     >
         <div
-            class="w-full max-w-md animate-in rounded-2xl bg-card shadow-2xl ring-1 ring-border/50 duration-300 fade-in-0 zoom-in-95"
+            class="w-full max-w-lg animate-in rounded-2xl bg-card shadow-2xl ring-1 ring-border/50 duration-300 fade-in-0 zoom-in-95"
             @click.stop
         >
             <!-- Header -->
@@ -21,9 +21,7 @@
                             Submit Result
                         </h3>
                         <p class="text-sm text-muted-foreground">
-                            {{
-                                mode === 'qc' ? 'QC Analysis' : 'VI Technical'
-                            }}
+                            {{ mode === 'qc' ? 'QC Analysis' : 'VI Technical' }}
                             decision
                         </p>
                     </div>
@@ -37,82 +35,189 @@
                 </button>
             </div>
 
+            <!-- Lot ID lookup (empty modal mode) -->
+            <div v-if="!resolvedLot" class="px-6 pt-5 pb-2">
+                <label class="mb-2 block text-sm font-semibold text-foreground">
+                    Lot No <span class="text-destructive">*</span>
+                </label>
+                <div class="flex gap-2">
+                    <input
+                        ref="lotInputRef"
+                        v-model="lotIdInput"
+                        type="text"
+                        placeholder="Enter lot ID..."
+                        class="h-10 flex-1 rounded-lg border border-input bg-background px-3 text-sm text-foreground shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                        @keydown.enter="lookupLot"
+                    />
+                    <button
+                        type="button"
+                        class="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-sm hover:bg-primary/90 disabled:opacity-50"
+                        :disabled="lookingUp || !lotIdInput.trim()"
+                        @click="lookupLot"
+                    >
+                        <span
+                            v-if="lookingUp"
+                            class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-solid border-current border-r-transparent"
+                        />
+                        <Search v-else class="h-3.5 w-3.5" />
+                        Lookup
+                    </button>
+                </div>
+                <p v-if="lookupError" class="mt-1.5 text-xs text-destructive">
+                    {{ lookupError }}
+                </p>
+            </div>
+
             <!-- Lot context (read-only) -->
-            <div class="px-6 pt-5">
+            <div v-if="resolvedLot" class="px-6 pt-5">
                 <div
-                    class="grid grid-cols-3 gap-3 rounded-lg border border-border/50 bg-muted/30 p-3"
+                    class="grid grid-cols-4 gap-3 rounded-xl border border-border/50 bg-muted/20 px-5 py-4"
                 >
                     <div>
                         <p
-                            class="text-[10px] font-medium text-muted-foreground uppercase"
+                            class="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
                         >
                             Lot No
                         </p>
                         <p
-                            class="mt-0.5 font-mono text-sm font-semibold text-primary"
+                            class="mt-1 font-mono text-sm font-bold text-primary"
                         >
-                            {{ lot?.lot_id ?? '—' }}
+                            {{ resolvedLot.lot_id }}
                         </p>
                     </div>
-                    <div>
+                    <div class="col-span-2">
                         <p
-                            class="text-[10px] font-medium text-muted-foreground uppercase"
+                            class="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
                         >
                             Model
                         </p>
                         <p
-                            class="mt-0.5 truncate text-sm text-foreground"
-                            :title="lot?.model ?? ''"
+                            class="mt-1 truncate text-sm font-medium text-foreground"
+                            :title="resolvedLot.model ?? ''"
                         >
-                            {{ lot?.model ?? '—' }}
+                            {{ resolvedLot.model ?? '—' }}
                         </p>
                     </div>
                     <div>
                         <p
-                            class="text-[10px] font-medium text-muted-foreground uppercase"
+                            class="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
                         >
                             Qty
                         </p>
-                        <p class="mt-0.5 text-sm font-medium text-foreground">
-                            {{ lot?.lot_qty?.toLocaleString() ?? '—' }}
+                        <p class="mt-1 text-sm font-semibold text-foreground">
+                            {{ resolvedLot.lot_qty?.toLocaleString() ?? '—' }}
+                        </p>
+                    </div>
+                    <div>
+                        <p
+                            class="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                        >
+                            QC Result
+                        </p>
+                        <p class="mt-1 text-sm font-medium text-foreground">
+                            {{ resolvedLot.qc_result ?? '—' }}
+                        </p>
+                    </div>
+                    <div class="col-span-2">
+                        <p
+                            class="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                        >
+                            Defect Code
+                        </p>
+                        <p class="mt-1 text-sm font-medium text-foreground">
+                            {{ resolvedLot.qc_defect ?? '—' }}
+                        </p>
+                    </div>
+                    <div>
+                        <p
+                            class="text-[10px] font-semibold tracking-widest text-muted-foreground uppercase"
+                        >
+                            LIPAS
+                        </p>
+                        <p class="mt-1 text-sm font-medium text-foreground">
+                            {{ resolvedLot.lipas_yn ?? '—' }}
                         </p>
                     </div>
                 </div>
+                <!-- Allow re-lookup in empty modal mode -->
+                <button
+                    v-if="!lot"
+                    type="button"
+                    class="mt-2 text-xs text-muted-foreground underline hover:text-foreground"
+                    @click="
+                        resolvedLot = null;
+                        lotIdInput = '';
+                    "
+                >
+                    Change lot
+                </button>
             </div>
 
             <!-- Form -->
-            <div class="space-y-4 px-6 py-5">
+            <div v-if="resolvedLot" class="space-y-4 px-6 py-5">
                 <div>
                     <label
-                        class="mb-1.5 block text-xs font-semibold text-foreground"
+                        class="mb-2 block text-sm font-semibold text-foreground"
                     >
-                        Decision <span class="text-destructive">*</span>
+                        {{
+                            mode === 'qc'
+                                ? 'QC Analysis Result'
+                                : 'Visual Technical Result'
+                        }}
+                        <span class="text-destructive">*</span>
                     </label>
                     <select
                         v-model="decision"
-                        class="h-9 w-full rounded-md border border-input bg-background px-3 text-sm text-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                        :class="{ 'border-destructive': showError }"
+                        class="h-10 w-full rounded-lg border border-input bg-background px-3 text-sm text-foreground shadow-sm focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                        :class="{
+                            'border-destructive ring-1 ring-destructive/30':
+                                showError,
+                        }"
                     >
-                        <option value="">Select decision...</option>
-                        <option value="Proceed">Proceed</option>
-                        <option value="Rework">Rework</option>
-                        <option value="Low Yield">Low Yield</option>
+                        <option value="">Select result...</option>
+                        <template v-if="mode === 'qc'">
+                            <option value="Proceed">Proceed</option>
+                            <option value="Rework">Rework</option>
+                            <option value="MOLD">MOLD</option>
+                            <option value="RELI">RELI</option>
+                            <option value="Dipping">Dipping</option>
+                            <option value="Reflow">Reflow</option>
+                            <option value="Measure">Measure</option>
+                            <option value="CPDF">CPDF</option>
+                            <option value="DRB Approval">DRB Approval</option>
+                            <option value="For Decision (other process)">
+                                For Decision (other process)
+                            </option>
+                        </template>
+                        <template v-else>
+                            <option value="Proceed">Proceed</option>
+                            <option value="Rework">Rework</option>
+                            <option value="DRB Approval">DRB Approval</option>
+                            <option value="For Decision (other process)">
+                                For Decision (other process)
+                            </option>
+                        </template>
                     </select>
-                    <p v-if="showError" class="mt-1 text-xs text-destructive">
-                        Decision is required.
+                    <p v-if="showError" class="mt-1.5 text-xs text-destructive">
+                        Result is required.
                     </p>
                 </div>
 
                 <div>
                     <label
-                        class="mb-1.5 block text-xs font-semibold text-foreground"
-                        >Remarks</label
+                        class="mb-2 block text-sm font-semibold text-foreground"
                     >
+                        Remarks
+                        <span
+                            class="ml-1 text-xs font-normal text-muted-foreground"
+                            >(optional)</span
+                        >
+                    </label>
                     <textarea
                         v-model="remarks"
                         rows="3"
-                        class="w-full rounded-md border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                        placeholder="Optional remarks..."
+                        class="w-full rounded-lg border border-input bg-background px-3 py-2.5 text-sm text-foreground shadow-sm placeholder:text-muted-foreground focus:border-primary focus:ring-2 focus:ring-primary/20 focus:outline-none"
+                        placeholder="Add any remarks or notes..."
                     />
                 </div>
             </div>
@@ -129,6 +234,7 @@
                     Cancel
                 </button>
                 <button
+                    v-if="resolvedLot"
                     type="button"
                     class="inline-flex items-center rounded-lg bg-gradient-to-r from-primary to-primary/90 px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition-all hover:shadow-xl hover:shadow-primary/25 disabled:pointer-events-none disabled:opacity-50"
                     :disabled="submitting"
@@ -148,8 +254,8 @@
 <script setup lang="ts">
 import type { MonitorMode, MonitorRecord } from '@/composables/useMonitorPage';
 import axios from 'axios';
-import { ClipboardCheck, X } from 'lucide-vue-next';
-import { ref, watch } from 'vue';
+import { ClipboardCheck, Search, X } from 'lucide-vue-next';
+import { nextTick, ref, watch } from 'vue';
 
 const props = defineProps<{
     open: boolean;
@@ -167,7 +273,13 @@ const remarks = ref('');
 const submitting = ref(false);
 const showError = ref(false);
 
-// Reset form when modal opens
+// Lot lookup state (for empty modal mode)
+const lotIdInput = ref('');
+const lotInputRef = ref<HTMLInputElement | null>(null);
+const lookingUp = ref(false);
+const lookupError = ref('');
+const resolvedLot = ref<MonitorRecord | null>(null);
+
 watch(
     () => props.open,
     (val) => {
@@ -175,29 +287,87 @@ watch(
             decision.value = '';
             remarks.value = '';
             showError.value = false;
+            lookupError.value = '';
+            lotIdInput.value = '';
+            resolvedLot.value = props.lot ?? null;
+            // Auto-focus lot input when opening in empty mode
+            if (!props.lot) {
+                nextTick(() => lotInputRef.value?.focus());
+            }
         }
     },
 );
+
+// Also sync if lot prop changes while open
+watch(
+    () => props.lot,
+    (val) => {
+        if (val) resolvedLot.value = val;
+    },
+);
+
+async function lookupLot() {
+    const id = lotIdInput.value.trim();
+    if (!id) return;
+    lookingUp.value = true;
+    lookupError.value = '';
+    try {
+        const { data } = await axios.get<{
+            success: boolean;
+            data: MonitorRecord[];
+        }>(
+            props.mode === 'qc'
+                ? '/api/endline-delay/qc-monitor'
+                : '/api/endline-delay/vi-monitor',
+            { params: { search: id } },
+        );
+
+        const matches = (data.data ?? []).filter(
+            (r) => r.lot_id?.toLowerCase() === id.toLowerCase(),
+        );
+
+        if (matches.length === 0) {
+            lookupError.value = `No entry found for lot "${id}".`;
+            return;
+        }
+
+        const resultKey =
+            props.mode === 'qc' ? 'qc_ana_result' : 'vi_techl_result';
+        const pending = matches.filter((r) => !r[resultKey]);
+        const pool = pending.length > 0 ? pending : matches;
+
+        // Pick the most recent entry by created_at
+        resolvedLot.value = pool.sort(
+            (a, b) =>
+                new Date(b.created_at ?? 0).getTime() -
+                new Date(a.created_at ?? 0).getTime(),
+        )[0];
+    } catch {
+        lookupError.value = 'Lookup failed. Please try again.';
+    } finally {
+        lookingUp.value = false;
+    }
+}
 
 async function submit() {
     if (!decision.value) {
         showError.value = true;
         return;
     }
-    if (!props.lot) return;
+    if (!resolvedLot.value) return;
 
     showError.value = false;
     submitting.value = true;
 
-    const resultField =
-        props.mode === 'qc' ? 'qc_ana_result' : 'vi_techl_result';
+    const submitUrl =
+        props.mode === 'qc'
+            ? `/api/endline-delay/${resolvedLot.value.id}/submit-qc`
+            : `/api/endline-delay/${resolvedLot.value.id}/submit-vi`;
 
     try {
-        await axios.put(`/api/endline-delay/${props.lot.id}`, {
-            ...props.lot,
-            [resultField]: decision.value,
-            final_decision: decision.value,
-            remarks: remarks.value || props.lot.remarks,
+        await axios.post(submitUrl, {
+            result: decision.value,
+            remarks: remarks.value || resolvedLot.value.remarks,
         });
         emit('submitted');
         emit('update:open', false);

@@ -563,6 +563,7 @@ const allPermissions: Permission[] = [
     { value: 'MC Allocation Delete', label: 'Delete MC Allocation' },
     { value: 'Endtime Delete', label: 'Delete Endtime Records' },
     { value: 'Manage Endline', label: 'Manage Endline' },
+    { value: 'Delete Endline', label: 'Delete Endline' },
 ];
 
 // Computed statistics

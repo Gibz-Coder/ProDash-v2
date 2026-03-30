@@ -359,63 +359,114 @@ class MemsDashboardController extends Controller
     }
 
     /**
-     * Get available lots for assignment from updatewip table
-     * Filters by wip_status and work_type
+     * Get available lots for assignment from mes_data.wip_status
+     * Filters by derived wip_status and work_type
      */
     public function getAvailableLotsForAssignment(Request $request): JsonResponse
     {
-        $query = \App\Models\UpdateWip::query();
+        $query = \DB::table('mes_data.wip_status as w')
+            ->leftJoin('mes_data.monthly_plan as mp', 'mp.chip_model', '=', 'w.model_id');
 
         // Exclude lots that are on hold
-        $query->where(function($q) {
-            $q->where('hold', 'N')
-              ->orWhereNull('hold');
+        $query->where(function ($q) {
+            $q->where('w.hold_yn', 'N')
+              ->orWhereNull('w.hold_yn');
         });
+
+        $wipStatusExpr = "CASE
+            WHEN w.status = 'Run' THEN 'Ongoing MC'
+            WHEN w.process_name = 'Visual Inspection' AND w.status = 'Wait' THEN 'Newlot Standby'
+            WHEN w.process_name = 'Receive in Visual' AND w.status = 'Wait' THEN 'Waiting Receive'
+            WHEN w.process_name = 'Visual Finish' AND w.status = 'Wait' THEN 'Visual Finish'
+            WHEN w.process_name = 'Visual Finish' AND w.status = 'Run' THEN 'Yeild Recovery'
+            WHEN w.process_name = 'Manual Inspection' AND w.status = 'Wait' THEN 'Manual Inspection (QC)'
+            WHEN w.process_name = 'OI Visual Inspection' AND w.status = 'Wait' THEN 'OI Visual Inspection (QC)'
+            WHEN w.process_name IN (
+                '2nd Visual Inspection',
+                'Visual Inspection [Strict Setting Lv1]',
+                'Visual Inspection [Strict Setting Lv2]',
+                'Visual Inspection [Strict Setting Lv3]'
+            ) AND w.status = 'Wait' THEN 'Rework Lot Standby'
+            ELSE NULL
+        END";
 
         // Apply WIP Status filter (default: Newlot Standby)
         $wipStatus = $request->input('wip_status', 'Newlot Standby');
         if ($wipStatus && $wipStatus !== 'ALL') {
-            $query->where('wip_status', $wipStatus);
+            $query->whereRaw("({$wipStatusExpr}) = ?", [$wipStatus]);
         }
 
         // Apply Work Type filter (default: NORMAL)
         $workType = $request->input('work_type', 'NORMAL');
         if ($workType && $workType !== 'ALL') {
-            $query->where('work_type', $workType);
+            $query->where(\DB::raw("CASE
+                WHEN w.warehouse_rework_yn = 'Y' THEN 'WH REWORK'
+                WHEN w.rework_type = 'Normal' THEN 'NORMAL'
+                WHEN w.rework_type = 'Process Rework' THEN 'PROCESS RW'
+                WHEN w.rework_type = 'Outgoing NG' THEN 'OI REWORK'
+                ELSE 'NORMAL'
+            END"), $workType);
         }
 
         // Apply optional model filter
         if ($request->filled('model')) {
-            $query->where('model_15', 'like', '%' . $request->input('model') . '%');
+            $query->where('w.model_id', 'like', '%' . $request->input('model') . '%');
         }
 
-        // Get the lots with all required fields
         $lots = $query->select([
-            'lot_id as lot_no',
-            'model_15 as lot_model',
-            'lot_qty',
-            'qty_class',
-            'stagnant_tat',
-            'work_type',
-            'wip_status',
-            'auto_yn',
-            'lipas_yn',
-            'lot_location',
-            'lot_size'
+            'w.lot_no as lot_no',
+            'w.model_id as lot_model',
+            \DB::raw('CAST(w.current_qty AS UNSIGNED) as lot_qty'),
+            \DB::raw("CASE w.size
+                WHEN '0603' THEN '03'
+                WHEN '1005' THEN '05'
+                WHEN '1608' THEN '10'
+                WHEN '2012' THEN '21'
+                WHEN '3216' THEN '31'
+                WHEN '3225' THEN '32'
+                ELSE '10'
+            END as lot_size"),
+            \DB::raw("CASE
+                WHEN w.warehouse_rework_yn = 'Y' THEN 'WH REWORK'
+                WHEN w.rework_type = 'Normal' THEN 'NORMAL'
+                WHEN w.rework_type = 'Process Rework' THEN 'PROCESS RW'
+                WHEN w.rework_type = 'Outgoing NG' THEN 'OI REWORK'
+                ELSE 'NORMAL'
+            END as work_type"),
+            \DB::raw("({$wipStatusExpr}) as wip_status"),
+            \DB::raw("CASE w.automotive_yn WHEN 'Automative' THEN 'Y' ELSE 'N' END as auto_yn"),
+            'mp.vi_lipas_yn as lipas_yn',
+            'w.rack as lot_location',
+            \DB::raw('CAST(w.major_process_elapsed_days AS DECIMAL(10,2)) as stagnant_tat'),
+            \DB::raw("CASE
+                WHEN w.size = '0603' AND w.current_qty >= 1000000 THEN 'L'
+                WHEN w.size = '0603' AND w.current_qty <  1000000 THEN 'S'
+                WHEN w.size = '1005' AND w.current_qty >=  800000 THEN 'L'
+                WHEN w.size = '1005' AND w.current_qty <   800000 THEN 'S'
+                WHEN w.size = '1608' AND w.current_qty >=  500000 THEN 'L'
+                WHEN w.size = '1608' AND w.current_qty <   500000 THEN 'S'
+                WHEN w.size = '2012' AND w.current_qty >=  300000 THEN 'L'
+                WHEN w.size = '2012' AND w.current_qty <   300000 THEN 'S'
+                WHEN w.size = '3216' AND w.current_qty >=  100000 THEN 'L'
+                WHEN w.size = '3216' AND w.current_qty <   100000 THEN 'S'
+                WHEN w.size = '3225' AND w.current_qty >=  500000 THEN 'L'
+                WHEN w.size = '3225' AND w.current_qty <   500000 THEN 'S'
+                ELSE NULL
+            END as qty_class"),
         ])
-        ->orderBy('stagnant_tat', 'desc') // Sort by highest TAT first (most urgent)
-        ->orderBy('created_at', 'desc') // Then by creation date
-        ->limit(1000) // Increased limit to 1000 lots
+        ->orderBy('w.major_process_elapsed_days', 'desc')
+        ->orderBy('w.scraped_at', 'desc')
+        ->limit(1000)
         ->get();
 
         return response()->json([
             'data' => $lots,
             'count' => $lots->count(),
-            'total_available' => $query->count(), // Total count without limit
+            'total_available' => (clone $query)->count(),
             'filters' => [
                 'wip_status' => $wipStatus,
                 'work_type' => $workType,
-            ]
+            ],
         ]);
     }
 
@@ -424,17 +475,18 @@ class MemsDashboardController extends Controller
      */
     public function getFilterOptions(): JsonResponse
     {
-        $wipStatuses = \App\Models\UpdateWip::distinct()
-            ->pluck('wip_status')
-            ->filter()
-            ->sort()
-            ->values();
+        $wipStatuses = collect([
+            'Newlot Standby',
+            'Ongoing MC',
+            'Rework Lot Standby',
+            'Waiting Receive',
+            'Visual Finish',
+            'Yeild Recovery',
+            'Manual Inspection (QC)',
+            'OI Visual Inspection (QC)',
+        ]);
 
-        $workTypes = \App\Models\UpdateWip::distinct()
-            ->pluck('work_type')
-            ->filter()
-            ->sort()
-            ->values();
+        $workTypes = collect(['NORMAL', 'PROCESS RW', 'WH REWORK', 'OI REWORK']);
 
         return response()->json([
             'wip_statuses' => $wipStatuses,

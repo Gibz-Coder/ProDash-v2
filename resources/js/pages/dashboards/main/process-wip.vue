@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Button } from '@/components/ui/button';
 import AppLayout from '@/layouts/AppLayout.vue';
+import EndtimeWipupdateModal from '@/pages/dashboards/subs/endtime-wipupdate-modal.vue';
 import { type BreadcrumbItem } from '@/types';
 import { Head, Link, router } from '@inertiajs/vue3';
 import { BarChart, PieChart } from 'echarts/charts';
@@ -13,16 +14,7 @@ import {
 } from 'echarts/components';
 import * as echarts from 'echarts/core';
 import { CanvasRenderer } from 'echarts/renderers';
-import {
-    computed,
-    defineProps,
-    nextTick,
-    onMounted,
-    onUnmounted,
-    ref,
-    watch,
-} from 'vue';
-import EndtimeWipupdateModal from '@/pages/dashboards/subs/endtime-wipupdate-modal.vue';
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue';
 
 echarts.use([
     TitleComponent,
@@ -95,7 +87,9 @@ const props = defineProps<{
 const isLoading = ref(false);
 const isDarkMode = ref(false);
 const sortField = ref<string | null>(props.filters.sort_field || null);
-const sortDirection = ref<'asc' | 'desc'>((props.filters.sort_direction as 'asc' | 'desc') || 'asc');
+const sortDirection = ref<'asc' | 'desc'>(
+    (props.filters.sort_direction as 'asc' | 'desc') || 'asc',
+);
 const selectedBarFilter = ref<{ eqpType?: string; wipStatus?: string } | null>(
     null,
 );
@@ -203,12 +197,12 @@ const handleSort = (field: string) => {
 
 // Mapping from display names back to database values
 const sizeToLotSizeMap: Record<string, string> = {
-    '0603': '03',
-    '1005': '05',
-    '1608': '10',
-    '2012': '21',
-    '3216': '31',
-    '3225': '32',
+    '0603': '0603',
+    '1005': '1005',
+    '1608': '1608',
+    '2012': '2012',
+    '3216': '3216',
+    '3225': '3225',
 };
 
 const displayToActualStatusMap: Record<string, string[]> = {
@@ -475,7 +469,10 @@ const initCharts = () => {
 
         // Filter data by selected size
         let chartData = props.stats.donut_chart;
-        if (currentFilters.value.size !== 'ALL' && props.stats.donut_chart_by_size) {
+        if (
+            currentFilters.value.size !== 'ALL' &&
+            props.stats.donut_chart_by_size
+        ) {
             chartData =
                 props.stats.donut_chart_by_size[currentFilters.value.size] ||
                 props.stats.donut_chart;
@@ -599,9 +596,12 @@ watch(isDarkMode, () => {
 });
 
 // Watch for size filter changes to update donut chart
-watch(() => currentFilters.value.size, () => {
-    initCharts();
-});
+watch(
+    () => currentFilters.value.size,
+    () => {
+        initCharts();
+    },
+);
 
 onMounted(() => {
     // Initialize dark mode state
@@ -1183,16 +1183,6 @@ const formatMpcs = (value: number): string => {
                                     </button>
                                 </div>
                                 <div class="relative">
-                                    <button
-                                        class="inline-flex items-center gap-1 rounded bg-sky-500 px-3 py-1 text-sm text-white hover:bg-sky-600"
-                                        @click="isWipUpdateModalOpen = true"
-                                        title="Update WIP Data"
-                                    >
-                                        <span>🔄</span>
-                                        <span>Update WIP</span>
-                                    </button>
-                                </div>
-                                <div class="relative">
                                     <a
                                         :href="exportUrl"
                                         class="inline-flex items-center gap-1 rounded bg-green-600 px-3 py-1 text-sm text-white hover:bg-green-700"
@@ -1481,43 +1471,13 @@ const formatMpcs = (value: number): string => {
                                                 </div>
                                             </th>
                                             <th
-                                                @click="handleSort('eqp_type')"
-                                                class="cursor-pointer px-3 py-3 text-left font-semibold whitespace-nowrap text-blue-900 hover:bg-blue-100 dark:text-blue-100 dark:hover:bg-blue-900"
-                                            >
-                                                <div
-                                                    class="flex items-center gap-1"
-                                                >
-                                                    MC Type
-                                                    <span class="text-xs">
-                                                        <span
-                                                            v-if="
-                                                                sortField ===
-                                                                'eqp_type'
-                                                            "
-                                                        >
-                                                            {{
-                                                                sortDirection ===
-                                                                'asc'
-                                                                    ? '▲'
-                                                                    : '▼'
-                                                            }}
-                                                        </span>
-                                                        <span
-                                                            v-else
-                                                            class="opacity-30"
-                                                            >⇅</span
-                                                        >
-                                                    </span>
-                                                </div>
-                                            </th>
-                                            <th
                                                 @click="handleSort('qty_class')"
                                                 class="cursor-pointer px-3 py-3 text-left font-semibold whitespace-nowrap text-blue-900 hover:bg-blue-100 dark:text-blue-100 dark:hover:bg-blue-900"
                                             >
                                                 <div
                                                     class="flex items-center gap-1"
                                                 >
-                                                    MC Class
+                                                    Qty Class
                                                     <span class="text-xs">
                                                         <span
                                                             v-if="
@@ -1610,9 +1570,6 @@ const formatMpcs = (value: number): string => {
                                                 {{ wip.lipas_yn }}
                                             </td>
                                             <td class="px-3 py-3">
-                                                {{ wip.eqp_type }}
-                                            </td>
-                                            <td class="px-3 py-3">
                                                 {{ wip.qty_class }}
                                             </td>
                                             <td class="px-3 py-3">
@@ -1621,7 +1578,7 @@ const formatMpcs = (value: number): string => {
                                         </tr>
                                         <tr v-if="sortedWips.length === 0">
                                             <td
-                                                colspan="12"
+                                                colspan="11"
                                                 class="px-3 py-3 text-center text-gray-500 dark:text-gray-400"
                                             >
                                                 No data found.

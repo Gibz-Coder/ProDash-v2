@@ -97,8 +97,10 @@ const isLoading = ref(false);
 const statusFilter = ref<string>('ALL');
 const sortColumn = ref<string>('');
 const sortDirection = ref<'asc' | 'desc'>('asc');
+const tableSearch = ref<string>('');
+const isDarkMode = ref(document.documentElement.classList.contains('dark'));
 
-// Single date filter (Asia/Manila timezone)
+// Single date filter (Asia/Manila timezone) — empty by default (no date = no entries)
 const selectedDate = ref<string>('');
 
 // Auto-refresh state with persistence
@@ -133,6 +135,7 @@ const loadPersistedSettings = () => {
         );
 
         if (savedDate) selectedDate.value = savedDate;
+        else selectedDate.value = '';
         if (savedAutoRefresh) autoRefresh.value = savedAutoRefresh === 'true';
         if (savedInterval) refreshIntervalSecs.value = Number(savedInterval);
     } catch (error) {
@@ -272,38 +275,57 @@ const handleWipUpdateComplete = () => {
     fetchWipLastUpdate();
 };
 
+// Detect if a string looks like a lot number (7 chars, alphanumeric)
+const looksLikeLotNo = (q: string) => /^[a-z0-9]{5,8}$/i.test(q.trim());
+
 // Fetch data from API
-const fetchData = async () => {
+const fetchData = async (searchMode: 'normal' | 'lot' | 'model' = 'normal') => {
+    // No date and no active search — show nothing
+    if (!selectedDate.value && searchMode === 'normal') {
+        lotRequests.value = [];
+        stats.value = {
+            total: 0,
+            pending: 0,
+            completed: 0,
+            rejected: 0,
+            completionRate: 0,
+            avgResponseTime: 0,
+        };
+        sizeData.value = [];
+        lineData.value = [];
+        return;
+    }
+
     isLoading.value = true;
     try {
-        const params: any = { status: statusFilter.value };
+        const params: any = {};
+        params.status = statusFilter.value;
 
-        // Add single date filter if set
-        if (selectedDate.value) {
+        // lot search: no date filter (search all dates)
+        // model search: current date + pending only
+        // normal: use selected date
+        if (searchMode === 'lot') {
+            // no date params — fetch all
+        } else if (searchMode === 'model') {
+            const date = selectedDate.value || getTodayDate();
+            params.date_from = date;
+            params.date_to = date;
+            // keep existing statusFilter (don't override)
+        } else if (selectedDate.value) {
             params.date_from = selectedDate.value;
             params.date_to = selectedDate.value;
         }
 
+        const dateParams =
+            searchMode === 'lot'
+                ? {}
+                : { date_from: params.date_from, date_to: params.date_to };
+
         const [requestsRes, statsRes, sizeRes, lineRes] = await Promise.all([
             axios.get('/api/lot-request/data', { params }),
-            axios.get('/api/lot-request/stats', {
-                params: {
-                    date_from: selectedDate.value,
-                    date_to: selectedDate.value,
-                },
-            }),
-            axios.get('/api/lot-request/by-size', {
-                params: {
-                    date_from: selectedDate.value,
-                    date_to: selectedDate.value,
-                },
-            }),
-            axios.get('/api/lot-request/by-line', {
-                params: {
-                    date_from: selectedDate.value,
-                    date_to: selectedDate.value,
-                },
-            }),
+            axios.get('/api/lot-request/stats', { params: dateParams }),
+            axios.get('/api/lot-request/by-size', { params: dateParams }),
+            axios.get('/api/lot-request/by-line', { params: dateParams }),
         ]);
 
         const requests: LotRequest[] = requestsRes.data.data;
@@ -311,22 +333,22 @@ const fetchData = async () => {
         sizeData.value = sizeRes.data.data;
         lineData.value = lineRes.data.data;
 
-        // Enrich each row with live equipment status/endtime
-        const uniqueMachines = [...new Set(requests.map((r) => r.mc_no))];
-        const equipmentMap: Record<string, any> = {};
+        // Enrich each row with live equipment status/endtime — single batch call
+        const uniqueMachines = [
+            ...new Set(requests.map((r) => r.mc_no).filter(Boolean)),
+        ];
+        let equipmentMap: Record<string, any> = {};
 
-        await Promise.allSettled(
-            uniqueMachines.map(async (mcNo) => {
-                try {
-                    const res = await axios.get(
-                        `/api/equipment/details/${mcNo}`,
-                    );
-                    equipmentMap[mcNo] = res.data;
-                } catch {
-                    // leave undefined — row will show '-'
-                }
-            }),
-        );
+        if (uniqueMachines.length > 0) {
+            try {
+                const res = await axios.get('/api/equipment/details-batch', {
+                    params: { eqp_nos: uniqueMachines.join(',') },
+                });
+                equipmentMap = res.data;
+            } catch {
+                // silently ignore — rows will show '-'
+            }
+        }
 
         lotRequests.value = requests.map((r) => {
             const eq = equipmentMap[r.mc_no];
@@ -350,12 +372,37 @@ const fetchData = async () => {
 };
 
 const filteredRequests = computed(() => {
-    let filtered =
-        statusFilter.value === 'ALL'
-            ? lotRequests.value
-            : lotRequests.value.filter(
-                  (req) => req.status === statusFilter.value,
-              );
+    const q = tableSearch.value.trim().toLowerCase();
+
+    // When searching, skip status filter so all matching records show
+    let filtered = q
+        ? lotRequests.value
+        : statusFilter.value === 'ALL'
+          ? lotRequests.value
+          : lotRequests.value.filter(
+                (req) => req.status === statusFilter.value,
+            );
+
+    // Wildcard search across visible fields
+    if (q) {
+        filtered = filtered.filter((req) =>
+            [
+                req.mc_no,
+                req.area,
+                req.requestor,
+                req.request_model,
+                req.lot_no,
+                req.model,
+                req.status,
+                req.remarks,
+                req.lot_tat,
+                req.response_time,
+                req.request_no,
+            ]
+                .filter(Boolean)
+                .some((v) => String(v).toLowerCase().includes(q)),
+        );
+    }
 
     // Apply sorting
     if (sortColumn.value) {
@@ -563,69 +610,73 @@ const formatDateTime = (datetime: string | undefined) => {
 };
 
 // Donut Chart Configuration
-const donutChartOptions = computed(() => ({
-    chart: {
-        type: 'donut',
-        height: 250,
-        offsetY: 0,
-        sparkline: {
-            enabled: false,
-        },
-    },
-    labels: ['Pending', 'Completed', 'Rejected'],
-    colors: ['#985FFD', '#32D484', '#FDAF22'],
-    legend: {
-        show: false,
-    },
-    stroke: {
-        show: true,
-        curve: 'smooth',
-        lineCap: 'round',
-        colors: '#fff',
-        width: 0,
-        dashArray: 0,
-    },
-    plotOptions: {
-        pie: {
-            expandOnClick: false,
+const donutChartOptions = computed(() => {
+    const labelColor = isDarkMode.value ? '#e5e7eb' : '#495057';
+    return {
+        chart: {
+            type: 'donut',
+            height: 250,
             offsetY: 0,
-            donut: {
-                size: '70%',
-                background: 'transparent',
-                labels: {
-                    show: true,
-                    name: {
+            sparkline: {
+                enabled: false,
+            },
+        },
+        labels: ['Pending', 'Completed', 'Rejected'],
+        colors: ['#985FFD', '#32D484', '#FDAF22'],
+        legend: {
+            show: false,
+        },
+        stroke: {
+            show: true,
+            curve: 'smooth',
+            lineCap: 'round',
+            colors: '#fff',
+            width: 0,
+            dashArray: 0,
+        },
+        plotOptions: {
+            pie: {
+                expandOnClick: false,
+                offsetY: 0,
+                donut: {
+                    size: '70%',
+                    background: 'transparent',
+                    labels: {
                         show: true,
-                        fontSize: '20px',
-                        color: '#495057',
-                        offsetY: -5,
-                    },
-                    value: {
-                        show: true,
-                        fontSize: '22px',
-                        offsetY: 5,
-                        fontWeight: 600,
-                        formatter: function (val: number) {
-                            return Math.round(val).toString();
+                        name: {
+                            show: true,
+                            fontSize: '20px',
+                            color: labelColor,
+                            offsetY: -5,
                         },
-                    },
-                    total: {
-                        show: true,
-                        showAlways: true,
-                        label: 'Completion Rate',
-                        fontSize: '14px',
-                        fontWeight: 400,
-                        color: '#495057',
-                        formatter: () => `${stats.value.completionRate}%`,
+                        value: {
+                            show: true,
+                            fontSize: '22px',
+                            offsetY: 5,
+                            fontWeight: 600,
+                            color: labelColor,
+                            formatter: function (val: number) {
+                                return Math.round(val).toString();
+                            },
+                        },
+                        total: {
+                            show: true,
+                            showAlways: true,
+                            label: 'Completion Rate',
+                            fontSize: '14px',
+                            fontWeight: 400,
+                            color: labelColor,
+                            formatter: () => `${stats.value.completionRate}%`,
+                        },
                     },
                 },
             },
         },
-    },
-    dataLabels: {
-        enabled: false,
-    },
-}));
+        dataLabels: {
+            enabled: false,
+        },
+    };
+});
 
 const donutChartSeries = computed(() => {
     const total = stats.value.total;
@@ -857,6 +908,18 @@ onMounted(async () => {
         startAutoRefresh();
         startSessionKeepAlive();
     }
+
+    // Watch for dark mode toggle and update donut chart colors
+    const themeObserver = new MutationObserver(() => {
+        isDarkMode.value = document.documentElement.classList.contains('dark');
+        if (donutChart) {
+            donutChart.updateOptions(donutChartOptions.value);
+        }
+    });
+    themeObserver.observe(document.documentElement, {
+        attributes: true,
+        attributeFilter: ['class'],
+    });
 });
 
 // Cleanup on unmount
@@ -888,6 +951,25 @@ watch(selectedDate, () => {
     saveSettings();
     fetchData();
 });
+
+// Search watch — lot number searches all dates, model searches current date
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+watch(tableSearch, (val) => {
+    if (searchTimer) clearTimeout(searchTimer);
+    const q = val.trim();
+    if (!q) {
+        // Cleared — restore normal date-based fetch
+        fetchData();
+        return;
+    }
+    searchTimer = setTimeout(() => {
+        if (looksLikeLotNo(q)) {
+            fetchData('lot');
+        } else {
+            fetchData('model');
+        }
+    }, 400);
+});
 </script>
 
 <template>
@@ -909,18 +991,6 @@ watch(selectedDate, () => {
                         >{{ formatWipLastUpdate }}</span
                     >
                 </div>
-
-                <!-- Update WIP Button -->
-                <Button
-                    @click="openWipUpdateModal"
-                    variant="default"
-                    size="sm"
-                    class="h-8 gap-2 bg-sky-500 text-white hover:bg-sky-600"
-                    title="Update WIP data"
-                >
-                    <span class="text-sm">💾</span>
-                    <span class="text-xs">Update WIP</span>
-                </Button>
 
                 <!-- Divider -->
                 <div class="h-6 w-px bg-border"></div>
@@ -1016,7 +1086,10 @@ watch(selectedDate, () => {
             <!-- Top Section: Donut Chart Left, Stats + Bar Chart Right -->
             <div class="grid gap-3 md:grid-cols-4">
                 <!-- Donut Chart (Left) -->
-                <Card class="flex flex-col overflow-hidden md:col-span-1">
+                <Card
+                    class="flex flex-col overflow-hidden md:col-span-1"
+                    style="min-height: 380px"
+                >
                     <CardHeader class="px-3 pt-2 pb-0">
                         <CardTitle class="text-sm"
                             >LOT REQUEST SUMMARY</CardTitle
@@ -1025,7 +1098,11 @@ watch(selectedDate, () => {
                     <CardContent
                         class="flex flex-1 items-center justify-center p-0"
                     >
-                        <div id="donut-chart" class="w-full"></div>
+                        <div
+                            id="donut-chart"
+                            class="w-full"
+                            style="min-height: 250px"
+                        ></div>
                     </CardContent>
                     <div class="border-t">
                         <div class="grid grid-cols-4">
@@ -1297,7 +1374,10 @@ watch(selectedDate, () => {
                     <!-- Charts Row: Size Chart (30%) + Production Line Chart (70%) -->
                     <div class="grid flex-1 grid-cols-10 gap-3">
                         <!-- Per Size Request Chart (30%) -->
-                        <Card class="col-span-3 flex flex-col overflow-hidden">
+                        <Card
+                            class="col-span-3 flex flex-col overflow-hidden"
+                            style="min-height: 320px"
+                        >
                             <CardHeader class="px-3 pt-1 pb-0">
                                 <CardTitle class="text-sm"
                                     >LOT REQUEST PER SIZE</CardTitle
@@ -1306,19 +1386,29 @@ watch(selectedDate, () => {
                             <CardContent
                                 class="-mt-4 flex flex-1 items-center justify-center p-0"
                             >
-                                <div id="size-chart" class="w-full"></div>
+                                <div
+                                    id="size-chart"
+                                    class="w-full"
+                                    style="min-height: 300px"
+                                ></div>
                             </CardContent>
                         </Card>
 
                         <!-- Production Line Chart (70%) -->
-                        <Card class="col-span-7 flex flex-col overflow-hidden">
+                        <Card
+                            class="col-span-7 flex flex-col overflow-hidden"
+                            style="min-height: 320px"
+                        >
                             <CardHeader class="px-3 pt-1 pb-0">
                                 <CardTitle class="text-sm"
                                     >LOT REQUEST PER LINE</CardTitle
                                 >
                             </CardHeader>
                             <CardContent class="-mt-4 p-0">
-                                <div id="combined-chart"></div>
+                                <div
+                                    id="combined-chart"
+                                    style="min-height: 300px"
+                                ></div>
                             </CardContent>
                         </Card>
                     </div>
@@ -1326,8 +1416,41 @@ watch(selectedDate, () => {
             </div>
 
             <!-- Table with Fixed Header -->
-            <Card class="flex flex-col overflow-hidden">
-                <div class="max-h-[650px] overflow-auto">
+            <Card class="flex flex-col">
+                <div
+                    class="flex items-center justify-between border-b px-4 py-2"
+                >
+                    <span
+                        class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+                        >Raw Data</span
+                    >
+                    <div class="relative">
+                        <input
+                            v-model="tableSearch"
+                            type="text"
+                            placeholder="Search lot, MC, model..."
+                            class="h-7 w-56 rounded-md border border-input bg-background pr-6 pl-7 text-xs placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                        <svg
+                            class="absolute top-1/2 left-2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50"
+                            fill="none"
+                            viewBox="0 0 24 24"
+                            stroke="currentColor"
+                            stroke-width="2"
+                        >
+                            <circle cx="11" cy="11" r="8" />
+                            <path d="m21 21-4.35-4.35" />
+                        </svg>
+                        <button
+                            v-if="tableSearch"
+                            @click="tableSearch = ''"
+                            class="absolute top-1/2 right-2 -translate-y-1/2 text-sm leading-none text-muted-foreground/50 hover:text-muted-foreground"
+                        >
+                            ×
+                        </button>
+                    </div>
+                </div>
+                <div class="overflow-auto">
                     <table class="w-full min-w-[1400px] table-fixed text-xs">
                         <colgroup>
                             <col class="w-[80px]" />

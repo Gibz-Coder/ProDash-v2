@@ -1,10 +1,22 @@
 import '../css/app.css';
 
 import { createInertiaApp } from '@inertiajs/vue3';
+import axios from 'axios';
 import { resolvePageComponent } from 'laravel-vite-plugin/inertia-helpers';
 import type { DefineComponent } from 'vue';
 import { createApp, h } from 'vue';
 import { initializeTheme } from './composables/useAppearance';
+
+// Redirect to login on session expiry (401) for all axios requests
+axios.interceptors.response.use(
+    (response) => response,
+    (error) => {
+        if (error.response?.status === 401) {
+            window.location.href = '/login';
+        }
+        return Promise.reject(error);
+    },
+);
 
 const appName = import.meta.env.VITE_APP_NAME || 'Laravel';
 

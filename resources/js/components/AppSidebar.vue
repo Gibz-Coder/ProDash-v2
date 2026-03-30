@@ -19,6 +19,7 @@ import {
     mems_dashboard,
     process_wip,
     qc_analysis,
+    qc_ok,
     vi_technical,
 } from '@/routes';
 import admin from '@/routes/admin';
@@ -79,6 +80,11 @@ const allNavItems: NavItem[] = [
         href: vi_technical(),
         icon: '🔍',
     },
+    {
+        title: 'QC OK',
+        href: qc_ok(),
+        icon: '✅',
+    },
 ];
 
 // Filter navigation items based on user role
@@ -87,10 +93,12 @@ const mainNavItems = computed(() => {
 
     const userRole = user.role?.toLowerCase();
 
-    // QC Part role can only see ENDLINE, QC MONITOR, and VI MONITOR
+    // QC Part role can only see ENDLINE, QC ANALYSIS, and VI TECHNICAL
     if (userRole === 'qc part' || userRole === 'qc-part') {
         return allNavItems.filter((item) =>
-            ['ENDLINE', 'QC MONITOR', 'VI MONITOR'].includes(item.title),
+            ['ENDLINE', 'QC ANALYSIS', 'VI TECHNICAL', 'QC OK'].includes(
+                item.title,
+            ),
         );
     }
 

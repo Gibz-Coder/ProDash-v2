@@ -563,6 +563,33 @@ class EquipmentStatusController extends Controller
 
         return response()->json($equipmentData);
     }
+    public function getEquipmentDetailsBatch(Request $request): JsonResponse
+        {
+            $eqpNos = array_filter(array_map('trim', explode(',', $request->query('eqp_nos', ''))));
+
+            if (empty($eqpNos)) {
+                return response()->json([]);
+            }
+
+            $equipments = Equipment::whereIn('eqp_no', $eqpNos)->get();
+            $now = now();
+
+            $result = [];
+            foreach ($equipments as $equipment) {
+                $waitingMinutes = 0;
+                if (!$equipment->ongoing_lot || trim($equipment->ongoing_lot) === '') {
+                    $updatedAt = \Carbon\Carbon::parse($equipment->updated_at);
+                    $waitingMinutes = abs($now->diffInMinutes($updatedAt, false));
+                }
+
+                $data = $equipment->toArray();
+                $data['waiting_minutes'] = $waitingMinutes;
+                $data['waiting_time'] = $this->formatWaitingTime($waitingMinutes);
+                $result[$equipment->eqp_no] = $data;
+            }
+
+            return response()->json($result);
+        }
 
     /**
      * Update equipment remarks

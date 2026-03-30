@@ -129,12 +129,12 @@ class UpdateWipController extends Controller
     }
 
     /**
-     * Get the last update timestamp from updatewip table.
+     * Get the last update timestamp from mes_data.wip_status.
      */
     public function getLastUpdate()
     {
         try {
-            $lastUpdate = UpdateWip::max('updated_at');
+            $lastUpdate = DB::table('mes_data.wip_status')->max('scraped_at');
 
             return response()->json([
                 'last_update' => $lastUpdate,

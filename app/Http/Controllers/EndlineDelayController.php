@@ -15,7 +15,7 @@ class EndlineDelayController extends Controller
     {
         $filters = $request->only([
             'date', 'shift', 'cutoff', 'work_type', 'lipas_yn',
-            'defect_class', 'work_type_filter', 'category',
+            'defect_class', 'work_type_filter', 'category', 'status_filter',
         ]);
 
         $data = $this->chartService->getChartData($filters);
@@ -35,9 +35,22 @@ class EndlineDelayController extends Controller
             return response()->json(null);
         }
 
-        $row = DB::table('updatewip')
-            ->where('lot_id', $lotId)
-            ->select('lot_id', 'model_15', 'lot_qty', 'work_type', 'lipas_yn')
+        $row = DB::table('mes_data.wip_status as w')
+            ->leftJoin('mes_data.monthly_plan as mp', 'mp.chip_model', '=', 'w.model_id')
+            ->where('w.lot_no', $lotId)
+            ->select(
+                'w.lot_no',
+                'w.model_id as model_15',
+                'w.current_qty as lot_qty',
+                DB::raw("CASE
+                    WHEN w.warehouse_rework_yn = 'Y' THEN 'WH REWORK'
+                    WHEN w.rework_type = 'Normal' THEN 'NORMAL'
+                    WHEN w.rework_type = 'Process Rework' THEN 'PROCESS RW'
+                    WHEN w.rework_type = 'Outgoing NG' THEN 'OI REWORK'
+                    ELSE NULL
+                END as work_type"),
+                'mp.vi_lipas_yn as lipas_yn',
+            )
             ->first();
 
         return response()->json($row);
@@ -132,6 +145,46 @@ class EndlineDelayController extends Controller
         return response()->json($records);
     }
 
+    public function qcOkIndex(Request $request): JsonResponse
+    {
+        $records = $this->buildQuery($request)
+            ->leftJoin('qc_defect_class', 'endline_delay.qc_defect', '=', 'qc_defect_class.defect_code')
+            ->where('endline_delay.qc_result', 'OK')
+            ->orderBy('endline_delay.created_at', 'desc')
+            ->select('endline_delay.*', 'qc_defect_class.defect_name')
+            ->get();
+
+        $today = now()->toDateString();
+
+        $qcPending   = $records->filter(fn($r) => is_null($r->qc_ana_result) && is_null($r->qc_ana_prog))->values();
+        $techPending = $records->filter(fn($r) => !is_null($r->vi_techl_start) && is_null($r->vi_techl_result))->values();
+        $prodPending = $records->filter(fn($r) => !is_null($r->qc_ana_result) && is_null($r->vi_techl_start))->values();
+        $completed   = $records->filter(fn($r) => !is_null($r->qc_ana_result) || !is_null($r->vi_techl_result))->values();
+        $prevDay     = $records->filter(fn($r) =>
+            is_null($r->qc_ana_result) && is_null($r->vi_techl_result) &&
+            !is_null($r->created_at) &&
+            \Carbon\Carbon::parse($r->created_at)->toDateString() < $today
+        )->values();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $records,
+            'error'   => null,
+            'meta'    => [
+                'qc_pending_count'   => $qcPending->count(),
+                'qc_pending_qty'     => $qcPending->sum('lot_qty'),
+                'tech_pending_count' => $techPending->count(),
+                'tech_pending_qty'   => $techPending->sum('lot_qty'),
+                'prod_pending_count' => $prodPending->count(),
+                'prod_pending_qty'   => $prodPending->sum('lot_qty'),
+                'completed_count'    => $completed->count(),
+                'completed_qty'      => $completed->sum('lot_qty'),
+                'prev_day_count'     => $prevDay->count(),
+                'prev_day_qty'       => $prevDay->sum('lot_qty'),
+            ],
+        ]);
+    }
+
     public function qcAnalysisIndex(Request $request): JsonResponse
     {
         $records = $this->buildQuery($request)
@@ -141,19 +194,209 @@ class EndlineDelayController extends Controller
             ->select('endline_delay.*', 'qc_defect_class.defect_name')
             ->get();
 
-        return response()->json(['success' => true, 'data' => $records, 'error' => null, 'meta' => null]);
+        $prevDay = $this->buildPrevDayQuery($request, 'QC Analysis')->get();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $records,
+            'error'   => null,
+            'meta'    => [
+                'prev_day_count' => $prevDay->count(),
+                'prev_day_qty'   => $prevDay->sum('lot_qty'),
+            ],
+        ]);
     }
 
     public function viTechnicalIndex(Request $request): JsonResponse
     {
+        // Show lots that are natively VI Technical OR lots handed off from QC Analysis
+        // (qc_ana_result = Rework/DRB Approval sets vi_techl_start)
         $records = $this->buildQuery($request)
             ->leftJoin('qc_defect_class', 'endline_delay.qc_defect', '=', 'qc_defect_class.defect_code')
-            ->where('endline_delay.defect_class', "Tech'l Verification")
+            ->where(function ($q) {
+                $q->where('endline_delay.defect_class', "Tech'l Verification")
+                  ->orWhere(function ($q2) {
+                      $q2->where('endline_delay.defect_class', 'QC Analysis')
+                         ->whereNotNull('endline_delay.vi_techl_start');
+                  });
+            })
             ->orderBy('endline_delay.created_at', 'desc')
             ->select('endline_delay.*', 'qc_defect_class.defect_name')
             ->get();
 
-        return response()->json(['success' => true, 'data' => $records, 'error' => null, 'meta' => null]);
+        $prevDay = $this->buildPrevDayQuery($request, "Tech'l Verification")->get();
+
+        return response()->json([
+            'success' => true,
+            'data'    => $records,
+            'error'   => null,
+            'meta'    => [
+                'prev_day_count' => $prevDay->count(),
+                'prev_day_qty'   => $prevDay->sum('lot_qty'),
+            ],
+        ]);
+    }
+
+    private function buildPrevDayQuery(Request $request, string $defectClass)
+    {
+        $today = now()->toDateString();
+
+        // Include both pending (no prog, no result) and in-progress (prog set, no result)
+        $query = DB::table('endline_delay')
+            ->whereNull('qc_ana_result')
+            ->whereNull('vi_techl_result')
+            ->whereDate('created_at', '<', $today);
+
+        // For VI Technical, also include QC Analysis lots handed off via vi_techl_start
+        if ($defectClass === "Tech'l Verification") {
+            $query->where(function ($q) use ($defectClass) {
+                $q->where('defect_class', $defectClass)
+                  ->orWhere(function ($q2) {
+                      $q2->where('defect_class', 'QC Analysis')
+                         ->whereNotNull('vi_techl_start');
+                  });
+            });
+        } else {
+            $query->where('defect_class', $defectClass);
+        }
+
+        if ($request->filled('shift')) {
+            $shift = $request->shift;
+            if ($shift === 'DAY') {
+                $query->whereTime('created_at', '>=', '07:00:00')
+                      ->whereTime('created_at', '<', '19:00:00');
+            } elseif ($shift === 'NIGHT') {
+                $query->where(function ($q) {
+                    $q->whereTime('created_at', '>=', '19:00:00')
+                      ->orWhereTime('created_at', '<', '07:00:00');
+                });
+            }
+        }
+
+        if ($request->filled('work_type')) {
+            $query->where('work_type', $request->work_type);
+        }
+
+        if ($request->filled('lipas_yn')) {
+            $query->where('lipas_yn', $request->lipas_yn);
+        }
+
+        return $query;
+    }
+
+    public function submitQcAnalysis(Request $request, int $id): JsonResponse
+    {
+        $row = DB::table('endline_delay')->find($id);
+
+        if (! $row) {
+            return response()->json(['success' => false, 'message' => 'Record not found.'], 404);
+        }
+
+        $validated = $request->validate([
+            'result'  => 'required|string|max:100',
+            'remarks' => 'nullable|string',
+        ]);
+
+        $result  = $validated['result'];
+        $remarks = $validated['remarks'] ?? $row->remarks;
+        $by      = auth()->user()->emp_name ?? auth()->user()->name ?? 'system';
+
+        if ($result === 'Proceed') {
+            // Proceed: close QC, set prog + result + final_decision all to Proceed
+            DB::table('endline_delay')->where('id', $id)->update([
+                'qc_ana_prog'         => 'Proceed',
+                'qc_ana_result'       => 'Proceed',
+                'qc_ana_completed_at' => now(),
+                'final_decision'      => 'Proceed',
+                'remarks'             => $remarks,
+                'updated_by'          => $by,
+                'updated_at'          => now(),
+            ]);
+        } elseif (in_array($result, ['Rework', 'DRB Approval'], true)) {
+            // Rework / DRB Approval: close QC, hand off to VI Technical
+            DB::table('endline_delay')->where('id', $id)->update([
+                'qc_ana_result'       => $result,
+                'qc_ana_completed_at' => now(),
+                'final_decision'      => 'Technical',
+                'vi_techl_start'      => now(),
+                'remarks'             => $remarks,
+                'updated_by'          => $by,
+                'updated_at'          => now(),
+            ]);
+        } else {
+            // Other items (MOLD, RELI, Dipping, etc.): set as in-progress
+            DB::table('endline_delay')->where('id', $id)->update([
+                'qc_ana_prog'    => $result,
+                'final_decision' => 'In Progress',
+                'remarks'        => $remarks,
+                'updated_by'     => $by,
+                'updated_at'     => now(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data'    => DB::table('endline_delay')->find($id),
+            'error'   => null,
+            'meta'    => null,
+        ]);
+    }
+
+    public function submitViTechnical(Request $request, int $id): JsonResponse
+    {
+        $row = DB::table('endline_delay')->find($id);
+
+        if (! $row) {
+            return response()->json(['success' => false, 'message' => 'Record not found.'], 404);
+        }
+
+        $validated = $request->validate([
+            'result'  => 'required|string|max:100',
+            'remarks' => 'nullable|string',
+        ]);
+
+        $result  = $validated['result'];
+        $remarks = $validated['remarks'] ?? $row->remarks;
+        $by      = auth()->user()->emp_name ?? auth()->user()->name ?? 'system';
+
+        if ($result === 'Proceed') {
+            // Proceed: close VI Technical → OUTPUT
+            DB::table('endline_delay')->where('id', $id)->update([
+                'vi_techl_prog'         => 'Proceed',
+                'vi_techl_result'       => 'Proceed',
+                'vi_techl_completed_at' => now(),
+                'final_decision'        => 'Proceed',
+                'remarks'               => $remarks,
+                'updated_by'            => $by,
+                'updated_at'            => now(),
+            ]);
+        } elseif ($result === 'Rework') {
+            // Rework: close VI → MC REWORK
+            DB::table('endline_delay')->where('id', $id)->update([
+                'vi_techl_result'       => $result,
+                'vi_techl_completed_at' => now(),
+                'final_decision'        => 'Rework',
+                'remarks'               => $remarks,
+                'updated_by'            => $by,
+                'updated_at'            => now(),
+            ]);
+        } else {
+            // DRB Approval / For Decision: in-progress, keep VI open
+            DB::table('endline_delay')->where('id', $id)->update([
+                'vi_techl_prog'  => $result,
+                'final_decision' => 'In Progress',
+                'remarks'        => $remarks,
+                'updated_by'     => $by,
+                'updated_at'     => now(),
+            ]);
+        }
+
+        return response()->json([
+            'success' => true,
+            'data'    => DB::table('endline_delay')->find($id),
+            'error'   => null,
+            'meta'    => null,
+        ]);
     }
 
     public function startQcAnalysis(int $id): JsonResponse
@@ -218,8 +461,9 @@ class EndlineDelayController extends Controller
         ];
 
         $columns = ['lot_id','model','lot_qty','lipas_yn','qc_result','qc_defect','defect_class',
-                    'qc_ana_start','qc_ana_result','qc_ana_tat','vi_techl_start','vi_techl_result',
-                    'vi_techl_tat','final_decision','total_tat','remarks','inspection_times','updated_by','created_at'];
+                    'qc_ana_start','qc_ana_prog','qc_ana_result','qc_ana_completed_at',
+                    'vi_techl_start','vi_techl_prog','vi_techl_result',
+                    'vi_techl_completed_at','final_decision','total_tat','remarks','inspection_times','updated_by','created_at'];
 
         $callback = function () use ($records, $columns) {
             $handle = fopen('php://output', 'w');
@@ -244,11 +488,13 @@ class EndlineDelayController extends Controller
             'qc_defect'        => 'nullable|string|max:255',
             'defect_class'     => 'nullable|string|max:100',
             'qc_ana_start'     => 'nullable|date',
-            'qc_ana_result'    => 'nullable|string|max:100',
-            'qc_ana_tat'       => 'nullable|integer',
-            'vi_techl_start'   => 'nullable|date',
-            'vi_techl_result'  => 'nullable|string|max:100',
-            'vi_techl_tat'     => 'nullable|integer',
+            'qc_ana_prog'           => 'nullable|string|max:100',
+            'qc_ana_result'         => 'nullable|string|max:100',
+            'qc_ana_completed_at'   => 'nullable|date',
+            'vi_techl_start'        => 'nullable|date',
+            'vi_techl_prog'         => 'nullable|string|max:100',
+            'vi_techl_result'       => 'nullable|string|max:100',
+            'vi_techl_completed_at' => 'nullable|date',
             'final_decision'   => 'nullable|string|max:100',
             'total_tat'        => 'nullable|integer',
             'work_type'         => 'nullable|string|max:100',
@@ -257,9 +503,12 @@ class EndlineDelayController extends Controller
         ]);
 
         $id = DB::table('endline_delay')->insertGetId(array_merge($validated, [
-            'updated_by' => auth()->user()->emp_name ?? auth()->user()->name ?? 'system',
-            'created_at' => now(),
-            'updated_at' => now(),
+            'qc_ana_start'   => $validated['defect_class'] === 'QC Analysis'        ? now() : null,
+            'vi_techl_start' => $validated['defect_class'] === "Tech'l Verification" ? now() : null,
+            'final_decision' => trim($validated['qc_result'] ?? '') === 'OK' ? 'QC OK' : 'Pending',
+            'updated_by'     => auth()->user()->emp_name ?? auth()->user()->name ?? 'system',
+            'created_at'     => now(),
+            'updated_at'     => now(),
         ]));
 
         return response()->json([
@@ -284,11 +533,13 @@ class EndlineDelayController extends Controller
             'qc_defect'        => 'nullable|string|max:255',
             'defect_class'     => 'nullable|string|max:100',
             'qc_ana_start'     => 'nullable|date',
-            'qc_ana_result'    => 'nullable|string|max:100',
-            'qc_ana_tat'       => 'nullable|integer',
-            'vi_techl_start'   => 'nullable|date',
-            'vi_techl_result'  => 'nullable|string|max:100',
-            'vi_techl_tat'     => 'nullable|integer',
+            'qc_ana_prog'           => 'nullable|string|max:100',
+            'qc_ana_result'         => 'nullable|string|max:100',
+            'qc_ana_completed_at'   => 'nullable|date',
+            'vi_techl_start'        => 'nullable|date',
+            'vi_techl_prog'         => 'nullable|string|max:100',
+            'vi_techl_result'       => 'nullable|string|max:100',
+            'vi_techl_completed_at' => 'nullable|date',
             'final_decision'   => 'nullable|string|max:100',
             'total_tat'        => 'nullable|integer',
             'work_type'         => 'nullable|string|max:100',

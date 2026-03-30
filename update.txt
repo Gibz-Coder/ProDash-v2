@@ -1,0 +1,66 @@
+VICIS ProDash V2 — Update Log
+==============================
+
+[2026-03-29] Sprint: Endline Monitoring System — Complete
+----------------------------------------------------------
+MIGRATIONS
+  - 2026_03_29_095904_add_delete_endline_permission_to_roles.php
+    php artisan migrate --path=database/migrations/2026_03_29_095904_add_delete_endline_permission_to_roles.php
+
+NEW PAGES
+  - /qc-analysis   — QC Analysis Monitoring
+  - /vi-technical  — VI Technical Monitoring
+  - /qc-ok         — QC OK Monitoring
+
+NEW API ENDPOINTS
+  - GET  /api/endline-delay/qc-monitor       — QC Analysis records
+  - GET  /api/endline-delay/vi-monitor       — VI Technical records (incl. QC handoffs)
+  - GET  /api/endline-delay/qc-ok-monitor    — QC OK records with meta counts
+  - GET  /api/endline-delay/chart-data       — Chart data (pie/bar/column)
+
+LOT FLOW IMPLEMENTATION
+  QC Analysis submit:
+    Proceed          → qc_ana_result='Proceed', final_decision='Proceed'
+    Rework/DRB       → qc_ana_result=result, vi_techl_start=now(), final_decision='Technical'
+    MOLD/RELI/etc.   → qc_ana_prog=result, final_decision='In Progress'
+
+  VI Technical submit:
+    Proceed          → vi_techl_result='Proceed', final_decision='Proceed'
+    Rework           → vi_techl_result='Rework', final_decision='Rework'
+    DRB Approval     → vi_techl_prog='DRB Approval', final_decision='In Progress'
+    For Decision     → vi_techl_prog=result, final_decision='In Progress'
+
+  QC OK entry:
+    qc_result='OK'   → final_decision='QC OK' (set on store)
+
+FEATURES ADDED
+  - Auto-refresh control (on/off toggle + interval: 15s/30s/1m/2m/5m) in header
+  - Clickable summary cards (Pending/In Progress/Completed/Prev Day) as status filters
+  - Column sort on all raw data tables (useTableSort composable)
+  - Search drops date filter to search across all dates (350ms debounce)
+  - Prev Day card uses backend meta (not client-side filter)
+  - F2 hotkey opens empty Update Status modal with lot lookup
+  - Lot lookup picks latest pending entry when multiple entries exist for same lot
+  - Chart bucketing by qc_result content: Main→Mainlot, RR(no Main)→R-rework, LY only→L-rework
+  - Column chart: only shows defect codes with actual data; uses first defect code for multi-defect lots
+  - VI Technical charts include QC Analysis lots handed off via vi_techl_start
+  - Pending status badge/card changed to red (danger)
+  - DRB Approval in VI Technical = In Progress (not Completed)
+
+PERMISSIONS
+  - Delete Endline permission added to Admin, Manager, Moderator roles
+  - Delete button hidden for users without Delete Endline permission
+  - QC Part role: access to Endline, QC Analysis, VI Technical, QC OK pages
+  - RestrictQcPartAccess middleware updated with new routes
+
+COMPOSABLES ADDED
+  - useAutoRefresh.ts  — auto-refresh with localStorage persistence
+  - useTableSort.ts    — generic column sort with elapsed tiebreaker
+
+[2026-03-15] Endline Delay Data Entry
+--------------------------------------
+  - Multi-row lot entry modal with MES lot lookup
+  - Defect code autocomplete with flow resolution
+  - QC NG multi-select (Main/RR/LY/OK)
+  - Inspection times tracking
+  - Edit/Delete with permission gating

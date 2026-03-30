@@ -1,0 +1,866 @@
+<template>
+    <AppLayout>
+        <template #filters>
+            <div class="flex items-center gap-3">
+                <div
+                    class="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 shadow-sm"
+                >
+                    <span class="text-xs font-medium text-muted-foreground"
+                        >DATE:</span
+                    >
+                    <input
+                        v-model="filterDate"
+                        type="date"
+                        @change="fetchRecords"
+                        class="cursor-pointer border-0 bg-transparent text-xs font-semibold text-foreground focus:ring-0 focus:outline-none"
+                    />
+                </div>
+                <div
+                    class="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 shadow-sm"
+                >
+                    <span class="text-xs font-medium text-muted-foreground"
+                        >SHIFT:</span
+                    >
+                    <select
+                        v-model="filterShift"
+                        @change="fetchRecords"
+                        class="cursor-pointer border-0 bg-transparent pr-6 text-xs font-semibold text-foreground focus:ring-0 focus:outline-none [&>option]:bg-background"
+                    >
+                        <option value="">ALL</option>
+                        <option value="DAY">Day</option>
+                        <option value="NIGHT">Night</option>
+                    </select>
+                </div>
+                <div
+                    class="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 shadow-sm"
+                >
+                    <span class="text-xs font-medium text-muted-foreground"
+                        >CUTOFF:</span
+                    >
+                    <select
+                        v-model="filterCutoff"
+                        @change="fetchRecords"
+                        class="cursor-pointer border-0 bg-transparent pr-6 text-xs font-semibold text-foreground focus:ring-0 focus:outline-none [&>option]:bg-background [&>option]:text-foreground"
+                    >
+                        <option value="">ALL</option>
+                        <option value="00:00~03:59">00:00~03:59</option>
+                        <option value="04:00~06:59">04:00~06:59</option>
+                        <option value="07:00~11:59">07:00~11:59</option>
+                        <option value="12:00~15:59">12:00~15:59</option>
+                        <option value="16:00~18:59">16:00~18:59</option>
+                        <option value="19:00~23:59">19:00~23:59</option>
+                    </select>
+                </div>
+                <div
+                    class="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 shadow-sm"
+                >
+                    <span class="text-xs font-medium text-muted-foreground"
+                        >WORKTYPE:</span
+                    >
+                    <select
+                        v-model="filterWorktype"
+                        @change="fetchRecords"
+                        class="cursor-pointer border-0 bg-transparent pr-6 text-xs font-semibold text-foreground focus:ring-0 focus:outline-none [&>option]:bg-background [&>option]:text-foreground"
+                    >
+                        <option value="">ALL</option>
+                        <option value="NORMAL">NORMAL</option>
+                        <option value="PROCESS RW">PROCESS RW</option>
+                        <option value="WH REWORK">WH REWORK</option>
+                        <option value="OI REWORK">OI REWORK</option>
+                    </select>
+                </div>
+                <div
+                    class="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 shadow-sm"
+                >
+                    <span class="text-xs font-medium text-muted-foreground"
+                        >LIPAS:</span
+                    >
+                    <select
+                        v-model="filterLipas"
+                        @change="fetchRecords"
+                        class="cursor-pointer border-0 bg-transparent pr-6 text-xs font-semibold text-foreground focus:ring-0 focus:outline-none [&>option]:bg-background"
+                    >
+                        <option value="">ALL</option>
+                        <option value="Y">Yes</option>
+                        <option value="N">No</option>
+                    </select>
+                </div>
+                <div
+                    class="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 shadow-sm"
+                >
+                    <span class="text-xs font-medium text-muted-foreground"
+                        >UNIT:</span
+                    >
+                    <select
+                        :value="filterUnit"
+                        @change="
+                            setUnit(
+                                ($event.target as HTMLSelectElement).value as
+                                    | 'pcs'
+                                    | 'Kpcs'
+                                    | 'Mpcs',
+                            )
+                        "
+                        class="cursor-pointer border-0 bg-transparent pr-6 text-xs font-semibold text-foreground focus:ring-0 focus:outline-none [&>option]:bg-background [&>option]:text-foreground"
+                    >
+                        <option value="pcs">pcs</option>
+                        <option value="Kpcs">Kpcs</option>
+                        <option value="Mpcs">Mpcs</option>
+                    </select>
+                </div>
+                <AutoRefreshControl
+                    :enabled="autoRefreshEnabled"
+                    :interval="autoRefreshInterval"
+                    :spinning="loading"
+                    @toggle="toggleAutoRefresh"
+                    @set-interval="setAutoRefreshInterval"
+                />
+                <button
+                    class="flex items-center gap-1 rounded-lg border border-blue-600 bg-transparent px-3 py-1.5 text-xs font-medium text-blue-600 shadow-sm transition-colors hover:bg-blue-600 hover:text-white"
+                    @click="fetchRecords"
+                >
+                    <RefreshCw class="h-3.5 w-3.5" /> Refresh
+                </button>
+            </div>
+        </template>
+
+        <div class="flex h-full flex-1 flex-col gap-4 p-4">
+            <div class="flex items-center justify-between">
+                <div>
+                    <h1 class="text-xl leading-tight font-bold">
+                        QC OK Monitoring
+                    </h1>
+                    <p class="text-[11px] text-muted-foreground">
+                        Lots with QC OK result
+                    </p>
+                </div>
+                <div class="relative">
+                    <input
+                        v-model="tableSearch"
+                        type="text"
+                        placeholder="Search lot, model..."
+                        class="h-8 w-56 rounded-lg border border-border bg-background pr-3 pl-8 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                    />
+                    <Search
+                        class="absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+                    />
+                </div>
+            </div>
+
+            <div class="flex gap-2">
+                <div
+                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-blue-50 to-blue-100/50 px-3 py-2 shadow dark:from-blue-950/30 dark:to-blue-900/20"
+                >
+                    <div
+                        class="rounded-full bg-blue-500/10 p-1.5 ring-1 ring-blue-500/20"
+                    >
+                        <Package
+                            class="h-3.5 w-3.5 text-blue-600 dark:text-blue-400"
+                        />
+                    </div>
+                    <div>
+                        <p
+                            class="text-[9px] font-semibold tracking-widest text-blue-700 uppercase dark:text-blue-300"
+                        >
+                            Total
+                        </p>
+                        <p
+                            class="text-lg leading-none font-bold text-blue-900 dark:text-blue-100"
+                        >
+                            {{ totalQtyFmt }}
+                        </p>
+                        <p
+                            class="text-[9px] text-blue-600/70 dark:text-blue-400/70"
+                        >
+                            {{ records.length }} lots
+                        </p>
+                    </div>
+                </div>
+                <!-- QC Pending -->
+                <div
+                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-red-50 to-red-100/50 px-3 py-2 shadow dark:from-red-950/30 dark:to-red-900/20"
+                >
+                    <div
+                        class="rounded-full bg-red-500/10 p-1.5 ring-1 ring-red-500/20"
+                    >
+                        <Clock
+                            class="h-3.5 w-3.5 text-red-600 dark:text-red-400"
+                        />
+                    </div>
+                    <div>
+                        <p
+                            class="text-[9px] font-semibold tracking-widest text-red-700 uppercase dark:text-red-300"
+                        >
+                            QC Pending
+                        </p>
+                        <p
+                            class="text-lg leading-none font-bold text-red-900 dark:text-red-100"
+                        >
+                            {{ formatQty(meta.qc_pending_qty) }}
+                        </p>
+                        <p
+                            class="text-[9px] text-red-600/70 dark:text-red-400/70"
+                        >
+                            {{ meta.qc_pending_count }} lots
+                        </p>
+                    </div>
+                </div>
+                <!-- Technical Pending -->
+                <div
+                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-amber-50 to-amber-100/50 px-3 py-2 shadow dark:from-amber-950/30 dark:to-amber-900/20"
+                >
+                    <div
+                        class="rounded-full bg-amber-500/10 p-1.5 ring-1 ring-amber-500/20"
+                    >
+                        <Loader2
+                            class="h-3.5 w-3.5 text-amber-600 dark:text-amber-400"
+                        />
+                    </div>
+                    <div>
+                        <p
+                            class="text-[9px] font-semibold tracking-widest text-amber-700 uppercase dark:text-amber-300"
+                        >
+                            Technical Pending
+                        </p>
+                        <p
+                            class="text-lg leading-none font-bold text-amber-900 dark:text-amber-100"
+                        >
+                            {{ formatQty(meta.tech_pending_qty) }}
+                        </p>
+                        <p
+                            class="text-[9px] text-amber-600/70 dark:text-amber-400/70"
+                        >
+                            {{ meta.tech_pending_count }} lots
+                        </p>
+                    </div>
+                </div>
+                <!-- Production Pending -->
+                <div
+                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-violet-50 to-violet-100/50 px-3 py-2 shadow dark:from-violet-950/30 dark:to-violet-900/20"
+                >
+                    <div
+                        class="rounded-full bg-violet-500/10 p-1.5 ring-1 ring-violet-500/20"
+                    >
+                        <Timer
+                            class="h-3.5 w-3.5 text-violet-600 dark:text-violet-400"
+                        />
+                    </div>
+                    <div>
+                        <p
+                            class="text-[9px] font-semibold tracking-widest text-violet-700 uppercase dark:text-violet-300"
+                        >
+                            Production Pending
+                        </p>
+                        <p
+                            class="text-lg leading-none font-bold text-violet-900 dark:text-violet-100"
+                        >
+                            {{ formatQty(meta.prod_pending_qty) }}
+                        </p>
+                        <p
+                            class="text-[9px] text-violet-600/70 dark:text-violet-400/70"
+                        >
+                            {{ meta.prod_pending_count }} lots
+                        </p>
+                    </div>
+                </div>
+                <!-- Completed -->
+                <div
+                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 px-3 py-2 shadow dark:from-emerald-950/30 dark:to-emerald-900/20"
+                >
+                    <div
+                        class="rounded-full bg-emerald-500/10 p-1.5 ring-1 ring-emerald-500/20"
+                    >
+                        <CheckCircle2
+                            class="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400"
+                        />
+                    </div>
+                    <div>
+                        <p
+                            class="text-[9px] font-semibold tracking-widest text-emerald-700 uppercase dark:text-emerald-300"
+                        >
+                            Completed
+                        </p>
+                        <p
+                            class="text-lg leading-none font-bold text-emerald-900 dark:text-emerald-100"
+                        >
+                            {{ formatQty(meta.completed_qty) }}
+                        </p>
+                        <p
+                            class="text-[9px] text-emerald-600/70 dark:text-emerald-400/70"
+                        >
+                            {{ meta.completed_count }} lots
+                        </p>
+                    </div>
+                </div>
+                <!-- Prev Days -->
+                <div
+                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-rose-50 to-rose-100/50 px-3 py-2 shadow dark:from-rose-950/30 dark:to-rose-900/20"
+                >
+                    <div
+                        class="rounded-full bg-rose-500/10 p-1.5 ring-1 ring-rose-500/20"
+                    >
+                        <AlertCircle
+                            class="h-3.5 w-3.5 text-rose-600 dark:text-rose-400"
+                        />
+                    </div>
+                    <div>
+                        <p
+                            class="text-[9px] font-semibold tracking-widest text-rose-700 uppercase dark:text-rose-300"
+                        >
+                            Prev Days
+                        </p>
+                        <p
+                            class="text-lg leading-none font-bold text-rose-900 dark:text-rose-100"
+                        >
+                            {{ formatQty(meta.prev_day_qty) }}
+                        </p>
+                        <p
+                            class="text-[9px] text-rose-600/70 dark:text-rose-400/70"
+                        >
+                            {{ meta.prev_day_count }} lots
+                        </p>
+                    </div>
+                </div>
+            </div>
+
+            <div
+                class="flex max-h-[600px] flex-col overflow-hidden rounded-xl border border-border/50 bg-card shadow-lg"
+            >
+                <div
+                    v-if="error"
+                    class="flex items-center gap-2 bg-red-50 px-4 py-3 text-xs text-red-700 dark:bg-red-950/30 dark:text-red-400"
+                >
+                    <span class="font-semibold">Error:</span> {{ error }}
+                </div>
+                <div v-if="loading" class="flex justify-center py-10">
+                    <div
+                        class="h-7 w-7 animate-spin rounded-full border-4 border-primary border-r-transparent"
+                        role="status"
+                    >
+                        <span class="sr-only">Loading...</span>
+                    </div>
+                </div>
+                <div v-else class="flex-1 overflow-x-auto overflow-y-scroll">
+                    <table class="w-full min-w-[900px] table-fixed text-xs">
+                        <colgroup>
+                            <col class="w-[40px]" />
+                            <col class="w-[110px]" />
+                            <col class="w-[150px]" />
+                            <col class="w-[90px]" />
+                            <col class="w-[60px]" />
+                            <col class="w-[100px]" />
+                            <col class="w-[130px]" />
+                            <col class="w-[90px]" />
+                            <col class="w-[90px]" />
+                            <col class="w-[110px]" />
+                            <col class="w-[110px]" />
+                        </colgroup>
+                        <thead class="sticky top-0 z-10">
+                            <tr
+                                class="bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900"
+                            >
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-center text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    No
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('lot_id')"
+                                >
+                                    Lot No
+                                    <span class="opacity-60">{{
+                                        sortIcon('lot_id')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('model')"
+                                >
+                                    Model
+                                    <span class="opacity-60">{{
+                                        sortIcon('model')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('lot_qty')"
+                                >
+                                    Qty
+                                    <span class="opacity-60">{{
+                                        sortIcon('lot_qty')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    LIPAS
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('work_type')"
+                                >
+                                    Worktype
+                                    <span class="opacity-60">{{
+                                        sortIcon('work_type')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('created_at')"
+                                >
+                                    Date Time
+                                    <span class="opacity-60">{{
+                                        sortIcon('created_at')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('remarks')"
+                                >
+                                    Remarks
+                                    <span class="opacity-60">{{
+                                        sortIcon('remarks')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Elapsed
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('updated_by')"
+                                >
+                                    Updated By
+                                    <span class="opacity-60">{{
+                                        sortIcon('updated_by')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    QC Result
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Status
+                                </th>
+                                <th
+                                    class="px-2 py-2.5 text-center text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Actions
+                                </th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-border">
+                            <tr
+                                v-for="(rec, index) in filteredRecords"
+                                :key="rec.id"
+                                class="bg-emerald-50/30 transition-colors hover:bg-muted/30 dark:bg-emerald-950/10"
+                            >
+                                <td
+                                    class="px-2 py-2 text-center text-xs text-muted-foreground"
+                                >
+                                    {{ index + 1 }}
+                                </td>
+                                <td
+                                    class="px-2 py-2 font-mono text-xs font-semibold text-primary"
+                                >
+                                    {{ rec.lot_id }}
+                                </td>
+                                <td
+                                    class="truncate px-2 py-2 text-xs text-foreground"
+                                    :title="rec.model ?? ''"
+                                >
+                                    {{ rec.model || '—' }}
+                                </td>
+                                <td
+                                    class="px-2 py-2 text-xs font-medium text-foreground"
+                                >
+                                    {{ formatQty(rec.lot_qty ?? 0) }}
+                                </td>
+                                <td class="px-2 py-2">
+                                    <span
+                                        v-if="rec.lipas_yn"
+                                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
+                                        :class="
+                                            rec.lipas_yn === 'Y'
+                                                ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400'
+                                                : 'bg-slate-50 text-slate-600 ring-slate-600/20'
+                                        "
+                                    >
+                                        {{ rec.lipas_yn }}
+                                    </span>
+                                    <span v-else class="text-muted-foreground"
+                                        >—</span
+                                    >
+                                </td>
+                                <td
+                                    class="truncate px-2 py-2 text-xs text-foreground"
+                                >
+                                    {{ rec.work_type || '—' }}
+                                </td>
+                                <td
+                                    class="px-2 py-2 text-xs whitespace-nowrap text-muted-foreground"
+                                >
+                                    {{ formatDateTime(rec.created_at) }}
+                                </td>
+                                <td
+                                    class="truncate px-2 py-2 text-xs text-foreground"
+                                    :title="rec.remarks ?? ''"
+                                >
+                                    {{ rec.remarks || '—' }}
+                                </td>
+                                <td
+                                    class="px-2 py-2 text-xs whitespace-nowrap text-amber-600 dark:text-amber-400"
+                                >
+                                    {{
+                                        rec.created_at
+                                            ? formatDuration(
+                                                  Math.floor(
+                                                      (Date.now() -
+                                                          new Date(
+                                                              rec.created_at,
+                                                          ).getTime()) /
+                                                          60_000,
+                                                  ),
+                                              )
+                                            : '—'
+                                    }}
+                                </td>
+                                <td
+                                    class="truncate px-2 py-2 text-xs text-muted-foreground"
+                                    :title="rec.updated_by ?? ''"
+                                >
+                                    {{ rec.updated_by || '—' }}
+                                </td>
+                                <td class="px-2 py-2">
+                                    <span
+                                        class="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600"
+                                    >
+                                        <CheckCircle2 class="h-3 w-3" />
+                                        {{ rec.qc_result || 'QC OK' }}
+                                    </span>
+                                </td>
+                                <td class="px-2 py-2">
+                                    <span
+                                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
+                                        :class="statusBadgeClass(rec)"
+                                    >
+                                        {{ statusLabel(rec) }}
+                                    </span>
+                                </td>
+                                <td class="px-2 py-2">
+                                    <div
+                                        class="flex items-center justify-center"
+                                    >
+                                        <button
+                                            class="h-7 rounded border border-primary/30 bg-primary/10 px-3 text-[10px] font-semibold text-primary hover:bg-primary/20"
+                                            @click="openEdit(rec)"
+                                        >
+                                            <Pencil
+                                                class="mr-1 inline h-3 w-3"
+                                            />Edit
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr v-if="filteredRecords.length === 0">
+                                <td
+                                    colspan="13"
+                                    class="py-12 text-center text-muted-foreground"
+                                >
+                                    <CheckCircle2
+                                        class="mx-auto h-12 w-12 opacity-20"
+                                    />
+                                    <p class="mt-2 text-xs">
+                                        No QC OK lots found
+                                    </p>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+        <EndlineDelayEntryModal
+            :open="showEditModal"
+            :edit-record="editRecord"
+            @update:open="showEditModal = $event"
+            @saved="fetchRecords"
+        />
+    </AppLayout>
+</template>
+
+<script setup lang="ts">
+import AutoRefreshControl from '@/components/AutoRefreshControl.vue';
+import { useAutoRefresh } from '@/composables/useAutoRefresh';
+import { formatDuration } from '@/composables/useMonitorPage';
+import { useTableSort } from '@/composables/useTableSort';
+import AppLayout from '@/layouts/AppLayout.vue';
+import axios from 'axios';
+import {
+    AlertCircle,
+    CheckCircle2,
+    Clock,
+    Loader2,
+    Package,
+    Pencil,
+    RefreshCw,
+    Search,
+    Timer,
+} from 'lucide-vue-next';
+import { computed, onMounted, ref, watch } from 'vue';
+
+interface QcOkRecord {
+    id: number;
+    lot_id: string;
+    model: string | null;
+    lot_qty: number | null;
+    lipas_yn: string | null;
+    qc_result: string | null;
+    qc_defect: string | null;
+    work_type: string | null;
+    final_decision: string | null;
+    remarks: string | null;
+    updated_by: string | null;
+    created_at: string | null;
+    updated_at: string | null;
+}
+
+const filterDate = ref(
+    new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }),
+);
+const filterShift = ref('');
+const filterCutoff = ref('');
+const filterWorktype = ref('');
+const filterLipas = ref('');
+const filterUnit = ref<'pcs' | 'Kpcs' | 'Mpcs'>(
+    (localStorage.getItem('endline_unit') as 'pcs' | 'Kpcs' | 'Mpcs') ?? 'Kpcs',
+);
+
+function setUnit(u: 'pcs' | 'Kpcs' | 'Mpcs') {
+    filterUnit.value = u;
+    localStorage.setItem('endline_unit', u);
+}
+
+function formatQty(qty: number): string {
+    if (filterUnit.value === 'Kpcs')
+        return (qty / 1000).toLocaleString(undefined, {
+            maximumFractionDigits: 1,
+        });
+    if (filterUnit.value === 'Mpcs')
+        return (qty / 1_000_000).toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+        });
+    return qty.toLocaleString();
+}
+
+function formatDateTime(dt: string | null) {
+    if (!dt) return '—';
+    return new Date(dt).toLocaleString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
+const records = ref<QcOkRecord[]>([]);
+const loading = ref(false);
+const error = ref<string | null>(null);
+const tableSearch = ref('');
+const showExportPicker = ref(false);
+const showEditModal = ref(false);
+const editRecord = ref<any>(null);
+const today = new Date().toLocaleDateString('en-CA', {
+    timeZone: 'Asia/Manila',
+});
+const exportDateFrom = ref(today);
+const exportDateTo = ref(today);
+
+interface QcOkMeta {
+    qc_pending_count: number;
+    qc_pending_qty: number;
+    tech_pending_count: number;
+    tech_pending_qty: number;
+    prod_pending_count: number;
+    prod_pending_qty: number;
+    completed_count: number;
+    completed_qty: number;
+    prev_day_count: number;
+    prev_day_qty: number;
+}
+const meta = ref<QcOkMeta>({
+    qc_pending_count: 0,
+    qc_pending_qty: 0,
+    tech_pending_count: 0,
+    tech_pending_qty: 0,
+    prod_pending_count: 0,
+    prod_pending_qty: 0,
+    completed_count: 0,
+    completed_qty: 0,
+    prev_day_count: 0,
+    prev_day_qty: 0,
+});
+
+async function fetchRecords() {
+    loading.value = true;
+    error.value = null;
+    try {
+        const { data } = await axios.get<{
+            success: boolean;
+            data: QcOkRecord[];
+            meta: QcOkMeta;
+        }>('/api/endline-delay/qc-ok-monitor', {
+            params: {
+                date: tableSearch.value.trim()
+                    ? undefined
+                    : filterDate.value || undefined,
+                shift: filterShift.value || undefined,
+                cutoff: filterCutoff.value || undefined,
+                work_type: filterWorktype.value || undefined,
+                lipas_yn: filterLipas.value || undefined,
+            },
+        });
+        records.value = data.data ?? [];
+        if (data.meta) meta.value = data.meta;
+    } catch (e: unknown) {
+        error.value = e instanceof Error ? e.message : 'Failed to load records';
+    } finally {
+        loading.value = false;
+    }
+}
+
+function statusLabel(rec: QcOkRecord): string {
+    if (rec.final_decision === 'Proceed' || rec.final_decision === 'QC OK')
+        return 'Completed';
+    if (rec.final_decision === 'Technical') return 'Technical';
+    if (rec.final_decision === 'In Progress') return 'In Progress';
+    return 'Pending';
+}
+
+function statusBadgeClass(rec: QcOkRecord): string {
+    const d = rec.final_decision;
+    if (d === 'Proceed' || d === 'QC OK')
+        return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400';
+    if (d === 'Technical')
+        return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-400';
+    if (d === 'In Progress')
+        return 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950/30 dark:text-blue-400';
+    return 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950/30 dark:text-red-400';
+}
+
+function openEdit(rec: QcOkRecord) {
+    // Opens the endline delay entry modal for editing this record
+    editRecord.value = rec as any;
+    showEditModal.value = true;
+}
+
+function triggerExport() {
+    const p = new URLSearchParams();
+    if (exportDateFrom.value) p.set('date_from', exportDateFrom.value);
+    if (exportDateTo.value) p.set('date_to', exportDateTo.value);
+    window.location.href = `/api/endline-delay/export?${p.toString()}`;
+    showExportPicker.value = false;
+}
+
+const {
+    enabled: autoRefreshEnabled,
+    interval: autoRefreshInterval,
+    toggle: toggleAutoRefresh,
+    setInterval: setAutoRefreshInterval,
+} = useAutoRefresh(fetchRecords);
+const { toggleSort, sortIcon, applySort } = useTableSort<QcOkRecord>();
+
+const filteredRecords = computed(() => {
+    const q = tableSearch.value.trim().toLowerCase();
+    const base = q
+        ? records.value.filter(
+              (r) =>
+                  r.lot_id?.toLowerCase().includes(q) ||
+                  r.model?.toLowerCase().includes(q) ||
+                  r.qc_defect?.toLowerCase().includes(q),
+          )
+        : records.value;
+    const now = Date.now();
+    return applySort(base, (r: QcOkRecord) =>
+        r.created_at ? now - new Date(r.created_at).getTime() : 0,
+    );
+});
+
+const totalQtyFmt = computed(() =>
+    formatQty(records.value.reduce((s, r) => s + (r.lot_qty ?? 0), 0)),
+);
+const lipasYCount = computed(
+    () => records.value.filter((r) => r.lipas_yn === 'Y').length,
+);
+const lipasYQtyFmt = computed(() =>
+    formatQty(
+        records.value
+            .filter((r) => r.lipas_yn === 'Y')
+            .reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+    ),
+);
+const lipasNCount = computed(
+    () => records.value.filter((r) => r.lipas_yn !== 'Y').length,
+);
+const lipasNQtyFmt = computed(() =>
+    formatQty(
+        records.value
+            .filter((r) => r.lipas_yn !== 'Y')
+            .reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+    ),
+);
+const normalCount = computed(
+    () => records.value.filter((r) => r.work_type === 'NORMAL').length,
+);
+const normalQtyFmt = computed(() =>
+    formatQty(
+        records.value
+            .filter((r) => r.work_type === 'NORMAL')
+            .reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+    ),
+);
+const reworkCount = computed(
+    () =>
+        records.value.filter((r) => r.work_type && r.work_type !== 'NORMAL')
+            .length,
+);
+const reworkQtyFmt = computed(() =>
+    formatQty(
+        records.value
+            .filter((r) => r.work_type && r.work_type !== 'NORMAL')
+            .reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+    ),
+);
+const avgTat = computed(() => {
+    const mins = records.value
+        .filter((r) => r.created_at && r.updated_at)
+        .map((r) =>
+            Math.round(
+                (new Date(r.updated_at!).getTime() -
+                    new Date(r.created_at!).getTime()) /
+                    60_000,
+            ),
+        )
+        .filter((m) => m > 0);
+    if (!mins.length) return '—';
+    return formatDuration(
+        Math.round(mins.reduce((a, b) => a + b, 0) / mins.length),
+    );
+});
+
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+watch(tableSearch, () => {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => fetchRecords(), 350);
+});
+watch(
+    [filterDate, filterShift, filterCutoff, filterWorktype, filterLipas],
+    () => fetchRecords(),
+);
+onMounted(() => fetchRecords());
+</script>

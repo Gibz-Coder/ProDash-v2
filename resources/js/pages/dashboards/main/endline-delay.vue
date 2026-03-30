@@ -718,6 +718,7 @@
                                             Edit
                                         </button>
                                         <button
+                                            v-if="canDeleteEndline"
                                             class="h-6 rounded border border-destructive/20 bg-destructive/5 px-2 text-[10px] font-semibold text-destructive hover:bg-destructive/10"
                                             @click="confirmDelete(rec)"
                                         >
@@ -831,6 +832,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import EndlineDelayEntryModal from '@/pages/dashboards/subs/endline-delay-entry-modal.vue';
+import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import {
     AlertCircle,
@@ -847,6 +849,13 @@ import {
     X,
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
+
+const page = usePage();
+const canDeleteEndline = computed(
+    () =>
+        (page.props.auth as any)?.permissions?.includes('Delete Endline') ??
+        false,
+);
 
 // Close export picker on outside click
 function onClickOutside(e: MouseEvent) {
@@ -869,18 +878,19 @@ interface EndlineRecord {
     model: string | null;
     lot_qty: number | null;
     lipas_yn: string | null;
-    qc_result: string | null; // QC NG: Main | RR | LY | OK
-    qc_defect: string | null; // Defect code
-    defect_class: string | null; // Analysis | Technical
+    qc_result: string | null;
+    qc_defect: string | null;
+    defect_class: string | null;
     qc_ana_start: string | null;
-    qc_ana_result: string | null; // Decision when Analysis
-    qc_ana_tat: number | null; // ElapsedTime when Analysis
+    qc_ana_result: string | null;
+    qc_ana_completed_at: string | null;
     vi_techl_start: string | null;
-    vi_techl_result: string | null; // Decision when Technical
-    vi_techl_tat: number | null; // ElapsedTime when Technical
+    vi_techl_result: string | null;
+    vi_techl_completed_at: string | null;
     work_type: string | null;
     final_decision: string | null;
     remarks: string | null;
+    inspection_times: number | null;
     updated_by: string | null;
     created_at: string | null;
     updated_at: string | null;

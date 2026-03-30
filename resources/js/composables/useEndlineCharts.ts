@@ -293,7 +293,12 @@ export function useEndlineCharts(
                 markers: { width: 10, height: 10, radius: 2 },
                 itemMargin: { horizontal: 8, vertical: 4 },
             },
-            dataLabels: { enabled: false },
+            dataLabels: {
+                enabled: true,
+                formatter: (val: number) => (val > 0 ? val.toString() : ''),
+                style: { fontSize: '10px', fontWeight: 600, colors: ['#fff'] },
+                dropShadow: { enabled: false },
+            },
         };
     }
 

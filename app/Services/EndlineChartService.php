@@ -10,7 +10,7 @@ use Illuminate\Support\Facades\DB;
 
 final class EndlineChartService
 {
-    /** @var array<string, string> */
+    /** @var array<string, array{0: string, 1: string}> */
     private const CUTOFF_RANGES = [
         '00:00~03:59' => ['00:00:00', '03:59:59'],
         '04:00~06:59' => ['04:00:00', '06:59:59'],
@@ -27,29 +27,6 @@ final class EndlineChartService
     private const BUCKET_NAMES = ['Mainlot', 'R-rework', 'L-rework'];
 
     /**
-     * Map raw work_type values to their display bucket name.
-     *
-     * @var array<string, string>
-     */
-    private const WORK_TYPE_MAP = [
-        'NORMAL'     => 'Mainlot',
-        'PROCESS RW' => 'R-rework',
-        'WH REWORK'  => 'R-rework',
-        'OI REWORK'  => 'L-rework',
-    ];
-
-    /**
-     * Map bucket names back to the raw work_type values they cover.
-     *
-     * @var array<string, list<string>>
-     */
-    private const BUCKET_TO_WORK_TYPES = [
-        'Mainlot'  => ['NORMAL'],
-        'R-rework' => ['PROCESS RW', 'WH REWORK'],
-        'L-rework' => ['OI REWORK'],
-    ];
-
-    /**
      * Map category toggle values to the defect_class stored in endline_delay.
      *
      * @var array<string, string>
@@ -63,7 +40,11 @@ final class EndlineChartService
      * Build and return the three chart datasets for the given filters.
      *
      * @param  array<string, mixed>  $filters
-     * @return array{pie: array{labels: list<string>, series: list<int>}, bar: array{categories: list<string>, series: list<array{name: string, data: list<int>}>}, column: array{categories: list<string>, series: list<array{name: string, data: list<int>}>}}
+     * @return array{
+     *   pie: array{labels: list<string>, series: list<int>},
+     *   bar: array{categories: list<string>, series: list<array{name: string, data: list<int>}>},
+     *   column: array{categories: list<string>, series: list<array{name: string, data: list<int>}>}
+     * }
      */
     public function getChartData(array $filters): array
     {
@@ -75,40 +56,50 @@ final class EndlineChartService
     }
 
     // -------------------------------------------------------------------------
-    // Pie chart
+    // Pie chart — bucketed by qc_result content
     // -------------------------------------------------------------------------
 
     /** @param array<string, mixed> $filters */
     private function buildPieData(array $filters): array
     {
         $rows = $this->buildBaseQuery($filters)
-            ->select('work_type', DB::raw('COUNT(*) as cnt'))
-            ->groupBy('work_type')
+            ->select('qc_result', DB::raw('COUNT(*) as cnt'))
+            ->groupBy('qc_result')
             ->get();
 
-        return $this->aggregateByWorkTypeBucket($rows);
+        $totals = ['Mainlot' => 0, 'R-rework' => 0, 'L-rework' => 0];
+
+        foreach ($rows as $row) {
+            $bucket           = $this->classifyQcBucket((string) ($row->qc_result ?? ''));
+            $totals[$bucket] += (int) $row->cnt;
+        }
+
+        return [
+            'labels' => self::BUCKET_NAMES,
+            'series' => array_values($totals),
+        ];
     }
 
     // -------------------------------------------------------------------------
-    // Bar chart
+    // Bar chart — per size, bucketed by qc_result content
     // -------------------------------------------------------------------------
 
     /** @param array<string, mixed> $filters */
     private function buildBarData(array $filters): array
     {
         $rows = $this->buildBaseQuery($filters)
+            ->tap(fn ($q) => $this->applyBucketFilter($q, $filters['work_type_filter'] ?? null))
             ->select(
-                DB::raw("SUBSTRING(model, 9, 2) as size"),
-                'work_type',
+                DB::raw("SUBSTRING(model, 3, 2) as size"),
+                'qc_result',
                 DB::raw('COUNT(*) as cnt'),
             )
-            ->whereRaw("SUBSTRING(model, 9, 2) IN ('03','05','10','21','31','32')")
-            ->groupBy('size', 'work_type')
+            ->whereRaw("SUBSTRING(model, 3, 2) IN ('03','05','10','21','31','32')")
+            ->groupBy(DB::raw("SUBSTRING(model, 3, 2)"), 'qc_result')
             ->get();
 
-        // Normalise: map work_type → bucket name so pivotToStackedSeries can key on it
         $bucketed = $rows->map(fn (object $row): object => (object) [
-            'key' => self::WORK_TYPE_MAP[$row->work_type] ?? 'Mainlot',
+            'key' => $this->classifyQcBucket((string) ($row->qc_result ?? '')),
             'cat' => $row->size,
             'cnt' => (int) $row->cnt,
         ]);
@@ -120,7 +111,7 @@ final class EndlineChartService
     }
 
     // -------------------------------------------------------------------------
-    // Column chart
+    // Column chart — per defect code, stacked by size (only codes with data)
     // -------------------------------------------------------------------------
 
     /** @param array<string, mixed> $filters */
@@ -129,42 +120,31 @@ final class EndlineChartService
         $category       = (string) ($filters['category'] ?? 'QC Analysis');
         $workTypeFilter = $filters['work_type_filter'] ?? null;
 
-        // Resolve x-axis defect codes from qc_defect_class
-        $defectCodes = DB::table('qc_defect_class')
-            ->where('defect_flow', $category)
-            ->orderBy('defect_code')
-            ->pluck('defect_code')
-            ->all();
-
-        if ($defectCodes === []) {
-            return [
-                'categories' => [],
-                'series'     => [],
-            ];
-        }
-
         $colQuery = $this->buildBaseQuery($filters);
 
-        // Apply work_type_filter bucket
-        if ($workTypeFilter !== null && isset(self::BUCKET_TO_WORK_TYPES[$workTypeFilter])) {
-            $colQuery->whereIn('endline_delay.work_type', self::BUCKET_TO_WORK_TYPES[$workTypeFilter]);
-        }
-
-        // Apply category filter via defect_class on endline_delay
-        if (isset(self::CATEGORY_TO_DEFECT_CLASS[$category])) {
-            $colQuery->where('endline_delay.defect_class', self::CATEGORY_TO_DEFECT_CLASS[$category]);
-        }
+        $this->applyBucketFilter($colQuery, $workTypeFilter);
 
         $rows = $colQuery
-            ->join('qc_defect_class', 'endline_delay.qc_defect', '=', 'qc_defect_class.defect_code')
+            ->join(
+                'qc_defect_class',
+                DB::raw("TRIM(SUBSTRING_INDEX(endline_delay.qc_defect, ',', 1))"),
+                '=',
+                'qc_defect_class.defect_code',
+            )
             ->select(
-                DB::raw("SUBSTRING(endline_delay.model, 9, 2) as size"),
+                DB::raw("SUBSTRING(endline_delay.model, 3, 2) as size"),
                 'qc_defect_class.defect_code',
                 DB::raw('COUNT(*) as cnt'),
             )
-            ->whereRaw("SUBSTRING(endline_delay.model, 9, 2) IN ('03','05','10','21','31','32')")
-            ->groupBy('size', 'qc_defect_class.defect_code')
+            ->whereRaw("SUBSTRING(endline_delay.model, 3, 2) IN ('03','05','10','21','31','32')")
+            ->groupBy(DB::raw("SUBSTRING(endline_delay.model, 3, 2)"), 'qc_defect_class.defect_code')
             ->get();
+
+        if ($rows->isEmpty()) {
+            return ['categories' => [], 'series' => []];
+        }
+
+        $activeDefectCodes = $rows->pluck('defect_code')->unique()->sort()->values()->all();
 
         $mapped = $rows->map(fn (object $row): object => (object) [
             'key' => $row->size,
@@ -173,8 +153,8 @@ final class EndlineChartService
         ]);
 
         return [
-            'categories' => $defectCodes,
-            'series'     => $this->pivotToStackedSeries($mapped, $defectCodes, self::SIZE_CODES),
+            'categories' => $activeDefectCodes,
+            'series'     => $this->pivotToStackedSeries($mapped, $activeDefectCodes, self::SIZE_CODES),
         ];
     }
 
@@ -182,17 +162,24 @@ final class EndlineChartService
     // Shared helpers
     // -------------------------------------------------------------------------
 
-    /**
-     * Build the base query scoped to defect_class and page-level filters.
-     *
-     * @param array<string, mixed> $filters
-     */
+    /** @param array<string, mixed> $filters */
     private function buildBaseQuery(array $filters): Builder
     {
         $query = DB::table('endline_delay');
 
         if (!empty($filters['defect_class'])) {
-            $query->where('endline_delay.defect_class', $filters['defect_class']);
+            // For VI Technical, also include QC Analysis lots handed off via vi_techl_start
+            if ($filters['defect_class'] === "Tech'l Verification") {
+                $query->where(function (Builder $q): void {
+                    $q->where('endline_delay.defect_class', "Tech'l Verification")
+                      ->orWhere(function (Builder $q2): void {
+                          $q2->where('endline_delay.defect_class', 'QC Analysis')
+                             ->whereNotNull('endline_delay.vi_techl_start');
+                      });
+                });
+            } else {
+                $query->where('endline_delay.defect_class', $filters['defect_class']);
+            }
         }
 
         if (!empty($filters['date'])) {
@@ -226,46 +213,98 @@ final class EndlineChartService
             $query->where('endline_delay.lipas_yn', $filters['lipas_yn']);
         }
 
+        if (!empty($filters['status_filter'])) {
+            $today = now()->toDateString();
+            match ($filters['status_filter']) {
+                'pending'    => $query->whereNull('endline_delay.qc_ana_result')
+                                      ->whereNull('endline_delay.qc_ana_prog')
+                                      ->whereNull('endline_delay.vi_techl_result')
+                                      ->whereNull('endline_delay.vi_techl_prog'),
+                'inprogress' => $query->where(function (Builder $q): void {
+                    $q->whereNotNull('endline_delay.qc_ana_prog')
+                      ->orWhereNotNull('endline_delay.vi_techl_prog');
+                })->where(function (Builder $q): void {
+                    $q->whereNull('endline_delay.qc_ana_result')
+                      ->whereNull('endline_delay.vi_techl_result');
+                }),
+                'completed'  => $query->where(function (Builder $q): void {
+                    $q->whereNotNull('endline_delay.qc_ana_result')
+                      ->orWhereNotNull('endline_delay.vi_techl_result');
+                }),
+                'prevday'    => $query->whereNull('endline_delay.qc_ana_result')
+                                      ->whereNull('endline_delay.vi_techl_result')
+                                      ->whereDate('endline_delay.created_at', '<', $today),
+                default      => null,
+            };
+        }
+
         return $query;
     }
 
     /**
-     * Aggregate a collection of (work_type, cnt) rows into the three pie buckets.
-     *
-     * @param  Collection<int, object>  $rows  Each row has `work_type` (string|null) and `cnt` (int)
-     * @return array{labels: list<string>, series: list<int>}
+     * Apply a qc_result-based bucket filter to an existing query.
+     * Used consistently across all three chart builders.
      */
-    private function aggregateByWorkTypeBucket(Collection $rows): array
+    private function applyBucketFilter(Builder $query, ?string $bucket): void
     {
-        $totals = ['Mainlot' => 0, 'R-rework' => 0, 'L-rework' => 0];
-
-        foreach ($rows as $row) {
-            $bucket           = self::WORK_TYPE_MAP[$row->work_type ?? ''] ?? 'Mainlot';
-            $totals[$bucket] += (int) $row->cnt;
+        if ($bucket === null || $bucket === 'All') {
+            return;
         }
 
-        return [
-            'labels' => self::BUCKET_NAMES,
-            'series' => array_values($totals),
-        ];
+        match ($bucket) {
+            'Mainlot'  => $query->where('qc_result', 'like', '%Main%'),
+            'R-rework' => $query->where('qc_result', 'like', '%RR%')
+                                ->where('qc_result', 'not like', '%Main%'),
+            'L-rework' => $query->where(function (Builder $q): void {
+                $q->where('qc_result', 'like', '%LY%')
+                  ->where('qc_result', 'not like', '%RR%')
+                  ->where('qc_result', 'not like', '%Main%');
+            }),
+            default => null,
+        };
+    }
+
+    /**
+     * Classify a qc_result string into one of the three chart buckets.
+     *
+     * - Mainlot  : contains "Main"
+     * - R-rework : contains "RR" (with or without "LY")
+     * - L-rework : contains "LY" but NOT "RR"
+     * - Mainlot  : fallback
+     */
+    private function classifyQcBucket(string $qcResult): string
+    {
+        $hasMain = stripos($qcResult, 'Main') !== false;
+        $hasRr   = stripos($qcResult, 'RR') !== false;
+        $hasLy   = stripos($qcResult, 'LY') !== false;
+
+        if ($hasMain) {
+            return 'Mainlot';
+        }
+
+        if ($hasRr) {
+            return 'R-rework';
+        }
+
+        if ($hasLy) {
+            return 'L-rework';
+        }
+
+        return 'Mainlot';
     }
 
     /**
      * Pivot a flat collection into a stacked-series array, zero-filling gaps.
      *
-     * Each item in $rows must have:
-     *   - `key`  — the series name (e.g. bucket name or size code)
-     *   - `cat`  — the x-axis category value
-     *   - `cnt`  — the integer count
+     * Each item must have: `key` (series name), `cat` (x-axis category), `cnt` (int count).
      *
      * @param  Collection<int, object>  $rows
-     * @param  list<string>             $xCategories  Ordered x-axis labels
-     * @param  list<string>             $seriesNames  Ordered series names
+     * @param  list<string>             $xCategories
+     * @param  list<string>             $seriesNames
      * @return list<array{name: string, data: list<int>}>
      */
     private function pivotToStackedSeries(Collection $rows, array $xCategories, array $seriesNames): array
     {
-        // Build a lookup: [seriesName][category] => count
         /** @var array<string, array<string, int>> $lookup */
         $lookup = [];
 

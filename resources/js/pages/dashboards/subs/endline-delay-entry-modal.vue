@@ -26,10 +26,10 @@ interface EndlineRecord {
     defect_class: string | null;
     qc_ana_start: string | null;
     qc_ana_result: string | null;
-    qc_ana_tat: number | null;
+    qc_ana_completed_at: string | null;
     vi_techl_start: string | null;
     vi_techl_result: string | null;
-    vi_techl_tat: number | null;
+    vi_techl_completed_at: string | null;
     work_type: string | null;
     final_decision: string | null;
     remarks: string | null;
@@ -239,27 +239,13 @@ function resolveDefectFlow(row: RowForm) {
         row.vi_techl_start = null;
         return;
     }
-    // Priority: any code whose defect_class === 'QC Analysis'
     const priority = row.defect_codes.find(
         (c) => defectCache.value[c]?.defect_class === 'QC Analysis',
     );
     const key = priority ?? row.defect_codes.find((c) => defectCache.value[c]);
     const flow = key ? (defectCache.value[key]?.defect_flow ?? '') : '';
     row.defect_flow = flow;
-
-    // Auto-stamp start timestamps based on resolved flow
-    const now = new Date().toISOString().slice(0, 19).replace('T', ' ');
-    if (flow === 'QC Analysis') {
-        if (!row.qc_ana_start) row.qc_ana_start = now;
-        row.vi_techl_start = null;
-    } else if (flow === "Tech'l Verification") {
-        if (!row.vi_techl_start) row.vi_techl_start = now;
-        row.qc_ana_start = null;
-    } else {
-        // other flow — clear both
-        row.qc_ana_start = null;
-        row.vi_techl_start = null;
-    }
+    // start timestamps are set server-side when user clicks Start — never auto-stamped here
 }
 
 function selectDefect(i: number, opt: DefectOption) {
@@ -361,8 +347,6 @@ function rowToPayload(row: RowForm) {
         lot_qty: row.lot_qty,
         work_type: row.work_type || null,
         lipas_yn: row.lipas_yn || null,
-        qc_ana_start: row.qc_ana_start || null,
-        vi_techl_start: row.vi_techl_start || null,
         inspection_times: row.inspection_times ?? null,
     };
 }

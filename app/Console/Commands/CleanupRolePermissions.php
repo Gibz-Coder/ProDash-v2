@@ -20,6 +20,8 @@ class CleanupRolePermissions extends Command
         'MC Allocation Delete',
         'Endtime Manage',
         'Endtime Delete',
+        'Manage Endline',
+        'Delete Endline',
     ];
 
     public function handle()

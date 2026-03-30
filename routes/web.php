@@ -121,6 +121,11 @@ Route::get('vi-technical', function () {
     return Inertia::render('dashboards/main/vi-technical');
 })->middleware(['auth', 'verified', 'permission:Manage Endline'])->name('vi_technical');
 
+// QC OK monitor
+Route::get('qc-ok', function () {
+    return Inertia::render('dashboards/main/qc-ok');
+})->middleware(['auth', 'verified', 'permission:Manage Endline'])->name('qc_ok');
+
 Route::middleware(['auth', 'verified', 'permission:Manage Endline'])->group(function () {
     Route::get('api/endline-delay/chart-data', [App\Http\Controllers\EndlineDelayController::class, 'chartData']);
     Route::get('api/endline-delay', [App\Http\Controllers\EndlineDelayController::class, 'index']);
@@ -129,11 +134,14 @@ Route::middleware(['auth', 'verified', 'permission:Manage Endline'])->group(func
     Route::get('api/endline-delay/defect-codes', [App\Http\Controllers\EndlineDelayController::class, 'defectCodeSearch']);
     Route::get('api/endline-delay/qc-monitor', [App\Http\Controllers\EndlineDelayController::class, 'qcAnalysisIndex']);
     Route::get('api/endline-delay/vi-monitor', [App\Http\Controllers\EndlineDelayController::class, 'viTechnicalIndex']);
+    Route::get('api/endline-delay/qc-ok-monitor', [App\Http\Controllers\EndlineDelayController::class, 'qcOkIndex']);
     Route::post('api/endline-delay', [App\Http\Controllers\EndlineDelayController::class, 'store']);
     Route::post('api/endline-delay/{id}/start-qc', [App\Http\Controllers\EndlineDelayController::class, 'startQcAnalysis']);
     Route::post('api/endline-delay/{id}/start-vi', [App\Http\Controllers\EndlineDelayController::class, 'startViTechnical']);
+    Route::post('api/endline-delay/{id}/submit-qc', [App\Http\Controllers\EndlineDelayController::class, 'submitQcAnalysis']);
+    Route::post('api/endline-delay/{id}/submit-vi', [App\Http\Controllers\EndlineDelayController::class, 'submitViTechnical']);
     Route::put('api/endline-delay/{id}', [App\Http\Controllers\EndlineDelayController::class, 'update']);
-    Route::delete('api/endline-delay/{id}', [App\Http\Controllers\EndlineDelayController::class, 'destroy']);
+    Route::delete('api/endline-delay/{id}', [App\Http\Controllers\EndlineDelayController::class, 'destroy'])->middleware('permission:Delete Endline');
 });
 
 // QC Defect Class data entry
@@ -292,6 +300,10 @@ Route::get('api/equipment/details/{equipmentNo}', [App\Http\Controllers\Equipmen
     ->middleware(['auth', 'verified'])
     ->name('equipment.details');
 
+Route::get('api/equipment/details-batch', [App\Http\Controllers\EquipmentStatusController::class, 'getEquipmentDetailsBatch'])
+    ->middleware(['auth', 'verified'])
+    ->name('equipment.details.batch');
+
 Route::put('api/equipment/{equipmentNo}/remarks', [App\Http\Controllers\EquipmentStatusController::class, 'updateRemarks'])
     ->middleware(['auth', 'verified'])
     ->name('equipment.remarks.update');
@@ -320,7 +332,7 @@ Route::get('api/mems/endtime/raw-lots-cutoff', [App\Http\Controllers\MemsDashboa
     ->middleware(['auth', 'verified'])
     ->name('mems.endtime.raw-lots-cutoff');
 
-// Get available lots for assignment (from updatewip table)
+// Get available lots for assignment (from mes_data.wip_status)
 Route::get('api/mems/available-lots', [App\Http\Controllers\MemsDashboardController::class, 'getAvailableLotsForAssignment'])
     ->middleware(['auth', 'verified'])
     ->name('mems.available-lots');

@@ -112,6 +112,14 @@
                         <option value="Mpcs">Mpcs</option>
                     </select>
                 </div>
+                <!-- Auto-refresh control -->
+                <AutoRefreshControl
+                    :enabled="autoRefreshEnabled"
+                    :interval="autoRefreshInterval"
+                    :spinning="loading"
+                    @toggle="toggleAutoRefresh"
+                    @set-interval="setAutoRefreshInterval"
+                />
                 <button
                     class="flex items-center gap-1 rounded-lg border border-blue-600 bg-transparent px-3 py-1.5 text-xs font-medium text-blue-600 shadow-sm transition-colors hover:bg-blue-600 hover:text-white"
                     @click="fetchRecords"
@@ -206,6 +214,10 @@
                         @click="openAddModal"
                     >
                         <Plus class="h-3.5 w-3.5" /> Update Status
+                        <span
+                            class="ml-2 rounded bg-white/20 px-1.5 py-0.5 font-mono text-xs"
+                            >F2</span
+                        >
                     </button>
                 </div>
             </div>
@@ -241,63 +253,50 @@
                         </p>
                     </div>
                 </div>
-                <!-- Prev Day -->
+                <!-- Pending -->
                 <div
-                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-rose-50 to-rose-100/50 px-3 py-2 shadow dark:from-rose-950/30 dark:to-rose-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 shadow transition-all dark:from-red-950/30 dark:to-red-900/20"
+                    :class="
+                        statusFilter === 'pending'
+                            ? 'border-red-500 bg-red-100 ring-2 ring-red-400 dark:bg-red-950/50'
+                            : 'border-border/50 bg-gradient-to-br from-red-50 to-red-100/50 hover:ring-1 hover:ring-red-300'
+                    "
+                    @click="toggleStatusFilter('pending')"
                 >
                     <div
-                        class="rounded-full bg-rose-500/10 p-1.5 ring-1 ring-rose-500/20"
+                        class="rounded-full bg-red-500/10 p-1.5 ring-1 ring-red-500/20"
                     >
-                        <AlertCircle
-                            class="h-3.5 w-3.5 text-rose-600 dark:text-rose-400"
+                        <Clock
+                            class="h-3.5 w-3.5 text-red-600 dark:text-red-400"
                         />
                     </div>
                     <div>
                         <p
-                            class="text-[9px] font-semibold tracking-widest text-rose-700 uppercase dark:text-rose-300"
-                        >
-                            Prev Day
-                        </p>
-                        <p
-                            class="text-lg leading-none font-bold text-rose-900 dark:text-rose-100"
-                        >
-                            {{ summaryStats.prevDayQty }}
-                        </p>
-                        <p
-                            class="text-[9px] text-rose-600/70 dark:text-rose-400/70"
-                        >
-                            {{ summaryStats.prevDayPending }} lots
-                        </p>
-                    </div>
-                </div>
-                <!-- Pending -->
-                <div
-                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-slate-50 to-slate-100/50 px-3 py-2 shadow dark:from-slate-950/30 dark:to-slate-900/20"
-                >
-                    <div
-                        class="rounded-full bg-slate-500/10 p-1.5 ring-1 ring-slate-500/20"
-                    >
-                        <Clock class="h-3.5 w-3.5 text-slate-500" />
-                    </div>
-                    <div>
-                        <p
-                            class="text-[9px] font-semibold tracking-widest text-slate-600 uppercase dark:text-slate-400"
+                            class="text-[9px] font-semibold tracking-widest text-red-700 uppercase dark:text-red-300"
                         >
                             Pending
                         </p>
                         <p
-                            class="text-lg leading-none font-bold text-slate-800 dark:text-slate-100"
+                            class="text-lg leading-none font-bold text-red-900 dark:text-red-100"
                         >
                             {{ summaryStats.pendingQty }}
                         </p>
-                        <p class="text-[9px] text-slate-500/70">
+                        <p
+                            class="text-[9px] text-red-600/70 dark:text-red-400/70"
+                        >
                             {{ summaryStats.pending }} lots
                         </p>
                     </div>
                 </div>
                 <!-- In Progress -->
                 <div
-                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-amber-50 to-amber-100/50 px-3 py-2 shadow dark:from-amber-950/30 dark:to-amber-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 shadow transition-all dark:from-amber-950/30 dark:to-amber-900/20"
+                    :class="
+                        statusFilter === 'inprogress'
+                            ? 'border-amber-500 bg-amber-100 ring-2 ring-amber-400 dark:bg-amber-950/50'
+                            : 'border-border/50 bg-gradient-to-br from-amber-50 to-amber-100/50 hover:ring-1 hover:ring-amber-300'
+                    "
+                    @click="toggleStatusFilter('inprogress')"
                 >
                     <div
                         class="rounded-full bg-amber-500/10 p-1.5 ring-1 ring-amber-500/20"
@@ -326,7 +325,13 @@
                 </div>
                 <!-- Completed -->
                 <div
-                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 px-3 py-2 shadow dark:from-emerald-950/30 dark:to-emerald-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 shadow transition-all dark:from-emerald-950/30 dark:to-emerald-900/20"
+                    :class="
+                        statusFilter === 'completed'
+                            ? 'border-emerald-500 bg-emerald-100 ring-2 ring-emerald-400 dark:bg-emerald-950/50'
+                            : 'border-border/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 hover:ring-1 hover:ring-emerald-300'
+                    "
+                    @click="toggleStatusFilter('completed')"
                 >
                     <div
                         class="rounded-full bg-emerald-500/10 p-1.5 ring-1 ring-emerald-500/20"
@@ -350,6 +355,70 @@
                             class="text-[9px] text-emerald-600/70 dark:text-emerald-400/70"
                         >
                             {{ summaryStats.completed }} lots
+                        </p>
+                    </div>
+                </div>
+                <!-- Average TAT -->
+                <div
+                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-violet-50 to-violet-100/50 px-3 py-2 shadow dark:from-violet-950/30 dark:to-violet-900/20"
+                >
+                    <div
+                        class="rounded-full bg-violet-500/10 p-1.5 ring-1 ring-violet-500/20"
+                    >
+                        <Timer
+                            class="h-3.5 w-3.5 text-violet-600 dark:text-violet-400"
+                        />
+                    </div>
+                    <div>
+                        <p
+                            class="text-[9px] font-semibold tracking-widest text-violet-700 uppercase dark:text-violet-300"
+                        >
+                            Average TAT
+                        </p>
+                        <p
+                            class="text-lg leading-none font-bold text-violet-900 dark:text-violet-100"
+                        >
+                            {{ summaryStats.avgTat }}
+                        </p>
+                        <p
+                            class="text-[9px] text-violet-600/70 dark:text-violet-400/70"
+                        >
+                            {{ summaryStats.total }} lots
+                        </p>
+                    </div>
+                </div>
+                <!-- Prev Day -->
+                <div
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 shadow transition-all dark:from-rose-950/30 dark:to-rose-900/20"
+                    :class="
+                        statusFilter === 'prevday'
+                            ? 'border-rose-500 bg-rose-100 ring-2 ring-rose-400 dark:bg-rose-950/50'
+                            : 'border-border/50 bg-gradient-to-br from-rose-50 to-rose-100/50 hover:ring-1 hover:ring-rose-300'
+                    "
+                    @click="toggleStatusFilter('prevday')"
+                >
+                    <div
+                        class="rounded-full bg-rose-500/10 p-1.5 ring-1 ring-rose-500/20"
+                    >
+                        <AlertCircle
+                            class="h-3.5 w-3.5 text-rose-600 dark:text-rose-400"
+                        />
+                    </div>
+                    <div>
+                        <p
+                            class="text-[9px] font-semibold tracking-widest text-rose-700 uppercase dark:text-rose-300"
+                        >
+                            Prev Day
+                        </p>
+                        <p
+                            class="text-lg leading-none font-bold text-rose-900 dark:text-rose-100"
+                        >
+                            {{ summaryStats.prevDayQty }}
+                        </p>
+                        <p
+                            class="text-[9px] text-rose-600/70 dark:text-rose-400/70"
+                        >
+                            {{ summaryStats.prevDayPending }} lots
                         </p>
                     </div>
                 </div>
@@ -462,37 +531,61 @@
                         <span class="sr-only">Loading...</span>
                     </div>
                 </div>
-                <div v-else class="max-h-[600px] overflow-auto">
+                <div
+                    v-else
+                    class="max-h-[600px] overflow-x-auto overflow-y-scroll"
+                >
                     <table class="w-full min-w-[900px] table-fixed text-xs">
                         <colgroup>
+                            <col class="w-[40px]" />
                             <col class="w-[110px]" />
                             <col class="w-[140px]" />
                             <col class="w-[90px]" />
                             <col class="w-[60px]" />
                             <col class="w-[130px]" />
+                            <col class="w-[90px]" />
                             <col class="w-[150px]" />
                             <col class="w-[100px]" />
                             <col class="w-[90px]" />
-                            <col class="w-[150px]" />
+                            <col class="w-[110px]" />
+                            <col class="w-[110px]" />
+                            <col class="w-[130px]" />
                         </colgroup>
                         <thead class="sticky top-0 z-10">
                             <tr
                                 class="bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900"
                             >
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="border-r border-white/10 px-2 py-2.5 text-center text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    No
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('lot_id')"
                                 >
                                     Lot No
+                                    <span class="opacity-60">{{
+                                        sortIcon('lot_id')
+                                    }}</span>
                                 </th>
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('model')"
                                 >
                                     Model
+                                    <span class="opacity-60">{{
+                                        sortIcon('model')
+                                    }}</span>
                                 </th>
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('lot_qty')"
                                 >
                                     Qty
+                                    <span class="opacity-60">{{
+                                        sortIcon('lot_qty')
+                                    }}</span>
                                 </th>
                                 <th
                                     class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
@@ -500,14 +593,31 @@
                                     LIPAS
                                 </th>
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('created_at')"
                                 >
                                     Date Time
+                                    <span class="opacity-60">{{
+                                        sortIcon('created_at')
+                                    }}</span>
                                 </th>
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('qc_result')"
                                 >
-                                    Defect Name
+                                    QC Result
+                                    <span class="opacity-60">{{
+                                        sortIcon('qc_result')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('qc_defect')"
+                                >
+                                    Defect Code
+                                    <span class="opacity-60">{{
+                                        sortIcon('qc_defect')
+                                    }}</span>
                                 </th>
                                 <th
                                     class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
@@ -520,6 +630,20 @@
                                     Elapsed
                                 </th>
                                 <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('updated_by')"
+                                >
+                                    Updated By
+                                    <span class="opacity-60">{{
+                                        sortIcon('updated_by')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Decision
+                                </th>
+                                <th
                                     class="px-2 py-2.5 text-center text-[10px] font-bold tracking-widest text-slate-100 uppercase"
                                 >
                                     Actions
@@ -528,12 +652,17 @@
                         </thead>
                         <tbody class="divide-y divide-border">
                             <tr
-                                v-for="rec in filteredRecords"
+                                v-for="(rec, index) in filteredRecords"
                                 :key="rec.id"
                                 class="cursor-pointer transition-colors"
                                 :class="rowClass(rec)"
                                 @click="selectedId = rec.id"
                             >
+                                <td
+                                    class="px-2 py-2 text-center text-xs text-muted-foreground"
+                                >
+                                    {{ index + 1 }}
+                                </td>
                                 <td
                                     class="px-2 py-2 font-mono text-xs font-semibold text-primary"
                                 >
@@ -571,11 +700,14 @@
                                 >
                                     {{ formatDateTime(rec.created_at) }}
                                 </td>
+                                <td class="px-2 py-2 text-xs text-foreground">
+                                    {{ rec.qc_result || '—' }}
+                                </td>
                                 <td
                                     class="truncate px-2 py-2 text-xs text-foreground"
-                                    :title="rec.defect_name ?? ''"
+                                    :title="rec.qc_defect ?? ''"
                                 >
-                                    {{ rec.defect_name || '—' }}
+                                    {{ rec.qc_defect || '—' }}
                                 </td>
                                 <td class="px-2 py-2">
                                     <span
@@ -587,14 +719,68 @@
                                 </td>
                                 <td class="px-2 py-2 text-xs whitespace-nowrap">
                                     <span
-                                        v-if="rec.vi_techl_result"
+                                        v-if="
+                                            rec.vi_techl_result &&
+                                            rec.vi_techl_completed_at &&
+                                            rec.vi_techl_start
+                                        "
                                         class="text-muted-foreground"
-                                        >{{ rec.vi_techl_tat ?? '—' }} min</span
                                     >
+                                        {{
+                                            formatDuration(
+                                                Math.round(
+                                                    (new Date(
+                                                        rec.vi_techl_completed_at,
+                                                    ).getTime() -
+                                                        new Date(
+                                                            rec.vi_techl_start,
+                                                        ).getTime()) /
+                                                        60_000,
+                                                ),
+                                            )
+                                        }}
+                                    </span>
                                     <ElapsedCell
                                         v-else-if="rec.vi_techl_start"
                                         :start="rec.vi_techl_start"
                                     />
+                                    <span v-else class="text-muted-foreground"
+                                        >—</span
+                                    >
+                                </td>
+                                <td
+                                    class="truncate px-2 py-2 text-xs text-muted-foreground"
+                                    :title="rec.updated_by ?? ''"
+                                >
+                                    {{ rec.updated_by || '—' }}
+                                </td>
+                                <td class="px-2 py-2">
+                                    <span
+                                        v-if="
+                                            rec.vi_techl_result === 'Rework' ||
+                                            rec.vi_techl_result ===
+                                                'DRB Approval'
+                                        "
+                                        class="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600"
+                                    >
+                                        <AlertCircle class="h-3 w-3" />{{
+                                            rec.vi_techl_result
+                                        }}
+                                    </span>
+                                    <span
+                                        v-else-if="rec.vi_techl_result"
+                                        class="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600"
+                                    >
+                                        <CheckCircle2 class="h-3 w-3" />{{
+                                            rec.vi_techl_result
+                                        }}
+                                    </span>
+                                    <span
+                                        v-else-if="rec.vi_techl_prog"
+                                        class="text-[10px] font-medium text-amber-600"
+                                    >
+                                        {{ rec.vi_techl_prog }}
+                                    </span>
                                     <span v-else class="text-muted-foreground"
                                         >—</span
                                     >
@@ -604,31 +790,19 @@
                                         class="flex items-center justify-center gap-1"
                                     >
                                         <button
-                                            v-if="!rec.vi_techl_start"
-                                            class="h-7 rounded border border-blue-500/30 bg-blue-500/10 px-3 text-[10px] font-semibold text-blue-600 hover:bg-blue-500/20 disabled:opacity-50"
-                                            :disabled="starting === rec.id"
-                                            @click.stop="startVerification(rec)"
-                                        >
-                                            <Play
-                                                class="mr-1 inline h-3 w-3"
-                                            />Start
-                                        </button>
-                                        <button
-                                            v-else-if="!rec.vi_techl_result"
+                                            v-if="!rec.vi_techl_result"
                                             class="h-7 rounded border border-primary/30 bg-primary/10 px-3 text-[10px] font-semibold text-primary hover:bg-primary/20"
                                             @click.stop="openModal(rec)"
                                         >
                                             <ClipboardCheck
                                                 class="mr-1 inline h-3 w-3"
-                                            />Submit
+                                            />Update Status
                                         </button>
                                         <span
                                             v-else
-                                            class="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600"
+                                            class="text-[10px] text-muted-foreground"
+                                            >—</span
                                         >
-                                            <CheckCircle2 class="h-3.5 w-3.5" />
-                                            {{ rec.vi_techl_result }}
-                                        </span>
                                     </div>
                                 </td>
                             </tr>
@@ -663,15 +837,18 @@
 </template>
 
 <script setup lang="ts">
+import AutoRefreshControl from '@/components/AutoRefreshControl.vue';
+import { useAutoRefresh } from '@/composables/useAutoRefresh';
 import { useElapsedTimer } from '@/composables/useElapsedTimer';
 import { useEndlineCharts } from '@/composables/useEndlineCharts';
 import {
+    formatDuration,
     useMonitorPage,
     type MonitorRecord,
 } from '@/composables/useMonitorPage';
+import { useTableSort } from '@/composables/useTableSort';
 import AppLayout from '@/layouts/AppLayout.vue';
 import MonitorResultModal from '@/pages/dashboards/subs/monitor-result-modal.vue';
-import axios from 'axios';
 import {
     AlertCircle,
     CheckCircle2,
@@ -680,10 +857,10 @@ import {
     Download,
     Loader2,
     Package,
-    Play,
     Plus,
     RefreshCw,
     Search,
+    Timer,
 } from 'lucide-vue-next';
 import {
     computed,
@@ -704,7 +881,7 @@ const ElapsedCell = defineComponent({
             h(
                 'span',
                 { class: 'font-medium text-amber-600 dark:text-amber-400' },
-                `${elapsedMinutes.value} min`,
+                formatDuration(elapsedMinutes.value),
             );
     },
 });
@@ -737,44 +914,58 @@ function formatQty(qty: number): string {
     return qty.toLocaleString();
 }
 
+const statusFilter = ref<
+    'pending' | 'inprogress' | 'completed' | 'prevday' | null
+>(null);
+
 const { records, loading, error, fetchRecords, summaryStats } = useMonitorPage({
     apiUrl: '/api/endline-delay/vi-monitor',
     mode: 'vi',
     unit: filterUnit,
     params: () => ({
-        date: filterDate.value || undefined,
+        date:
+            statusFilter.value === 'prevday' || tableSearch.value.trim()
+                ? undefined
+                : filterDate.value || undefined,
         shift: filterShift.value || undefined,
         cutoff: filterCutoff.value || undefined,
         work_type: filterWorktype.value || undefined,
         lipas_yn: filterLipas.value || undefined,
+        status_filter: statusFilter.value || undefined,
     }),
 });
 
+const {
+    enabled: autoRefreshEnabled,
+    interval: autoRefreshInterval,
+    toggle: toggleAutoRefresh,
+    setInterval: setAutoRefreshInterval,
+} = useAutoRefresh(fetchRecords);
+
 const selectedId = ref<number | null>(null);
-const starting = ref<number | null>(null);
 const showModal = ref(false);
 const modalLot = ref<MonitorRecord | null>(null);
 
 function rowClass(rec: MonitorRecord) {
     if (rec.vi_techl_result)
         return 'bg-emerald-50/40 hover:bg-emerald-50/60 dark:bg-emerald-950/10';
-    if (rec.vi_techl_start)
+    if (rec.vi_techl_prog)
         return 'bg-amber-50/60 hover:bg-amber-50/80 dark:bg-amber-950/20';
     return 'hover:bg-muted/30';
 }
 
 function statusLabel(rec: MonitorRecord) {
-    if (rec.vi_techl_result) return 'Done';
-    if (rec.vi_techl_start) return 'In Progress';
+    if (rec.vi_techl_result) return 'Completed';
+    if (rec.vi_techl_prog) return 'In Progress';
     return 'Pending';
 }
 
 function statusBadgeClass(rec: MonitorRecord) {
     if (rec.vi_techl_result)
         return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400';
-    if (rec.vi_techl_start)
+    if (rec.vi_techl_prog)
         return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-400';
-    return 'bg-slate-50 text-slate-600 ring-slate-600/20 dark:bg-slate-950/30 dark:text-slate-400';
+    return 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950/30 dark:text-red-400';
 }
 
 function formatDateTime(dt: string | null) {
@@ -787,16 +978,6 @@ function formatDateTime(dt: string | null) {
     });
 }
 
-async function startVerification(rec: MonitorRecord) {
-    starting.value = rec.id;
-    try {
-        await axios.post(`/api/endline-delay/${rec.id}/start-vi`);
-        await fetchRecords();
-    } finally {
-        starting.value = null;
-    }
-}
-
 function openModal(rec: MonitorRecord) {
     modalLot.value = rec;
     showModal.value = true;
@@ -804,20 +985,72 @@ function openModal(rec: MonitorRecord) {
 
 const showExportPicker = ref(false);
 const tableSearch = ref('');
+const { sortKey, sortDir, toggleSort, sortIcon, applySort } =
+    useTableSort<MonitorRecord>();
+
+function toggleStatusFilter(
+    val: 'pending' | 'inprogress' | 'completed' | 'prevday',
+) {
+    statusFilter.value = statusFilter.value === val ? null : val;
+    fetchRecords();
+    fetchChartData();
+}
 
 const filteredRecords = computed(() => {
     const q = tableSearch.value.trim().toLowerCase();
-    if (!q) return records.value;
-    return records.value.filter(
-        (r) =>
-            r.lot_id?.toLowerCase().includes(q) ||
-            r.model?.toLowerCase().includes(q) ||
-            (r as any).defect_name?.toLowerCase().includes(q),
+    const bucket = activeWorkType.value;
+    const sf = statusFilter.value;
+    const todayStr = new Date().toLocaleDateString('en-CA', {
+        timeZone: 'Asia/Manila',
+    });
+
+    const base = records.value.filter((r) => {
+        if (
+            q &&
+            !(
+                r.lot_id?.toLowerCase().includes(q) ||
+                r.model?.toLowerCase().includes(q) ||
+                (r as any).defect_name?.toLowerCase().includes(q)
+            )
+        )
+            return false;
+
+        if (bucket !== 'All') {
+            const qcr = (r.qc_result ?? '').toLowerCase();
+            const hasMain = qcr.includes('main');
+            const hasRr = qcr.includes('rr');
+            const hasLy = qcr.includes('ly');
+            if (bucket === 'Mainlot' && !hasMain) return false;
+            if (bucket === 'R-rework' && (!hasRr || hasMain)) return false;
+            if (bucket === 'L-rework' && (!hasLy || hasRr || hasMain))
+                return false;
+        }
+
+        if (sf === 'pending') return !r.vi_techl_prog && !r.vi_techl_result;
+        if (sf === 'inprogress') return !!r.vi_techl_prog && !r.vi_techl_result;
+        if (sf === 'completed') return !!r.vi_techl_result;
+        if (sf === 'prevday') {
+            if (r.vi_techl_result) return false;
+            if (!r.created_at) return false;
+            return (
+                new Date(r.created_at).toLocaleDateString('en-CA', {
+                    timeZone: 'Asia/Manila',
+                }) < todayStr
+            );
+        }
+
+        return true;
+    });
+
+    const now = Date.now();
+    return applySort(base, (r: MonitorRecord) =>
+        r.vi_techl_start ? now - new Date(r.vi_techl_start).getTime() : 0,
     );
 });
 
 function openAddModal() {
-    // placeholder — wire to your add-entry modal when ready
+    modalLot.value = null;
+    showModal.value = true;
 }
 
 const today = new Date().toLocaleDateString('en-CA', {
@@ -838,11 +1071,7 @@ function triggerExport() {
 function onKeydown(e: KeyboardEvent) {
     if (e.key !== 'F2') return;
     e.preventDefault();
-    const target = selectedId.value
-        ? records.value.find((r) => r.id === selectedId.value)
-        : records.value.find((r) => r.vi_techl_start && !r.vi_techl_result);
-    if (target && target.vi_techl_start && !target.vi_techl_result)
-        openModal(target);
+    openAddModal();
 }
 
 const {
@@ -857,11 +1086,15 @@ const {
     chartIdPrefix: 'vi',
     defaultCategory: 'Technical',
     getParams: () => ({
-        date: filterDate.value || undefined,
+        date:
+            statusFilter.value === 'prevday'
+                ? undefined
+                : filterDate.value || undefined,
         shift: filterShift.value || undefined,
         cutoff: filterCutoff.value || undefined,
         work_type: filterWorktype.value || undefined,
         lipas_yn: filterLipas.value || undefined,
+        status_filter: statusFilter.value || undefined,
     }),
 });
 
@@ -870,6 +1103,13 @@ watch(
     [filterDate, filterShift, filterCutoff, filterWorktype, filterLipas],
     () => fetchChartData(),
 );
+
+// Re-fetch records when search changes (drop date filter to search all dates)
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+watch(tableSearch, () => {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => fetchRecords(), 350);
+});
 
 onMounted(() => {
     fetchRecords();
