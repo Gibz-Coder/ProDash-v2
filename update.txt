@@ -1,6 +1,19 @@
 VICIS ProDash V2 — Update Log
 ==============================
 
+[2026-03-30] Modified files
+----------------------------------------------------------
+With Changes
+  - /qc-analysis.vue   — QC Analysis Monitoring
+  - /vi-technical.vue  — VI Technical Monitoring
+  - /qc-ok.vue         — QC OK Monitoring
+  - /qc-ok-update-modal.vue
+  - /EndlineDelayController.php
+  - /routes/web.php
+
+2026_03_30_000001_add_output_status_to_endline_delay_table.php
+php artisan migrate --path=database/migrations/2026_03_30_000001_add_output_status_to_endline_delay_table.php
+
 [2026-03-29] Sprint: Endline Monitoring System — Complete
 ----------------------------------------------------------
 MIGRATIONS

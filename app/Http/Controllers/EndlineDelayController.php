@@ -149,18 +149,57 @@ class EndlineDelayController extends Controller
     {
         $records = $this->buildQuery($request)
             ->leftJoin('qc_defect_class', 'endline_delay.qc_defect', '=', 'qc_defect_class.defect_code')
-            ->where('endline_delay.qc_result', 'OK')
+            ->where(function ($q) {
+                // QC OK lots entered directly
+                $q->where('endline_delay.qc_result', 'OK')
+                  // OR any lot that cleared QC Analysis with Proceed
+                  ->orWhere('endline_delay.qc_ana_result', 'Proceed')
+                  // OR any lot that cleared VI Technical with Proceed
+                  ->orWhere('endline_delay.vi_techl_result', 'Proceed');
+            })
             ->orderBy('endline_delay.created_at', 'desc')
             ->select('endline_delay.*', 'qc_defect_class.defect_name')
             ->get();
 
         $today = now()->toDateString();
 
-        $qcPending   = $records->filter(fn($r) => is_null($r->qc_ana_result) && is_null($r->qc_ana_prog))->values();
-        $techPending = $records->filter(fn($r) => !is_null($r->vi_techl_start) && is_null($r->vi_techl_result))->values();
-        $prodPending = $records->filter(fn($r) => !is_null($r->qc_ana_result) && is_null($r->vi_techl_start))->values();
-        $completed   = $records->filter(fn($r) => !is_null($r->qc_ana_result) || !is_null($r->vi_techl_result))->values();
-        $prevDay     = $records->filter(fn($r) =>
+        // QC Pending: routed to QC Analysis, awaiting result (only QC OK source lots)
+        $qcPending = $records->filter(
+            fn($r) => trim($r->qc_result ?? '') === 'OK'
+                   && $r->defect_class === 'QC Analysis'
+                   && is_null($r->qc_ana_result)
+        )->values();
+
+        // Technical Pending: routed to VI Technical, awaiting result
+        $techPending = $records->filter(
+            fn($r) => $r->defect_class === "Tech'l Verification"
+                   && !is_null($r->vi_techl_start)
+                   && is_null($r->vi_techl_result)
+        )->values();
+
+        // Production Pending: fresh QC OK lots not yet routed, "For Verify", or cleared QC/VI — but not already finalized
+        $prodPending = $records->filter(
+            fn($r) => $r->output_status !== 'Completed'
+                   && $r->output_status !== 'Rework'
+                   && (
+                       // Fresh QC OK lot — no routing applied yet
+                       (trim($r->qc_result ?? '') === 'OK'
+                           && is_null($r->qc_ana_result)
+                           && is_null($r->vi_techl_result)
+                           && $r->defect_class !== 'QC Analysis'
+                           && $r->defect_class !== "Tech'l Verification")
+                       || $r->final_decision === 'For Verify'
+                       || $r->qc_ana_result === 'Proceed'
+                       || $r->vi_techl_result === 'Proceed'
+                   )
+        )->values();
+
+        // Completed: output_status = 'Completed' or 'Rework'
+        $completed = $records->filter(
+            fn($r) => $r->output_status === 'Completed' || $r->output_status === 'Rework'
+        )->values();
+
+        $prevDay = $records->filter(fn($r) =>
             is_null($r->qc_ana_result) && is_null($r->vi_techl_result) &&
             !is_null($r->created_at) &&
             \Carbon\Carbon::parse($r->created_at)->toDateString() < $today
@@ -171,6 +210,8 @@ class EndlineDelayController extends Controller
             'data'    => $records,
             'error'   => null,
             'meta'    => [
+                'total_count'        => $records->count(),
+                'total_qty'          => $records->sum('lot_qty'),
                 'qc_pending_count'   => $qcPending->count(),
                 'qc_pending_qty'     => $qcPending->sum('lot_qty'),
                 'tech_pending_count' => $techPending->count(),
@@ -305,35 +346,40 @@ class EndlineDelayController extends Controller
 
         if ($result === 'Proceed') {
             if ($isFromQcOk) {
-                // QC OK lot decided Proceed → append " - OK", keep final_decision = Pending
-                DB::table('endline_delay')->where('id', $id)->update([
-                    'qc_ana_prog'         => 'Proceed',
-                    'qc_ana_result'       => 'Proceed',
-                    'qc_ana_completed_at' => now(),
-                    'final_decision'      => 'Pending',
-                    'remarks'             => trim($row->remarks ?? '') . ' - OK',
-                    'updated_by'          => $by,
-                    'updated_at'          => now(),
-                ]);
-            } else {
+                // QC OK lot decided Proceed → keep routing reason, append result
+                $baseRemarks = preg_replace('/ - (OK|NG|Rework|Proceed)$/i', '', trim($row->remarks ?? ''));
                 DB::table('endline_delay')->where('id', $id)->update([
                     'qc_ana_prog'         => 'Proceed',
                     'qc_ana_result'       => 'Proceed',
                     'qc_ana_completed_at' => now(),
                     'final_decision'      => 'Proceed',
-                    'remarks'             => $validated['remarks'] ?? $row->remarks,
+                    'remarks'             => $baseRemarks . ' - OK',
+                    'updated_by'          => $by,
+                    'updated_at'          => now(),
+                ]);
+            } else {
+                // Non-QC-OK lot → show defect code + Proceed in remarks
+                $defectCode = trim($row->qc_defect ?? '');
+                DB::table('endline_delay')->where('id', $id)->update([
+                    'qc_ana_prog'         => 'Proceed',
+                    'qc_ana_result'       => 'Proceed',
+                    'qc_ana_completed_at' => now(),
+                    'final_decision'      => 'Proceed',
+                    'remarks'             => $defectCode ? "{$defectCode} - Proceed" : 'Proceed',
                     'updated_by'          => $by,
                     'updated_at'          => now(),
                 ]);
             }
         } elseif ($result === 'Rework') {
             if ($isFromQcOk) {
-                // QC OK lot decided Rework → append " - NG", final_decision = Rework, NO re-route to VI
+                // QC OK lot decided Rework → keep routing reason, append result
+                $baseRemarks = preg_replace('/ - (OK|NG|Rework|Proceed)$/i', '', trim($row->remarks ?? ''));
                 DB::table('endline_delay')->where('id', $id)->update([
                     'qc_ana_result'       => 'Rework',
                     'qc_ana_completed_at' => now(),
                     'final_decision'      => 'Rework',
-                    'remarks'             => trim($row->remarks ?? '') . ' - NG',
+                    'output_status'       => 'Rework',
+                    'remarks'             => $baseRemarks . ' - NG',
                     'updated_by'          => $by,
                     'updated_at'          => now(),
                 ]);
@@ -399,35 +445,39 @@ class EndlineDelayController extends Controller
 
         if ($result === 'Proceed') {
             if ($isFromQcOk) {
-                // QC OK lot decided Proceed → append " - OK", keep final_decision = Pending
-                DB::table('endline_delay')->where('id', $id)->update([
-                    'vi_techl_prog'         => 'Proceed',
-                    'vi_techl_result'       => 'Proceed',
-                    'vi_techl_completed_at' => now(),
-                    'final_decision'        => 'Pending',
-                    'remarks'               => trim($row->remarks ?? '') . ' - OK',
-                    'updated_by'            => $by,
-                    'updated_at'            => now(),
-                ]);
-            } else {
+                // QC OK lot decided Proceed from VI Technical
+                $baseRemarks = preg_replace('/ - (OK|NG|Rework|Proceed)$/i', '', trim($row->remarks ?? ''));
                 DB::table('endline_delay')->where('id', $id)->update([
                     'vi_techl_prog'         => 'Proceed',
                     'vi_techl_result'       => 'Proceed',
                     'vi_techl_completed_at' => now(),
                     'final_decision'        => 'Proceed',
-                    'remarks'               => $validated['remarks'] ?? $row->remarks,
+                    'remarks'               => $baseRemarks . ' - OK',
+                    'updated_by'            => $by,
+                    'updated_at'            => now(),
+                ]);
+            } else {
+                // Non-QC-OK lot → show defect code + Proceed in remarks
+                $defectCode = trim($row->qc_defect ?? '');
+                DB::table('endline_delay')->where('id', $id)->update([
+                    'vi_techl_prog'         => 'Proceed',
+                    'vi_techl_result'       => 'Proceed',
+                    'vi_techl_completed_at' => now(),
+                    'final_decision'        => 'Proceed',
+                    'remarks'               => $defectCode ? "{$defectCode} - Proceed" : 'Proceed',
                     'updated_by'            => $by,
                     'updated_at'            => now(),
                 ]);
             }
         } elseif ($result === 'Rework') {
             if ($isFromQcOk) {
-                // QC OK lot decided Rework → "{routing_reason} - Rework", final_decision = Rework
+                // QC OK lot decided Rework from VI Technical
+                $baseRemarks = preg_replace('/ - (OK|NG|Rework|Proceed)$/i', '', trim($row->remarks ?? ''));
                 DB::table('endline_delay')->where('id', $id)->update([
                     'vi_techl_result'       => 'Rework',
                     'vi_techl_completed_at' => now(),
                     'final_decision'        => 'Rework',
-                    'remarks'               => trim($row->remarks ?? '') . ' - Rework',
+                    'remarks'               => $baseRemarks . ' - NG',
                     'updated_by'            => $by,
                     'updated_at'            => now(),
                 ]);
@@ -567,6 +617,7 @@ class EndlineDelayController extends Controller
             'qc_ana_start'   => $validated['defect_class'] === 'QC Analysis'        ? now() : null,
             'vi_techl_start' => $validated['defect_class'] === "Tech'l Verification" ? now() : null,
             'final_decision' => trim($validated['qc_result'] ?? '') === 'OK' ? 'QC OK' : 'Pending',
+            'output_status'  => 'Pending',
             'updated_by'     => auth()->user()->emp_name ?? auth()->user()->name ?? 'system',
             'created_at'     => now(),
             'updated_at'     => now(),
@@ -609,8 +660,9 @@ class EndlineDelayController extends Controller
         ]);
 
         DB::table('endline_delay')->where('id', $id)->update(array_merge($validated, [
-            'updated_by' => auth()->user()->emp_name ?? auth()->user()->name ?? 'system',
-            'updated_at' => now(),
+            'output_status' => 'Pending',
+            'updated_by'    => auth()->user()->emp_name ?? auth()->user()->name ?? 'system',
+            'updated_at'    => now(),
         ]));
 
         return response()->json([
@@ -631,6 +683,55 @@ class EndlineDelayController extends Controller
         return response()->json(['success' => true, 'message' => 'Record deleted successfully.']);
     }
 
+    public function autoUpdateQcOkStatus(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'ids' => 'required|array|min:1',
+            'ids.*' => 'integer',
+        ]);
+
+        $ids = $validated['ids'];
+        $by  = auth()->user()->emp_name ?? auth()->user()->name ?? 'system';
+
+        // Only process lots that are still pending (not already finalized)
+        $rows = DB::table('endline_delay')
+            ->whereIn('id', $ids)
+            ->whereNotIn('output_status', ['Completed', 'Rework'])
+            ->get(['id', 'lot_id', 'lot_qty']);
+
+        $completedIds = [];
+
+        foreach ($rows as $row) {
+            $exists = DB::table('mes_data.wip_status')
+                ->where('lot_no', $row->lot_id)
+                ->where('current_qty', $row->lot_qty)
+                ->exists();
+
+            if (! $exists) {
+                $completedIds[] = $row->id;
+            }
+        }
+
+        if (! empty($completedIds)) {
+            DB::table('endline_delay')
+                ->whereIn('id', $completedIds)
+                ->update([
+                    'output_status' => 'Completed',
+                    'updated_by'    => $by,
+                    'updated_at'    => now(),
+                ]);
+        }
+
+        return response()->json([
+            'success'       => true,
+            'checked'       => $rows->count(),
+            'completed'     => count($completedIds),
+            'completed_ids' => $completedIds,
+            'error'         => null,
+            'meta'          => null,
+        ]);
+    }
+
     public function updateQcOkStatus(Request $request, int $id): JsonResponse
     {
         $row = DB::table('endline_delay')->find($id);
@@ -647,6 +748,23 @@ class EndlineDelayController extends Controller
         $status  = $validated['status'];
         $remarks = $validated['remarks'] ?? $row->remarks;
         $by      = auth()->user()->emp_name ?? auth()->user()->name ?? 'system';
+
+        // Mark as Completed — sets output_status only
+        if ($status === 'Completed') {
+            DB::table('endline_delay')->where('id', $id)->update([
+                'output_status' => 'Completed',
+                'remarks'       => $remarks,
+                'updated_by'    => $by,
+                'updated_at'    => now(),
+            ]);
+
+            return response()->json([
+                'success' => true,
+                'data'    => DB::table('endline_delay')->find($id),
+                'error'   => null,
+                'meta'    => null,
+            ]);
+        }
 
         // Statuses 1-6: route to QC Analysis, final_decision = Pending
         $toQcAnalysis = [
@@ -693,6 +811,7 @@ class EndlineDelayController extends Controller
             DB::table('endline_delay')->where('id', $id)->update([
                 'qc_defect'      => $status,
                 'final_decision' => 'Recovery',
+                'output_status'  => 'Rework',
                 'remarks'        => $status,
                 'updated_by'     => $by,
                 'updated_at'     => now(),

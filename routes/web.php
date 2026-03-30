@@ -141,6 +141,7 @@ Route::middleware(['auth', 'verified', 'permission:Manage Endline'])->group(func
     Route::post('api/endline-delay/{id}/submit-qc', [App\Http\Controllers\EndlineDelayController::class, 'submitQcAnalysis']);
     Route::post('api/endline-delay/{id}/submit-vi', [App\Http\Controllers\EndlineDelayController::class, 'submitViTechnical']);
     Route::post('api/endline-delay/{id}/update-qc-ok-status', [App\Http\Controllers\EndlineDelayController::class, 'updateQcOkStatus']);
+    Route::post('api/endline-delay/auto-update-qc-ok', [App\Http\Controllers\EndlineDelayController::class, 'autoUpdateQcOkStatus']);
     Route::put('api/endline-delay/{id}', [App\Http\Controllers\EndlineDelayController::class, 'update']);
     Route::delete('api/endline-delay/{id}', [App\Http\Controllers\EndlineDelayController::class, 'destroy'])->middleware('permission:Delete Endline');
 });

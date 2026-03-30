@@ -156,12 +156,30 @@
                             >F2</span
                         >
                     </button>
+                    <button
+                        class="flex h-8 items-center gap-1.5 rounded-lg bg-blue-600 px-3 text-xs font-medium text-white hover:bg-blue-700 disabled:pointer-events-none disabled:opacity-60"
+                        :disabled="autoUpdating"
+                        @click="onAutoUpdate"
+                    >
+                        <span
+                            v-if="autoUpdating"
+                            class="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-r-transparent"
+                        />
+                        <Zap v-else class="h-3.5 w-3.5" /> Auto Update
+                    </button>
                 </div>
             </div>
 
             <div class="flex gap-2">
+                <!-- Total -->
                 <div
-                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-blue-50 to-blue-100/50 px-3 py-2 shadow dark:from-blue-950/30 dark:to-blue-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border bg-gradient-to-br from-blue-50 to-blue-100/50 px-3 py-2 shadow transition-all dark:from-blue-950/30 dark:to-blue-900/20"
+                    :class="
+                        cardFilter === null
+                            ? 'border-blue-500 ring-2 ring-blue-400/50'
+                            : 'border-border/50 hover:border-blue-400/60'
+                    "
+                    @click="cardFilter = null"
                 >
                     <div
                         class="rounded-full bg-blue-500/10 p-1.5 ring-1 ring-blue-500/20"
@@ -184,13 +202,22 @@
                         <p
                             class="text-[9px] text-blue-600/70 dark:text-blue-400/70"
                         >
-                            {{ records.length }} lots
+                            {{ meta.total_count }} lots
                         </p>
                     </div>
                 </div>
                 <!-- QC Pending -->
                 <div
-                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-red-50 to-red-100/50 px-3 py-2 shadow dark:from-red-950/30 dark:to-red-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border bg-gradient-to-br from-red-50 to-red-100/50 px-3 py-2 shadow transition-all dark:from-red-950/30 dark:to-red-900/20"
+                    :class="
+                        cardFilter === 'qc_pending'
+                            ? 'border-red-500 ring-2 ring-red-400/50'
+                            : 'border-border/50 hover:border-red-400/60'
+                    "
+                    @click="
+                        cardFilter =
+                            cardFilter === 'qc_pending' ? null : 'qc_pending'
+                    "
                 >
                     <div
                         class="rounded-full bg-red-500/10 p-1.5 ring-1 ring-red-500/20"
@@ -219,7 +246,18 @@
                 </div>
                 <!-- Technical Pending -->
                 <div
-                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-amber-50 to-amber-100/50 px-3 py-2 shadow dark:from-amber-950/30 dark:to-amber-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border bg-gradient-to-br from-amber-50 to-amber-100/50 px-3 py-2 shadow transition-all dark:from-amber-950/30 dark:to-amber-900/20"
+                    :class="
+                        cardFilter === 'tech_pending'
+                            ? 'border-amber-500 ring-2 ring-amber-400/50'
+                            : 'border-border/50 hover:border-amber-400/60'
+                    "
+                    @click="
+                        cardFilter =
+                            cardFilter === 'tech_pending'
+                                ? null
+                                : 'tech_pending'
+                    "
                 >
                     <div
                         class="rounded-full bg-amber-500/10 p-1.5 ring-1 ring-amber-500/20"
@@ -248,7 +286,18 @@
                 </div>
                 <!-- Production Pending -->
                 <div
-                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-violet-50 to-violet-100/50 px-3 py-2 shadow dark:from-violet-950/30 dark:to-violet-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border bg-gradient-to-br from-violet-50 to-violet-100/50 px-3 py-2 shadow transition-all dark:from-violet-950/30 dark:to-violet-900/20"
+                    :class="
+                        cardFilter === 'prod_pending'
+                            ? 'border-violet-500 ring-2 ring-violet-400/50'
+                            : 'border-border/50 hover:border-violet-400/60'
+                    "
+                    @click="
+                        cardFilter =
+                            cardFilter === 'prod_pending'
+                                ? null
+                                : 'prod_pending'
+                    "
                 >
                     <div
                         class="rounded-full bg-violet-500/10 p-1.5 ring-1 ring-violet-500/20"
@@ -277,7 +326,16 @@
                 </div>
                 <!-- Completed -->
                 <div
-                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 px-3 py-2 shadow dark:from-emerald-950/30 dark:to-emerald-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border bg-gradient-to-br from-emerald-50 to-emerald-100/50 px-3 py-2 shadow transition-all dark:from-emerald-950/30 dark:to-emerald-900/20"
+                    :class="
+                        cardFilter === 'completed'
+                            ? 'border-emerald-500 ring-2 ring-emerald-400/50'
+                            : 'border-border/50 hover:border-emerald-400/60'
+                    "
+                    @click="
+                        cardFilter =
+                            cardFilter === 'completed' ? null : 'completed'
+                    "
                 >
                     <div
                         class="rounded-full bg-emerald-500/10 p-1.5 ring-1 ring-emerald-500/20"
@@ -306,7 +364,16 @@
                 </div>
                 <!-- Prev Days -->
                 <div
-                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-rose-50 to-rose-100/50 px-3 py-2 shadow dark:from-rose-950/30 dark:to-rose-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border bg-gradient-to-br from-rose-50 to-rose-100/50 px-3 py-2 shadow transition-all dark:from-rose-950/30 dark:to-rose-900/20"
+                    :class="
+                        cardFilter === 'prev_day'
+                            ? 'border-rose-500 ring-2 ring-rose-400/50'
+                            : 'border-border/50 hover:border-rose-400/60'
+                    "
+                    @click="
+                        cardFilter =
+                            cardFilter === 'prev_day' ? null : 'prev_day'
+                    "
                 >
                     <div
                         class="rounded-full bg-rose-500/10 p-1.5 ring-1 ring-rose-500/20"
@@ -319,7 +386,7 @@
                         <p
                             class="text-[9px] font-semibold tracking-widest text-rose-700 uppercase dark:text-rose-300"
                         >
-                            Prev Days
+                            Prev Days Pending
                         </p>
                         <p
                             class="text-lg leading-none font-bold text-rose-900 dark:text-rose-100"
@@ -558,14 +625,19 @@
                                 <td class="px-2 py-2">
                                     <span
                                         class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
-                                        :class="statusBadgeClass(rec)"
+                                        :class="
+                                            outputStatusBadgeClass(
+                                                rec.output_status,
+                                            )
+                                        "
                                     >
-                                        {{ statusLabel(rec) }}
+                                        {{ rec.output_status || 'Pending' }}
                                     </span>
                                 </td>
                                 <td
-                                    class="truncate px-2 py-2 text-xs text-foreground"
+                                    class="truncate px-2 py-2 text-xs font-medium"
                                     :title="rec.remarks ?? ''"
+                                    :class="remarkClass(rec.remarks)"
                                 >
                                     {{ rec.remarks || '—' }}
                                 </td>
@@ -574,8 +646,26 @@
                                         class="flex items-center justify-center"
                                     >
                                         <button
-                                            class="h-7 rounded border border-primary/30 bg-primary/10 px-3 text-[10px] font-semibold text-primary hover:bg-primary/20"
-                                            @click="openUpdateStatus(rec)"
+                                            class="h-7 rounded border px-3 text-[10px] font-semibold transition-colors"
+                                            :class="
+                                                rec.output_status ===
+                                                    'Completed' ||
+                                                rec.output_status === 'Rework'
+                                                    ? 'cursor-not-allowed border-border/30 bg-muted/30 text-muted-foreground/40'
+                                                    : 'border-primary/30 bg-primary/10 text-primary hover:bg-primary/20'
+                                            "
+                                            :disabled="
+                                                rec.output_status ===
+                                                    'Completed' ||
+                                                rec.output_status === 'Rework'
+                                            "
+                                            @click="
+                                                rec.output_status !==
+                                                    'Completed' &&
+                                                rec.output_status !==
+                                                    'Rework' &&
+                                                openUpdateStatus(rec)
+                                            "
                                         >
                                             <ArrowRightLeft
                                                 class="mr-1 inline h-3 w-3"
@@ -629,6 +719,7 @@ import {
     RefreshCw,
     Search,
     Timer,
+    Zap,
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
@@ -640,14 +731,18 @@ interface QcOkRecord {
     lipas_yn: string | null;
     qc_result: string | null;
     qc_defect: string | null;
+    defect_class: string | null;
     work_type: string | null;
     final_decision: string | null;
+    output_status: string | null;
     remarks: string | null;
     updated_by: string | null;
     created_at: string | null;
     updated_at: string | null;
     qc_ana_start: string | null;
+    qc_ana_result: string | null;
     vi_techl_start: string | null;
+    vi_techl_result: string | null;
 }
 
 const filterDate = ref(
@@ -692,6 +787,7 @@ const records = ref<QcOkRecord[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const tableSearch = ref('');
+const cardFilter = ref<string | null>(null);
 const showExportPicker = ref(false);
 const showUpdateModal = ref(false);
 const updateRecord = ref<QcOkRecord | null>(null);
@@ -702,6 +798,8 @@ const exportDateFrom = ref(today);
 const exportDateTo = ref(today);
 
 interface QcOkMeta {
+    total_count: number;
+    total_qty: number;
     qc_pending_count: number;
     qc_pending_qty: number;
     tech_pending_count: number;
@@ -714,6 +812,8 @@ interface QcOkMeta {
     prev_day_qty: number;
 }
 const meta = ref<QcOkMeta>({
+    total_count: 0,
+    total_qty: 0,
     qc_pending_count: 0,
     qc_pending_qty: 0,
     tech_pending_count: 0,
@@ -755,33 +855,57 @@ async function fetchRecords() {
 }
 
 function statusLabel(rec: QcOkRecord): string {
-    const d = rec.final_decision;
-    if (d === 'Pending') {
-        if (rec.vi_techl_start) return 'VI Technical';
-        if (rec.qc_ana_start) return 'QC Analysis';
-        return 'Pending';
-    }
-    if (d === 'Technical') return 'VI Technical';
-    if (d === 'Recovery') return 'Rework';
-    if (d === 'Rework') return 'Rework';
-    if (d === 'For Verify') return 'Pending';
-    // QC OK, Proceed, null, or anything else → Pending (not yet actioned)
+    if (rec.output_status === 'Completed') return 'Completed';
+    if (rec.final_decision === 'For Verify') return 'For Production';
+    if (rec.qc_ana_result === 'Proceed') return 'For Production';
+    if (rec.vi_techl_result === 'Proceed') return 'For Production';
+    // Fresh QC OK lot — no routing applied yet
+    if (
+        rec.qc_result === 'OK' &&
+        !rec.qc_ana_result &&
+        !rec.vi_techl_result &&
+        rec.defect_class !== 'QC Analysis' &&
+        rec.defect_class !== "Tech'l Verification"
+    )
+        return 'For Production';
+    if (rec.defect_class === "Tech'l Verification" && !rec.vi_techl_result)
+        return 'VI Technical';
+    if (rec.defect_class === 'QC Analysis' && !rec.qc_ana_result)
+        return 'QC Analysis';
+    if (rec.final_decision === 'Recovery') return 'Rework';
     return 'Pending';
+}
+
+function remarkClass(remarks: string | null): string {
+    const r = (remarks ?? '').toLowerCase();
+    if (r.includes('ok') || r.includes('proceed'))
+        return 'text-emerald-600 dark:text-emerald-400';
+    if (r.includes('ng') || r.includes('rework'))
+        return 'text-red-600 dark:text-red-400';
+    return 'text-foreground';
+}
+
+function outputStatusBadgeClass(status: string | null): string {
+    if (status === 'Completed')
+        return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400';
+    if (status === 'Rework')
+        return 'bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-950/30 dark:text-rose-400';
+    return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-400';
 }
 
 function statusBadgeClass(rec: QcOkRecord): string {
     const label = statusLabel(rec);
-    if (label === 'QC OK')
+    if (label === 'Completed')
         return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400';
     if (label === 'QC Analysis')
         return 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950/30 dark:text-blue-400';
     if (label === 'VI Technical')
         return 'bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-950/30 dark:text-violet-400';
+    if (label === 'For Production')
+        return 'bg-orange-50 text-orange-700 ring-orange-600/20 dark:bg-orange-950/30 dark:text-orange-400';
     if (label === 'Rework')
         return 'bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-950/30 dark:text-rose-400';
-    if (label === 'Pending')
-        return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-400';
-    return 'bg-slate-50 text-slate-600 ring-slate-600/20';
+    return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-400';
 }
 
 function qcResultBadgeClass(result: string | null): string {
@@ -805,6 +929,32 @@ function openUpdateStatus(rec: QcOkRecord) {
 function openAddModal() {
     updateRecord.value = null;
     showUpdateModal.value = true;
+}
+
+const autoUpdating = ref(false);
+
+async function onAutoUpdate() {
+    // Only process pending lots from the current filtered view
+    const pendingIds = filteredRecords.value
+        .filter(
+            (r) =>
+                r.output_status !== 'Completed' && r.output_status !== 'Rework',
+        )
+        .map((r) => r.id);
+
+    if (!pendingIds.length) return;
+
+    autoUpdating.value = true;
+    try {
+        await axios.post('/api/endline-delay/auto-update-qc-ok', {
+            ids: pendingIds,
+        });
+        await fetchRecords();
+    } catch (e: unknown) {
+        error.value = e instanceof Error ? e.message : 'Auto update failed';
+    } finally {
+        autoUpdating.value = false;
+    }
 }
 
 function onKeydown(e: KeyboardEvent) {
@@ -831,7 +981,7 @@ const { toggleSort, sortIcon, applySort } = useTableSort<QcOkRecord>();
 
 const filteredRecords = computed(() => {
     const q = tableSearch.value.trim().toLowerCase();
-    const base = q
+    let base = q
         ? records.value.filter(
               (r) =>
                   r.lot_id?.toLowerCase().includes(q) ||
@@ -839,15 +989,62 @@ const filteredRecords = computed(() => {
                   r.qc_defect?.toLowerCase().includes(q),
           )
         : records.value;
+
+    if (cardFilter.value === 'qc_pending') {
+        base = base.filter(
+            (r) =>
+                r.defect_class === 'QC Analysis' &&
+                !r.qc_ana_result &&
+                r.qc_result === 'OK',
+        );
+    } else if (cardFilter.value === 'tech_pending') {
+        base = base.filter(
+            (r) =>
+                r.defect_class === "Tech'l Verification" &&
+                r.vi_techl_start &&
+                !r.vi_techl_result,
+        );
+    } else if (cardFilter.value === 'prod_pending') {
+        base = base.filter(
+            (r) =>
+                r.output_status !== 'Completed' &&
+                r.output_status !== 'Rework' &&
+                ((r.qc_result === 'OK' &&
+                    !r.qc_ana_result &&
+                    !r.vi_techl_result &&
+                    r.defect_class !== 'QC Analysis' &&
+                    r.defect_class !== "Tech'l Verification") ||
+                    r.final_decision === 'For Verify' ||
+                    r.qc_ana_result === 'Proceed' ||
+                    r.vi_techl_result === 'Proceed'),
+        );
+    } else if (cardFilter.value === 'completed') {
+        base = base.filter(
+            (r) =>
+                r.output_status === 'Completed' || r.output_status === 'Rework',
+        );
+    } else if (cardFilter.value === 'prev_day') {
+        const today = new Date().toLocaleDateString('en-CA', {
+            timeZone: 'Asia/Manila',
+        });
+        base = base.filter(
+            (r) =>
+                !r.qc_ana_result &&
+                !r.vi_techl_result &&
+                r.created_at &&
+                new Date(r.created_at).toLocaleDateString('en-CA', {
+                    timeZone: 'Asia/Manila',
+                }) < today,
+        );
+    }
+
     const now = Date.now();
     return applySort(base, (r: QcOkRecord) =>
         r.created_at ? now - new Date(r.created_at).getTime() : 0,
     );
 });
 
-const totalQtyFmt = computed(() =>
-    formatQty(records.value.reduce((s, r) => s + (r.lot_qty ?? 0), 0)),
-);
+const totalQtyFmt = computed(() => formatQty(meta.value.total_qty));
 const lipasYCount = computed(
     () => records.value.filter((r) => r.lipas_yn === 'Y').length,
 );

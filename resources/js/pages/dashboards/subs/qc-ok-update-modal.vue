@@ -202,6 +202,7 @@
                             <option value="For Verify (Production)">
                                 For Verify (Production)
                             </option>
+                            <option value="Completed">Completed</option>
                         </optgroup>
                     </select>
                     <p v-if="showError" class="mt-1.5 text-xs text-destructive">
@@ -338,6 +339,8 @@ const routingHint = computed(() => {
         return 'No routing — final decision set to Recovery';
     if (selectedStatus.value === 'For Verify (Production)')
         return 'No routing — final decision set to For Verify';
+    if (selectedStatus.value === 'Completed')
+        return 'Marks lot as Completed — output released';
     return '';
 });
 
@@ -346,6 +349,8 @@ const routingHintClass = computed(() => {
         return 'bg-blue-50 text-blue-700 dark:bg-blue-950/30 dark:text-blue-300';
     if (TO_VI.includes(selectedStatus.value))
         return 'bg-violet-50 text-violet-700 dark:bg-violet-950/30 dark:text-violet-300';
+    if (selectedStatus.value === 'Completed')
+        return 'bg-emerald-50 text-emerald-700 dark:bg-emerald-950/30 dark:text-emerald-300';
     return 'bg-amber-50 text-amber-700 dark:bg-amber-950/30 dark:text-amber-300';
 });
 
