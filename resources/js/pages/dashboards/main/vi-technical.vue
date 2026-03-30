@@ -700,8 +700,18 @@
                                 >
                                     {{ formatDateTime(rec.created_at) }}
                                 </td>
-                                <td class="px-2 py-2 text-xs text-foreground">
-                                    {{ rec.qc_result || '—' }}
+                                <td class="px-2 py-2">
+                                    <span
+                                        v-if="rec.qc_result"
+                                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
+                                        :class="
+                                            qcResultBadgeClass(rec.qc_result)
+                                        "
+                                        >{{ rec.qc_result }}</span
+                                    >
+                                    <span v-else class="text-muted-foreground"
+                                        >—</span
+                                    >
                                 </td>
                                 <td
                                     class="truncate px-2 py-2 text-xs text-foreground"
@@ -833,6 +843,12 @@
             @update:open="showModal = $event"
             @submitted="fetchRecords"
         />
+        <QcOkUpdateModal
+            :open="showQcOkUpdateModal"
+            :lot="qcOkUpdateLot as any"
+            @update:open="showQcOkUpdateModal = $event"
+            @saved="fetchRecords"
+        />
     </AppLayout>
 </template>
 
@@ -849,6 +865,7 @@ import {
 import { useTableSort } from '@/composables/useTableSort';
 import AppLayout from '@/layouts/AppLayout.vue';
 import MonitorResultModal from '@/pages/dashboards/subs/monitor-result-modal.vue';
+import QcOkUpdateModal from '@/pages/dashboards/subs/qc-ok-update-modal.vue';
 import {
     AlertCircle,
     CheckCircle2,
@@ -945,6 +962,8 @@ const {
 const selectedId = ref<number | null>(null);
 const showModal = ref(false);
 const modalLot = ref<MonitorRecord | null>(null);
+const showQcOkUpdateModal = ref(false);
+const qcOkUpdateLot = ref<MonitorRecord | null>(null);
 
 function rowClass(rec: MonitorRecord) {
     if (rec.vi_techl_result)
@@ -978,9 +997,27 @@ function formatDateTime(dt: string | null) {
     });
 }
 
+function qcResultBadgeClass(result: string): string {
+    const r = result.toUpperCase();
+    if (r === 'OK')
+        return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400';
+    if (r.includes('MAIN'))
+        return 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950/30 dark:text-blue-400';
+    if (r.includes('RR'))
+        return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-400';
+    if (r.includes('LY'))
+        return 'bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-950/30 dark:text-violet-400';
+    return 'bg-slate-50 text-slate-600 ring-slate-600/20 dark:bg-slate-800/30 dark:text-slate-400';
+}
+
 function openModal(rec: MonitorRecord) {
     modalLot.value = rec;
     showModal.value = true;
+}
+
+function openQcOkUpdate(rec: MonitorRecord) {
+    qcOkUpdateLot.value = rec;
+    showQcOkUpdateModal.value = true;
 }
 
 const showExportPicker = ref(false);

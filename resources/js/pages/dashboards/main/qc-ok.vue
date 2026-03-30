@@ -134,16 +134,28 @@
                         Lots with QC OK result
                     </p>
                 </div>
-                <div class="relative">
-                    <input
-                        v-model="tableSearch"
-                        type="text"
-                        placeholder="Search lot, model..."
-                        class="h-8 w-56 rounded-lg border border-border bg-background pr-3 pl-8 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
-                    />
-                    <Search
-                        class="absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
-                    />
+                <div class="flex items-center gap-2">
+                    <div class="relative">
+                        <input
+                            v-model="tableSearch"
+                            type="text"
+                            placeholder="Search lot, model..."
+                            class="h-8 w-56 rounded-lg border border-border bg-background pr-3 pl-8 text-xs text-foreground placeholder:text-muted-foreground focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                        />
+                        <Search
+                            class="absolute top-1/2 left-2.5 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground"
+                        />
+                    </div>
+                    <button
+                        class="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
+                        @click="openAddModal"
+                    >
+                        <ArrowRightLeft class="h-3.5 w-3.5" /> Update Status
+                        <span
+                            class="ml-2 rounded bg-white/20 px-1.5 py-0.5 font-mono text-xs"
+                            >F2</span
+                        >
+                    </button>
                 </div>
             </div>
 
@@ -345,15 +357,17 @@
                         <colgroup>
                             <col class="w-[40px]" />
                             <col class="w-[110px]" />
-                            <col class="w-[150px]" />
-                            <col class="w-[90px]" />
-                            <col class="w-[60px]" />
-                            <col class="w-[100px]" />
+                            <col class="w-[160px]" />
+                            <col class="w-[80px]" />
+                            <col class="w-[55px]" />
+                            <col class="w-[110px]" />
                             <col class="w-[130px]" />
+                            <col class="w-[80px]" />
+                            <col class="w-[120px]" />
                             <col class="w-[90px]" />
                             <col class="w-[90px]" />
-                            <col class="w-[110px]" />
-                            <col class="w-[110px]" />
+                            <col class="w-[140px]" />
+                            <col class="w-[90px]" />
                         </colgroup>
                         <thead class="sticky top-0 z-10">
                             <tr
@@ -415,15 +429,6 @@
                                     }}</span>
                                 </th>
                                 <th
-                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
-                                    @click="toggleSort('remarks')"
-                                >
-                                    Remarks
-                                    <span class="opacity-60">{{
-                                        sortIcon('remarks')
-                                    }}</span>
-                                </th>
-                                <th
                                     class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
                                 >
                                     Elapsed
@@ -445,7 +450,16 @@
                                 <th
                                     class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
                                 >
-                                    Status
+                                    Output Status
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('remarks')"
+                                >
+                                    Remarks
+                                    <span class="opacity-60">{{
+                                        sortIcon('remarks')
+                                    }}</span>
                                 </th>
                                 <th
                                     class="px-2 py-2.5 text-center text-[10px] font-bold tracking-widest text-slate-100 uppercase"
@@ -508,12 +522,6 @@
                                     {{ formatDateTime(rec.created_at) }}
                                 </td>
                                 <td
-                                    class="truncate px-2 py-2 text-xs text-foreground"
-                                    :title="rec.remarks ?? ''"
-                                >
-                                    {{ rec.remarks || '—' }}
-                                </td>
-                                <td
                                     class="px-2 py-2 text-xs whitespace-nowrap text-amber-600 dark:text-amber-400"
                                 >
                                     {{
@@ -538,10 +546,13 @@
                                 </td>
                                 <td class="px-2 py-2">
                                     <span
-                                        class="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600"
+                                        class="inline-flex items-center gap-1 rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
+                                        :class="
+                                            qcResultBadgeClass(rec.qc_result)
+                                        "
                                     >
                                         <CheckCircle2 class="h-3 w-3" />
-                                        {{ rec.qc_result || 'QC OK' }}
+                                        {{ rec.qc_result || 'OK' }}
                                     </span>
                                 </td>
                                 <td class="px-2 py-2">
@@ -552,17 +563,23 @@
                                         {{ statusLabel(rec) }}
                                     </span>
                                 </td>
+                                <td
+                                    class="truncate px-2 py-2 text-xs text-foreground"
+                                    :title="rec.remarks ?? ''"
+                                >
+                                    {{ rec.remarks || '—' }}
+                                </td>
                                 <td class="px-2 py-2">
                                     <div
                                         class="flex items-center justify-center"
                                     >
                                         <button
                                             class="h-7 rounded border border-primary/30 bg-primary/10 px-3 text-[10px] font-semibold text-primary hover:bg-primary/20"
-                                            @click="openEdit(rec)"
+                                            @click="openUpdateStatus(rec)"
                                         >
-                                            <Pencil
+                                            <ArrowRightLeft
                                                 class="mr-1 inline h-3 w-3"
-                                            />Edit
+                                            />Update Status
                                         </button>
                                     </div>
                                 </td>
@@ -585,10 +602,10 @@
                 </div>
             </div>
         </div>
-        <EndlineDelayEntryModal
-            :open="showEditModal"
-            :edit-record="editRecord"
-            @update:open="showEditModal = $event"
+        <QcOkUpdateModal
+            :open="showUpdateModal"
+            :lot="updateRecord"
+            @update:open="showUpdateModal = $event"
             @saved="fetchRecords"
         />
     </AppLayout>
@@ -600,19 +617,20 @@ import { useAutoRefresh } from '@/composables/useAutoRefresh';
 import { formatDuration } from '@/composables/useMonitorPage';
 import { useTableSort } from '@/composables/useTableSort';
 import AppLayout from '@/layouts/AppLayout.vue';
+import QcOkUpdateModal from '@/pages/dashboards/subs/qc-ok-update-modal.vue';
 import axios from 'axios';
 import {
     AlertCircle,
+    ArrowRightLeft,
     CheckCircle2,
     Clock,
     Loader2,
     Package,
-    Pencil,
     RefreshCw,
     Search,
     Timer,
 } from 'lucide-vue-next';
-import { computed, onMounted, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
 
 interface QcOkRecord {
     id: number;
@@ -628,6 +646,8 @@ interface QcOkRecord {
     updated_by: string | null;
     created_at: string | null;
     updated_at: string | null;
+    qc_ana_start: string | null;
+    vi_techl_start: string | null;
 }
 
 const filterDate = ref(
@@ -673,8 +693,8 @@ const loading = ref(false);
 const error = ref<string | null>(null);
 const tableSearch = ref('');
 const showExportPicker = ref(false);
-const showEditModal = ref(false);
-const editRecord = ref<any>(null);
+const showUpdateModal = ref(false);
+const updateRecord = ref<QcOkRecord | null>(null);
 const today = new Date().toLocaleDateString('en-CA', {
     timeZone: 'Asia/Manila',
 });
@@ -735,28 +755,62 @@ async function fetchRecords() {
 }
 
 function statusLabel(rec: QcOkRecord): string {
-    if (rec.final_decision === 'Proceed' || rec.final_decision === 'QC OK')
-        return 'Completed';
-    if (rec.final_decision === 'Technical') return 'Technical';
-    if (rec.final_decision === 'In Progress') return 'In Progress';
+    const d = rec.final_decision;
+    if (d === 'Pending') {
+        if (rec.vi_techl_start) return 'VI Technical';
+        if (rec.qc_ana_start) return 'QC Analysis';
+        return 'Pending';
+    }
+    if (d === 'Technical') return 'VI Technical';
+    if (d === 'Recovery') return 'Rework';
+    if (d === 'Rework') return 'Rework';
+    if (d === 'For Verify') return 'Pending';
+    // QC OK, Proceed, null, or anything else → Pending (not yet actioned)
     return 'Pending';
 }
 
 function statusBadgeClass(rec: QcOkRecord): string {
-    const d = rec.final_decision;
-    if (d === 'Proceed' || d === 'QC OK')
+    const label = statusLabel(rec);
+    if (label === 'QC OK')
         return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400';
-    if (d === 'Technical')
-        return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-400';
-    if (d === 'In Progress')
+    if (label === 'QC Analysis')
         return 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950/30 dark:text-blue-400';
-    return 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950/30 dark:text-red-400';
+    if (label === 'VI Technical')
+        return 'bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-950/30 dark:text-violet-400';
+    if (label === 'Rework')
+        return 'bg-rose-50 text-rose-700 ring-rose-600/20 dark:bg-rose-950/30 dark:text-rose-400';
+    if (label === 'Pending')
+        return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-400';
+    return 'bg-slate-50 text-slate-600 ring-slate-600/20';
 }
 
-function openEdit(rec: QcOkRecord) {
-    // Opens the endline delay entry modal for editing this record
-    editRecord.value = rec as any;
-    showEditModal.value = true;
+function qcResultBadgeClass(result: string | null): string {
+    const r = (result ?? '').toUpperCase();
+    if (r === 'OK')
+        return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400';
+    if (r.includes('MAIN'))
+        return 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950/30 dark:text-blue-400';
+    if (r.includes('RR') || r.includes('REWORK'))
+        return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-400';
+    if (r.includes('LY'))
+        return 'bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-950/30 dark:text-violet-400';
+    return 'bg-slate-50 text-slate-600 ring-slate-600/20 dark:bg-slate-800/30 dark:text-slate-400';
+}
+
+function openUpdateStatus(rec: QcOkRecord) {
+    updateRecord.value = rec;
+    showUpdateModal.value = true;
+}
+
+function openAddModal() {
+    updateRecord.value = null;
+    showUpdateModal.value = true;
+}
+
+function onKeydown(e: KeyboardEvent) {
+    if (e.key !== 'F2') return;
+    e.preventDefault();
+    openAddModal();
 }
 
 function triggerExport() {
@@ -862,5 +916,11 @@ watch(
     [filterDate, filterShift, filterCutoff, filterWorktype, filterLipas],
     () => fetchRecords(),
 );
-onMounted(() => fetchRecords());
+onMounted(() => {
+    fetchRecords();
+    document.addEventListener('keydown', onKeydown);
+});
+onBeforeUnmount(() => {
+    document.removeEventListener('keydown', onKeydown);
+});
 </script>
