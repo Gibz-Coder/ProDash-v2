@@ -1,6 +1,16 @@
 VICIS ProDash V2 — Update Log
 ==============================
 
+[2026-03-31] Modified files
+----------------------------------------------------------
+2026_03_31_000001_add_created_by_to_endline_delay_table.php
+php artisan migrate --path=database/migrations/2026_03_31_000001_add_created_by_to_endline_delay_table.php
+
+2026_03_31_000002_add_lot_completed_at_to_endline_delay_table.php
+php artisan migrate --path=database/migrations/2026_03_31_000002_add_lot_completed_at_to_endline_delay_table.php
+
+
+
 [2026-03-30] Modified files
 ----------------------------------------------------------
 With Changes

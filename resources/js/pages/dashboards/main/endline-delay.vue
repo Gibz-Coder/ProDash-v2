@@ -201,9 +201,9 @@
                 class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
             >
                 <div>
-                    <h1 class="text-2xl font-bold">Endline Delay Records</h1>
+                    <h1 class="text-2xl font-bold">QC Entry</h1>
                     <p class="text-muted-foreground">
-                        QC analysis and technical verification delay entries
+                        QC inspected lots entry and monitoring
                     </p>
                 </div>
                 <div class="flex items-center gap-3">
@@ -274,6 +274,7 @@
             </div>
 
             <div class="grid grid-cols-6 gap-3">
+                <!-- Total -->
                 <div
                     class="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-blue-50 to-blue-100/50 p-4 shadow-lg dark:from-blue-950/30 dark:to-blue-900/20"
                 >
@@ -303,7 +304,57 @@
                             />
                         </div>
                     </div>
+                    <div
+                        class="mt-2 flex gap-2 border-t border-blue-200/50 pt-2 dark:border-blue-800/30"
+                    >
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-amber-600 uppercase"
+                            >
+                                Pending
+                            </p>
+                            <p class="text-xs font-bold text-amber-700">
+                                {{ formatQty(totalBreakdown.pendingQty) }}
+                            </p>
+                            <p class="text-[9px] text-amber-600/70">
+                                {{ totalBreakdown.pendingCount }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="w-px bg-blue-200/50 dark:bg-blue-800/30"
+                        ></div>
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-orange-600 uppercase"
+                            >
+                                In Prog
+                            </p>
+                            <p class="text-xs font-bold text-orange-700">
+                                {{ formatQty(totalBreakdown.inProgressQty) }}
+                            </p>
+                            <p class="text-[9px] text-orange-600/70">
+                                {{ totalBreakdown.inProgressCount }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="w-px bg-blue-200/50 dark:bg-blue-800/30"
+                        ></div>
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-emerald-600 uppercase"
+                            >
+                                Done
+                            </p>
+                            <p class="text-xs font-bold text-emerald-700">
+                                {{ formatQty(totalBreakdown.doneQty) }}
+                            </p>
+                            <p class="text-[9px] text-emerald-600/70">
+                                {{ totalBreakdown.doneCount }} lots
+                            </p>
+                        </div>
+                    </div>
                 </div>
+                <!-- QC Analysis -->
                 <div
                     class="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-4 shadow-lg dark:from-emerald-950/30 dark:to-emerald-900/20"
                 >
@@ -337,7 +388,59 @@
                             />
                         </div>
                     </div>
+                    <div
+                        class="mt-2 flex gap-2 border-t border-emerald-200/50 pt-2 dark:border-emerald-800/30"
+                    >
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-amber-600 uppercase"
+                            >
+                                Pending
+                            </p>
+                            <p class="text-xs font-bold text-amber-700">
+                                {{ formatQty(qcAnalysisBreakdown.pendingQty) }}
+                            </p>
+                            <p class="text-[9px] text-amber-600/70">
+                                {{ qcAnalysisBreakdown.pendingCount }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="w-px bg-emerald-200/50 dark:bg-emerald-800/30"
+                        ></div>
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-orange-600 uppercase"
+                            >
+                                In Prog
+                            </p>
+                            <p class="text-xs font-bold text-orange-700">
+                                {{
+                                    formatQty(qcAnalysisBreakdown.inProgressQty)
+                                }}
+                            </p>
+                            <p class="text-[9px] text-orange-600/70">
+                                {{ qcAnalysisBreakdown.inProgressCount }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="w-px bg-emerald-200/50 dark:bg-emerald-800/30"
+                        ></div>
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-emerald-600 uppercase"
+                            >
+                                Done
+                            </p>
+                            <p class="text-xs font-bold text-emerald-700">
+                                {{ formatQty(qcAnalysisBreakdown.doneQty) }}
+                            </p>
+                            <p class="text-[9px] text-emerald-600/70">
+                                {{ qcAnalysisBreakdown.doneCount }} lots
+                            </p>
+                        </div>
+                    </div>
                 </div>
+                <!-- Tech'l Verification -->
                 <div
                     class="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-amber-50 to-amber-100/50 p-4 shadow-lg dark:from-amber-950/30 dark:to-amber-900/20"
                 >
@@ -374,7 +477,59 @@
                             />
                         </div>
                     </div>
+                    <div
+                        class="mt-2 flex gap-2 border-t border-amber-200/50 pt-2 dark:border-amber-800/30"
+                    >
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-amber-600 uppercase"
+                            >
+                                Pending
+                            </p>
+                            <p class="text-xs font-bold text-amber-700">
+                                {{ formatQty(techVerifBreakdown.pendingQty) }}
+                            </p>
+                            <p class="text-[9px] text-amber-600/70">
+                                {{ techVerifBreakdown.pendingCount }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="w-px bg-amber-200/50 dark:bg-amber-800/30"
+                        ></div>
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-orange-600 uppercase"
+                            >
+                                In Prog
+                            </p>
+                            <p class="text-xs font-bold text-orange-700">
+                                {{
+                                    formatQty(techVerifBreakdown.inProgressQty)
+                                }}
+                            </p>
+                            <p class="text-[9px] text-orange-600/70">
+                                {{ techVerifBreakdown.inProgressCount }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="w-px bg-amber-200/50 dark:bg-amber-800/30"
+                        ></div>
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-emerald-600 uppercase"
+                            >
+                                Done
+                            </p>
+                            <p class="text-xs font-bold text-emerald-700">
+                                {{ formatQty(techVerifBreakdown.doneQty) }}
+                            </p>
+                            <p class="text-[9px] text-emerald-600/70">
+                                {{ techVerifBreakdown.doneCount }} lots
+                            </p>
+                        </div>
+                    </div>
                 </div>
+                <!-- Mainlot -->
                 <div
                     class="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-violet-50 to-violet-100/50 p-4 shadow-lg dark:from-violet-950/30 dark:to-violet-900/20"
                 >
@@ -404,7 +559,57 @@
                             />
                         </div>
                     </div>
+                    <div
+                        class="mt-2 flex gap-2 border-t border-violet-200/50 pt-2 dark:border-violet-800/30"
+                    >
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-amber-600 uppercase"
+                            >
+                                Pending
+                            </p>
+                            <p class="text-xs font-bold text-amber-700">
+                                {{ formatQty(mainlotBreakdown.pendingQty) }}
+                            </p>
+                            <p class="text-[9px] text-amber-600/70">
+                                {{ mainlotBreakdown.pendingCount }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="w-px bg-violet-200/50 dark:bg-violet-800/30"
+                        ></div>
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-orange-600 uppercase"
+                            >
+                                In Prog
+                            </p>
+                            <p class="text-xs font-bold text-orange-700">
+                                {{ formatQty(mainlotBreakdown.inProgressQty) }}
+                            </p>
+                            <p class="text-[9px] text-orange-600/70">
+                                {{ mainlotBreakdown.inProgressCount }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="w-px bg-violet-200/50 dark:bg-violet-800/30"
+                        ></div>
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-emerald-600 uppercase"
+                            >
+                                Done
+                            </p>
+                            <p class="text-xs font-bold text-emerald-700">
+                                {{ formatQty(mainlotBreakdown.doneQty) }}
+                            </p>
+                            <p class="text-[9px] text-emerald-600/70">
+                                {{ mainlotBreakdown.doneCount }} lots
+                            </p>
+                        </div>
+                    </div>
                 </div>
+                <!-- R-Rework -->
                 <div
                     class="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-orange-50 to-orange-100/50 p-4 shadow-lg dark:from-orange-950/30 dark:to-orange-900/20"
                 >
@@ -434,7 +639,57 @@
                             />
                         </div>
                     </div>
+                    <div
+                        class="mt-2 flex gap-2 border-t border-orange-200/50 pt-2 dark:border-orange-800/30"
+                    >
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-amber-600 uppercase"
+                            >
+                                Pending
+                            </p>
+                            <p class="text-xs font-bold text-amber-700">
+                                {{ formatQty(rrBreakdown.pendingQty) }}
+                            </p>
+                            <p class="text-[9px] text-amber-600/70">
+                                {{ rrBreakdown.pendingCount }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="w-px bg-orange-200/50 dark:bg-orange-800/30"
+                        ></div>
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-orange-600 uppercase"
+                            >
+                                In Prog
+                            </p>
+                            <p class="text-xs font-bold text-orange-700">
+                                {{ formatQty(rrBreakdown.inProgressQty) }}
+                            </p>
+                            <p class="text-[9px] text-orange-600/70">
+                                {{ rrBreakdown.inProgressCount }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="w-px bg-orange-200/50 dark:bg-orange-800/30"
+                        ></div>
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-emerald-600 uppercase"
+                            >
+                                Done
+                            </p>
+                            <p class="text-xs font-bold text-emerald-700">
+                                {{ formatQty(rrBreakdown.doneQty) }}
+                            </p>
+                            <p class="text-[9px] text-emerald-600/70">
+                                {{ rrBreakdown.doneCount }} lots
+                            </p>
+                        </div>
+                    </div>
                 </div>
+                <!-- L-Rework -->
                 <div
                     class="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-pink-50 to-pink-100/50 p-4 shadow-lg dark:from-pink-950/30 dark:to-pink-900/20"
                 >
@@ -462,6 +717,55 @@
                             <Wrench
                                 class="h-5 w-5 text-pink-600 dark:text-pink-400"
                             />
+                        </div>
+                    </div>
+                    <div
+                        class="mt-2 flex gap-2 border-t border-pink-200/50 pt-2 dark:border-pink-800/30"
+                    >
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-amber-600 uppercase"
+                            >
+                                Pending
+                            </p>
+                            <p class="text-xs font-bold text-amber-700">
+                                {{ formatQty(lyBreakdown.pendingQty) }}
+                            </p>
+                            <p class="text-[9px] text-amber-600/70">
+                                {{ lyBreakdown.pendingCount }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="w-px bg-pink-200/50 dark:bg-pink-800/30"
+                        ></div>
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-orange-600 uppercase"
+                            >
+                                In Prog
+                            </p>
+                            <p class="text-xs font-bold text-orange-700">
+                                {{ formatQty(lyBreakdown.inProgressQty) }}
+                            </p>
+                            <p class="text-[9px] text-orange-600/70">
+                                {{ lyBreakdown.inProgressCount }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="w-px bg-pink-200/50 dark:bg-pink-800/30"
+                        ></div>
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-emerald-600 uppercase"
+                            >
+                                Done
+                            </p>
+                            <p class="text-xs font-bold text-emerald-700">
+                                {{ formatQty(lyBreakdown.doneQty) }}
+                            </p>
+                            <p class="text-[9px] text-emerald-600/70">
+                                {{ lyBreakdown.doneCount }} lots
+                            </p>
                         </div>
                     </div>
                 </div>
@@ -507,6 +811,8 @@
                             <col class="w-[90px]" />
                             <!-- Elapsed -->
                             <col class="w-[110px]" />
+                            <!-- Created By -->
+                            <col class="w-[100px]" />
                             <!-- Updated By -->
                             <col class="w-[110px]" />
                             <!-- Actions -->
@@ -574,6 +880,11 @@
                                     class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
                                 >
                                     Elapsed
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Created By
                                 </th>
                                 <th
                                     class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
@@ -699,6 +1010,12 @@
                                             ? getElapsedTime(rec) + ' min'
                                             : '—'
                                     }}
+                                </td>
+                                <td
+                                    class="truncate px-2 py-1.5 text-xs text-muted-foreground"
+                                    :title="rec.created_by ?? ''"
+                                >
+                                    {{ rec.created_by || '—' }}
                                 </td>
                                 <td
                                     class="truncate px-2 py-1.5 text-xs text-muted-foreground"
@@ -889,9 +1206,12 @@ interface EndlineRecord {
     vi_techl_completed_at: string | null;
     work_type: string | null;
     final_decision: string | null;
+    output_status: string | null;
+    lot_completed_at: string | null;
     remarks: string | null;
     inspection_times: number | null;
     updated_by: string | null;
+    created_by: string | null;
     created_at: string | null;
     updated_at: string | null;
 }
@@ -979,11 +1299,14 @@ function getDateTime(rec: EndlineRecord): string {
     });
 }
 
-// ElapsedTime: current time - updated_at in minutes
+// ElapsedTime: now - created_at for active lots; lot_completed_at - created_at for finalized
 function getElapsedTime(rec: EndlineRecord): number | null {
-    if (!rec.updated_at) return null;
-    const diff = Date.now() - new Date(rec.updated_at).getTime();
-    return Math.floor(diff / 60000);
+    if (!rec.created_at) return null;
+    const start = new Date(rec.created_at).getTime();
+    const end = rec.lot_completed_at
+        ? new Date(rec.lot_completed_at).getTime()
+        : Date.now();
+    return Math.floor((end - start) / 60000);
 }
 
 const countByDecision = (d: string) =>
@@ -1009,6 +1332,53 @@ const sumQtyByQcResult = (v: string | string[]) => {
         .reduce((s, r) => s + (r.lot_qty ?? 0), 0);
 };
 const totalQty = () => records.value.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
+
+// Output status breakdown helper
+function statusBreakdown(recs: EndlineRecord[]) {
+    const pending = recs.filter((r) => r.output_status === 'Pending');
+    const inProgress = recs.filter(
+        (r) =>
+            r.output_status !== 'Pending' &&
+            r.output_status !== 'Completed' &&
+            r.output_status !== 'Rework',
+    );
+    const done = recs.filter(
+        (r) => r.output_status === 'Completed' || r.output_status === 'Rework',
+    );
+    return {
+        pendingCount: pending.length,
+        pendingQty: pending.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+        inProgressCount: inProgress.length,
+        inProgressQty: inProgress.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+        doneCount: done.length,
+        doneQty: done.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+    };
+}
+
+const totalBreakdown = computed(() => statusBreakdown(records.value));
+const qcAnalysisBreakdown = computed(() =>
+    statusBreakdown(
+        records.value.filter((r) => r.defect_class === 'QC Analysis'),
+    ),
+);
+const techVerifBreakdown = computed(() =>
+    statusBreakdown(
+        records.value.filter((r) => r.defect_class === "Tech'l Verification"),
+    ),
+);
+const mainlotBreakdown = computed(() =>
+    statusBreakdown(records.value.filter((r) => r.qc_result === 'Main')),
+);
+const rrBreakdown = computed(() =>
+    statusBreakdown(records.value.filter((r) => r.qc_result === 'RR')),
+);
+const lyBreakdown = computed(() =>
+    statusBreakdown(
+        records.value.filter(
+            (r) => r.qc_result === 'LY' || r.qc_result === 'OK',
+        ),
+    ),
+);
 
 function qcNgBadgeClass(type: string) {
     if (type === 'Main')

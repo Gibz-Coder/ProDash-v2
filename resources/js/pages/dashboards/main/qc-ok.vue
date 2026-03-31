@@ -423,17 +423,18 @@
                     <table class="w-full min-w-[900px] table-fixed text-xs">
                         <colgroup>
                             <col class="w-[40px]" />
-                            <col class="w-[110px]" />
-                            <col class="w-[160px]" />
-                            <col class="w-[80px]" />
-                            <col class="w-[55px]" />
-                            <col class="w-[110px]" />
-                            <col class="w-[130px]" />
-                            <col class="w-[80px]" />
-                            <col class="w-[120px]" />
-                            <col class="w-[90px]" />
-                            <col class="w-[90px]" />
+                            <col class="w-[100px]" />
                             <col class="w-[140px]" />
+                            <col class="w-[75px]" />
+                            <col class="w-[50px]" />
+                            <col class="w-[100px]" />
+                            <col class="w-[120px]" />
+                            <col class="w-[70px]" />
+                            <col class="w-[100px]" />
+                            <col class="w-[100px]" />
+                            <col class="w-[80px]" />
+                            <col class="w-[85px]" />
+                            <col class="w-[130px]" />
                             <col class="w-[90px]" />
                         </colgroup>
                         <thead class="sticky top-0 z-10">
@@ -499,6 +500,11 @@
                                     class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
                                 >
                                     Elapsed
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Created By
                                 </th>
                                 <th
                                     class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
@@ -595,7 +601,11 @@
                                         rec.created_at
                                             ? formatDuration(
                                                   Math.floor(
-                                                      (Date.now() -
+                                                      ((rec.lot_completed_at
+                                                          ? new Date(
+                                                                rec.lot_completed_at,
+                                                            ).getTime()
+                                                          : Date.now()) -
                                                           new Date(
                                                               rec.created_at,
                                                           ).getTime()) /
@@ -604,6 +614,12 @@
                                               )
                                             : '—'
                                     }}
+                                </td>
+                                <td
+                                    class="truncate px-2 py-2 text-xs text-muted-foreground"
+                                    :title="rec.created_by ?? ''"
+                                >
+                                    {{ rec.created_by || '—' }}
                                 </td>
                                 <td
                                     class="truncate px-2 py-2 text-xs text-muted-foreground"
@@ -676,7 +692,7 @@
                             </tr>
                             <tr v-if="filteredRecords.length === 0">
                                 <td
-                                    colspan="13"
+                                    colspan="14"
                                     class="py-12 text-center text-muted-foreground"
                                 >
                                     <CheckCircle2
@@ -735,8 +751,10 @@ interface QcOkRecord {
     work_type: string | null;
     final_decision: string | null;
     output_status: string | null;
+    lot_completed_at: string | null;
     remarks: string | null;
     updated_by: string | null;
+    created_by: string | null;
     created_at: string | null;
     updated_at: string | null;
     qc_ana_start: string | null;

@@ -23,6 +23,7 @@ export interface MonitorRecord {
     final_decision: string | null;
     remarks: string | null;
     updated_by: string | null;
+    created_by: string | null;
     created_at: string | null;
     updated_at: string | null;
 }

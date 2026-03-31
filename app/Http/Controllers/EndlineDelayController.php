@@ -379,6 +379,7 @@ class EndlineDelayController extends Controller
                     'qc_ana_completed_at' => now(),
                     'final_decision'      => 'Rework',
                     'output_status'       => 'Rework',
+                    'lot_completed_at'    => now(),
                     'remarks'             => $baseRemarks . ' - NG',
                     'updated_by'          => $by,
                     'updated_at'          => now(),
@@ -618,6 +619,7 @@ class EndlineDelayController extends Controller
             'vi_techl_start' => $validated['defect_class'] === "Tech'l Verification" ? now() : null,
             'final_decision' => trim($validated['qc_result'] ?? '') === 'OK' ? 'QC OK' : 'Pending',
             'output_status'  => 'Pending',
+            'created_by'     => auth()->user()->emp_name ?? auth()->user()->name ?? 'system',
             'updated_by'     => auth()->user()->emp_name ?? auth()->user()->name ?? 'system',
             'created_at'     => now(),
             'updated_at'     => now(),
@@ -716,9 +718,10 @@ class EndlineDelayController extends Controller
             DB::table('endline_delay')
                 ->whereIn('id', $completedIds)
                 ->update([
-                    'output_status' => 'Completed',
-                    'updated_by'    => $by,
-                    'updated_at'    => now(),
+                    'output_status'    => 'Completed',
+                    'lot_completed_at' => now(),
+                    'updated_by'       => $by,
+                    'updated_at'       => now(),
                 ]);
         }
 
@@ -752,10 +755,11 @@ class EndlineDelayController extends Controller
         // Mark as Completed — sets output_status only
         if ($status === 'Completed') {
             DB::table('endline_delay')->where('id', $id)->update([
-                'output_status' => 'Completed',
-                'remarks'       => $remarks,
-                'updated_by'    => $by,
-                'updated_at'    => now(),
+                'output_status'    => 'Completed',
+                'lot_completed_at' => now(),
+                'remarks'          => $remarks,
+                'updated_by'       => $by,
+                'updated_at'       => now(),
             ]);
 
             return response()->json([
@@ -809,12 +813,13 @@ class EndlineDelayController extends Controller
             ]);
         } elseif ($status === 'Low Yield (Rework)') {
             DB::table('endline_delay')->where('id', $id)->update([
-                'qc_defect'      => $status,
-                'final_decision' => 'Recovery',
-                'output_status'  => 'Rework',
-                'remarks'        => $status,
-                'updated_by'     => $by,
-                'updated_at'     => now(),
+                'qc_defect'        => $status,
+                'final_decision'   => 'Recovery',
+                'output_status'    => 'Rework',
+                'lot_completed_at' => now(),
+                'remarks'          => $status,
+                'updated_by'       => $by,
+                'updated_at'       => now(),
             ]);
         } elseif ($status === 'For Verify (Production)') {
             DB::table('endline_delay')->where('id', $id)->update([

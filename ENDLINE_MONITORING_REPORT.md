@@ -348,8 +348,8 @@ Remarks color coding in QC OK table:
 
 | Permission                   | Admin | Manager | Moderator | QC Inspector | QC Part |
 | ---------------------------- | :---: | :-----: | :-------: | :----------: | :-----: |
-| View Endline Delay           |   ✓   |    ✓    |     ✓     |      ✓       |    —    |
-| Add / Edit Endline Entry     |   ✓   |    ✓    |     ✓     |      ✓       |    —    |
+| View Endline Delay           |   ✓   |    ✓    |     ✓     |      ✓       |    ✓    |
+| Add / Edit Endline Entry     |   ✓   |    ✓    |     ✓     |      ✓       |    ✓    |
 | Delete Endline Entry         |   ✓   |    ✓    |     ✓     |      —       |    —    |
 | View QC Analysis             |   ✓   |    ✓    |     ✓     |      ✓       |    ✓    |
 | Submit QC Analysis Decision  |   ✓   |    ✓    |     ✓     |      ✓       |    ✓    |

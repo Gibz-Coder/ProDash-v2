@@ -538,18 +538,19 @@
                     <table class="w-full min-w-[900px] table-fixed text-xs">
                         <colgroup>
                             <col class="w-[40px]" />
-                            <col class="w-[110px]" />
-                            <col class="w-[140px]" />
-                            <col class="w-[90px]" />
-                            <col class="w-[60px]" />
-                            <col class="w-[130px]" />
-                            <col class="w-[90px]" />
-                            <col class="w-[150px]" />
                             <col class="w-[100px]" />
-                            <col class="w-[90px]" />
-                            <col class="w-[110px]" />
-                            <col class="w-[110px]" />
                             <col class="w-[130px]" />
+                            <col class="w-[80px]" />
+                            <col class="w-[55px]" />
+                            <col class="w-[130px]" />
+                            <col class="w-[80px]" />
+                            <col class="w-[90px]" />
+                            <col class="w-[80px]" />
+                            <col class="w-[80px]" />
+                            <col class="w-[100px]" />
+                            <col class="w-[100px]" />
+                            <col class="w-[100px]" />
+                            <col class="w-[110px]" />
                         </colgroup>
                         <thead class="sticky top-0 z-10">
                             <tr
@@ -628,6 +629,11 @@
                                     class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
                                 >
                                     Elapsed
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Created By
                                 </th>
                                 <th
                                     class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
@@ -760,6 +766,12 @@
                                 </td>
                                 <td
                                     class="truncate px-2 py-2 text-xs text-muted-foreground"
+                                    :title="rec.created_by ?? ''"
+                                >
+                                    {{ rec.created_by || '—' }}
+                                </td>
+                                <td
+                                    class="truncate px-2 py-2 text-xs text-muted-foreground"
                                     :title="rec.updated_by ?? ''"
                                 >
                                     {{ rec.updated_by || '—' }}
@@ -818,7 +830,7 @@
                             </tr>
                             <tr v-if="filteredRecords.length === 0">
                                 <td
-                                    colspan="9"
+                                    colspan="14"
                                     class="py-12 text-center text-muted-foreground"
                                 >
                                     <CheckCircle2
