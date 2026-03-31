@@ -354,19 +354,99 @@
                         </div>
                     </div>
                 </div>
-                <!-- QC Analysis -->
+                <!-- QC OK -->
                 <div
-                    class="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-emerald-50 to-emerald-100/50 p-4 shadow-lg dark:from-emerald-950/30 dark:to-emerald-900/20"
+                    class="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-teal-50 to-teal-100/50 p-4 shadow-lg dark:from-teal-950/30 dark:to-teal-900/20"
                 >
                     <div class="flex items-center justify-between">
                         <div>
                             <p
-                                class="text-xs font-medium text-emerald-700 dark:text-emerald-300"
+                                class="text-xs font-medium text-teal-700 dark:text-teal-300"
+                            >
+                                QC OK
+                            </p>
+                            <p
+                                class="text-2xl font-bold text-teal-900 dark:text-teal-100"
+                            >
+                                {{ formatQty(sumQtyByQcBucket(isQcOk)) }}
+                            </p>
+                            <p
+                                class="text-xs text-teal-600/70 dark:text-teal-400/70"
+                            >
+                                {{ countByQcBucket(isQcOk) }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="rounded-full bg-teal-500/10 p-3 ring-1 ring-teal-500/20"
+                        >
+                            <CheckCircle
+                                class="h-5 w-5 text-teal-600 dark:text-teal-400"
+                            />
+                        </div>
+                    </div>
+                    <div
+                        class="mt-2 flex gap-2 border-t border-teal-200/50 pt-2 dark:border-teal-800/30"
+                    >
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-amber-600 uppercase"
+                            >
+                                Pending
+                            </p>
+                            <p class="text-xs font-bold text-amber-700">
+                                {{ formatQty(qcOkBreakdown.pendingQty) }}
+                            </p>
+                            <p class="text-[9px] text-amber-600/70">
+                                {{ qcOkBreakdown.pendingCount }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="w-px bg-teal-200/50 dark:bg-teal-800/30"
+                        ></div>
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-orange-600 uppercase"
+                            >
+                                In Prog
+                            </p>
+                            <p class="text-xs font-bold text-orange-700">
+                                {{ formatQty(qcOkBreakdown.inProgressQty) }}
+                            </p>
+                            <p class="text-[9px] text-orange-600/70">
+                                {{ qcOkBreakdown.inProgressCount }} lots
+                            </p>
+                        </div>
+                        <div
+                            class="w-px bg-teal-200/50 dark:bg-teal-800/30"
+                        ></div>
+                        <div class="flex-1 text-center">
+                            <p
+                                class="text-[9px] font-semibold text-emerald-600 uppercase"
+                            >
+                                Done
+                            </p>
+                            <p class="text-xs font-bold text-emerald-700">
+                                {{ formatQty(qcOkBreakdown.doneQty) }}
+                            </p>
+                            <p class="text-[9px] text-emerald-600/70">
+                                {{ qcOkBreakdown.doneCount }} lots
+                            </p>
+                        </div>
+                    </div>
+                </div>
+                <!-- QC Analysis -->
+                <div
+                    class="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-indigo-50 to-indigo-100/50 p-4 shadow-lg dark:from-indigo-950/30 dark:to-indigo-900/20"
+                >
+                    <div class="flex items-center justify-between">
+                        <div>
+                            <p
+                                class="text-xs font-medium text-indigo-700 dark:text-indigo-300"
                             >
                                 QC Analysis
                             </p>
                             <p
-                                class="text-2xl font-bold text-emerald-900 dark:text-emerald-100"
+                                class="text-2xl font-bold text-indigo-900 dark:text-indigo-100"
                             >
                                 {{
                                     formatQty(
@@ -375,21 +455,21 @@
                                 }}
                             </p>
                             <p
-                                class="text-xs text-emerald-600/70 dark:text-emerald-400/70"
+                                class="text-xs text-indigo-600/70 dark:text-indigo-400/70"
                             >
                                 {{ countByDefectClass('QC Analysis') }} lots
                             </p>
                         </div>
                         <div
-                            class="rounded-full bg-emerald-500/10 p-3 ring-1 ring-emerald-500/20"
+                            class="rounded-full bg-indigo-500/10 p-3 ring-1 ring-indigo-500/20"
                         >
                             <CheckCircle
-                                class="h-5 w-5 text-emerald-600 dark:text-emerald-400"
+                                class="h-5 w-5 text-indigo-600 dark:text-indigo-400"
                             />
                         </div>
                     </div>
                     <div
-                        class="mt-2 flex gap-2 border-t border-emerald-200/50 pt-2 dark:border-emerald-800/30"
+                        class="mt-2 flex gap-2 border-t border-indigo-200/50 pt-2 dark:border-indigo-800/30"
                     >
                         <div class="flex-1 text-center">
                             <p
@@ -405,7 +485,7 @@
                             </p>
                         </div>
                         <div
-                            class="w-px bg-emerald-200/50 dark:bg-emerald-800/30"
+                            class="w-px bg-indigo-200/50 dark:bg-indigo-800/30"
                         ></div>
                         <div class="flex-1 text-center">
                             <p
@@ -423,7 +503,7 @@
                             </p>
                         </div>
                         <div
-                            class="w-px bg-emerald-200/50 dark:bg-emerald-800/30"
+                            class="w-px bg-indigo-200/50 dark:bg-indigo-800/30"
                         ></div>
                         <div class="flex-1 text-center">
                             <p
@@ -442,17 +522,17 @@
                 </div>
                 <!-- Tech'l Verification -->
                 <div
-                    class="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-amber-50 to-amber-100/50 p-4 shadow-lg dark:from-amber-950/30 dark:to-amber-900/20"
+                    class="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-purple-50 to-purple-100/50 p-4 shadow-lg dark:from-purple-950/30 dark:to-purple-900/20"
                 >
                     <div class="flex items-center justify-between">
                         <div>
                             <p
-                                class="text-xs font-medium text-amber-700 dark:text-amber-300"
+                                class="text-xs font-medium text-purple-700 dark:text-purple-300"
                             >
                                 Tech'l Verification
                             </p>
                             <p
-                                class="text-2xl font-bold text-amber-900 dark:text-amber-100"
+                                class="text-2xl font-bold text-purple-900 dark:text-purple-100"
                             >
                                 {{
                                     formatQty(
@@ -463,22 +543,22 @@
                                 }}
                             </p>
                             <p
-                                class="text-xs text-amber-600/70 dark:text-amber-400/70"
+                                class="text-xs text-purple-600/70 dark:text-purple-400/70"
                             >
                                 {{ countByDefectClass("Tech'l Verification") }}
                                 lots
                             </p>
                         </div>
                         <div
-                            class="rounded-full bg-amber-500/10 p-3 ring-1 ring-amber-500/20"
+                            class="rounded-full bg-purple-500/10 p-3 ring-1 ring-purple-500/20"
                         >
                             <AlertCircle
-                                class="h-5 w-5 text-amber-600 dark:text-amber-400"
+                                class="h-5 w-5 text-purple-600 dark:text-purple-400"
                             />
                         </div>
                     </div>
                     <div
-                        class="mt-2 flex gap-2 border-t border-amber-200/50 pt-2 dark:border-amber-800/30"
+                        class="mt-2 flex gap-2 border-t border-purple-200/50 pt-2 dark:border-purple-800/30"
                     >
                         <div class="flex-1 text-center">
                             <p
@@ -494,7 +574,7 @@
                             </p>
                         </div>
                         <div
-                            class="w-px bg-amber-200/50 dark:bg-amber-800/30"
+                            class="w-px bg-purple-200/50 dark:bg-purple-800/30"
                         ></div>
                         <div class="flex-1 text-center">
                             <p
@@ -512,7 +592,7 @@
                             </p>
                         </div>
                         <div
-                            class="w-px bg-amber-200/50 dark:bg-amber-800/30"
+                            class="w-px bg-purple-200/50 dark:bg-purple-800/30"
                         ></div>
                         <div class="flex-1 text-center">
                             <p
@@ -543,12 +623,12 @@
                             <p
                                 class="text-2xl font-bold text-violet-900 dark:text-violet-100"
                             >
-                                {{ formatQty(sumQtyByQcResult('Main')) }}
+                                {{ formatQty(sumQtyByQcBucket(isMainlot)) }}
                             </p>
                             <p
                                 class="text-xs text-violet-600/70 dark:text-violet-400/70"
                             >
-                                {{ countByQcResult('Main') }} lots
+                                {{ countByQcBucket(isMainlot) }} lots
                             </p>
                         </div>
                         <div
@@ -609,7 +689,7 @@
                         </div>
                     </div>
                 </div>
-                <!-- R-Rework -->
+                <!-- Rework (R-Rework + L-Rework) -->
                 <div
                     class="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-orange-50 to-orange-100/50 p-4 shadow-lg dark:from-orange-950/30 dark:to-orange-900/20"
                 >
@@ -618,17 +698,17 @@
                             <p
                                 class="text-xs font-medium text-orange-700 dark:text-orange-300"
                             >
-                                R-Rework
+                                RL - Rework
                             </p>
                             <p
                                 class="text-2xl font-bold text-orange-900 dark:text-orange-100"
                             >
-                                {{ formatQty(sumQtyByQcResult('RR')) }}
+                                {{ formatQty(sumQtyByQcBucket(isRework)) }}
                             </p>
                             <p
                                 class="text-xs text-orange-600/70 dark:text-orange-400/70"
                             >
-                                {{ countByQcResult('RR') }} lots
+                                {{ countByQcBucket(isRework) }} lots
                             </p>
                         </div>
                         <div
@@ -649,10 +729,10 @@
                                 Pending
                             </p>
                             <p class="text-xs font-bold text-amber-700">
-                                {{ formatQty(rrBreakdown.pendingQty) }}
+                                {{ formatQty(reworkBreakdown.pendingQty) }}
                             </p>
                             <p class="text-[9px] text-amber-600/70">
-                                {{ rrBreakdown.pendingCount }} lots
+                                {{ reworkBreakdown.pendingCount }} lots
                             </p>
                         </div>
                         <div
@@ -665,10 +745,10 @@
                                 In Prog
                             </p>
                             <p class="text-xs font-bold text-orange-700">
-                                {{ formatQty(rrBreakdown.inProgressQty) }}
+                                {{ formatQty(reworkBreakdown.inProgressQty) }}
                             </p>
                             <p class="text-[9px] text-orange-600/70">
-                                {{ rrBreakdown.inProgressCount }} lots
+                                {{ reworkBreakdown.inProgressCount }} lots
                             </p>
                         </div>
                         <div
@@ -681,90 +761,10 @@
                                 Done
                             </p>
                             <p class="text-xs font-bold text-emerald-700">
-                                {{ formatQty(rrBreakdown.doneQty) }}
+                                {{ formatQty(reworkBreakdown.doneQty) }}
                             </p>
                             <p class="text-[9px] text-emerald-600/70">
-                                {{ rrBreakdown.doneCount }} lots
-                            </p>
-                        </div>
-                    </div>
-                </div>
-                <!-- L-Rework -->
-                <div
-                    class="relative overflow-hidden rounded-xl border border-border/50 bg-gradient-to-br from-pink-50 to-pink-100/50 p-4 shadow-lg dark:from-pink-950/30 dark:to-pink-900/20"
-                >
-                    <div class="flex items-center justify-between">
-                        <div>
-                            <p
-                                class="text-xs font-medium text-pink-700 dark:text-pink-300"
-                            >
-                                L-Rework
-                            </p>
-                            <p
-                                class="text-2xl font-bold text-pink-900 dark:text-pink-100"
-                            >
-                                {{ formatQty(sumQtyByQcResult(['LY', 'OK'])) }}
-                            </p>
-                            <p
-                                class="text-xs text-pink-600/70 dark:text-pink-400/70"
-                            >
-                                {{ countByQcResult(['LY', 'OK']) }} lots
-                            </p>
-                        </div>
-                        <div
-                            class="rounded-full bg-pink-500/10 p-3 ring-1 ring-pink-500/20"
-                        >
-                            <Wrench
-                                class="h-5 w-5 text-pink-600 dark:text-pink-400"
-                            />
-                        </div>
-                    </div>
-                    <div
-                        class="mt-2 flex gap-2 border-t border-pink-200/50 pt-2 dark:border-pink-800/30"
-                    >
-                        <div class="flex-1 text-center">
-                            <p
-                                class="text-[9px] font-semibold text-amber-600 uppercase"
-                            >
-                                Pending
-                            </p>
-                            <p class="text-xs font-bold text-amber-700">
-                                {{ formatQty(lyBreakdown.pendingQty) }}
-                            </p>
-                            <p class="text-[9px] text-amber-600/70">
-                                {{ lyBreakdown.pendingCount }} lots
-                            </p>
-                        </div>
-                        <div
-                            class="w-px bg-pink-200/50 dark:bg-pink-800/30"
-                        ></div>
-                        <div class="flex-1 text-center">
-                            <p
-                                class="text-[9px] font-semibold text-orange-600 uppercase"
-                            >
-                                In Prog
-                            </p>
-                            <p class="text-xs font-bold text-orange-700">
-                                {{ formatQty(lyBreakdown.inProgressQty) }}
-                            </p>
-                            <p class="text-[9px] text-orange-600/70">
-                                {{ lyBreakdown.inProgressCount }} lots
-                            </p>
-                        </div>
-                        <div
-                            class="w-px bg-pink-200/50 dark:bg-pink-800/30"
-                        ></div>
-                        <div class="flex-1 text-center">
-                            <p
-                                class="text-[9px] font-semibold text-emerald-600 uppercase"
-                            >
-                                Done
-                            </p>
-                            <p class="text-xs font-bold text-emerald-700">
-                                {{ formatQty(lyBreakdown.doneQty) }}
-                            </p>
-                            <p class="text-[9px] text-emerald-600/70">
-                                {{ lyBreakdown.doneCount }} lots
+                                {{ reworkBreakdown.doneCount }} lots
                             </p>
                         </div>
                     </div>
@@ -937,8 +937,8 @@
                                         class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
                                         :class="
                                             rec.defect_class === 'QC Analysis'
-                                                ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400'
-                                                : 'bg-yellow-50 text-yellow-700 ring-yellow-600/20 dark:bg-yellow-950/30 dark:text-yellow-400'
+                                                ? 'bg-indigo-50 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-950/30 dark:text-indigo-400'
+                                                : 'bg-purple-50 text-purple-700 ring-purple-600/20 dark:bg-purple-950/30 dark:text-purple-400'
                                         "
                                         >{{ rec.defect_class }}</span
                                     >
@@ -1007,7 +1007,9 @@
                                 >
                                     {{
                                         getElapsedTime(rec) != null
-                                            ? getElapsedTime(rec) + ' min'
+                                            ? formatDuration(
+                                                  getElapsedTime(rec)!,
+                                              )
                                             : '—'
                                     }}
                                 </td>
@@ -1162,7 +1164,6 @@ import {
     RefreshCw,
     RotateCcw,
     Trash2,
-    Wrench,
     X,
 } from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
@@ -1299,13 +1300,24 @@ function getDateTime(rec: EndlineRecord): string {
     });
 }
 
+function formatDuration(minutes: number): string {
+    if (minutes < 60) return `${minutes} min`;
+    const days = Math.floor(minutes / 1440);
+    const hours = Math.floor((minutes % 1440) / 60);
+    const mins = minutes % 60;
+    if (days > 0) return `${days}d ${hours}h ${mins}m`;
+    return `${hours}h ${mins}m`;
+}
+
 // ElapsedTime: now - created_at for active lots; lot_completed_at - created_at for finalized
 function getElapsedTime(rec: EndlineRecord): number | null {
     if (!rec.created_at) return null;
     const start = new Date(rec.created_at).getTime();
-    const end = rec.lot_completed_at
-        ? new Date(rec.lot_completed_at).getTime()
-        : Date.now();
+    const isFinalized =
+        rec.output_status === 'Completed' || rec.output_status === 'Rework';
+    const freezeAt =
+        rec.lot_completed_at ?? (isFinalized ? rec.updated_at : null);
+    const end = freezeAt ? new Date(freezeAt).getTime() : Date.now();
     return Math.floor((end - start) / 60000);
 }
 
@@ -1331,16 +1343,47 @@ const sumQtyByQcResult = (v: string | string[]) => {
         .filter((r) => r.qc_result && vals.includes(r.qc_result))
         .reduce((s, r) => s + (r.lot_qty ?? 0), 0);
 };
+
+// Bucket helpers based on qc_result combinations
+function isMainlot(r: EndlineRecord): boolean {
+    return !!(r.qc_result && r.qc_result.includes('Main'));
+}
+function isRRework(r: EndlineRecord): boolean {
+    return !!(
+        r.qc_result &&
+        r.qc_result.includes('RR') &&
+        !r.qc_result.includes('Main')
+    );
+}
+function isLRework(r: EndlineRecord): boolean {
+    return !!(
+        r.qc_result &&
+        r.qc_result.includes('LY') &&
+        !r.qc_result.includes('RR') &&
+        !r.qc_result.includes('Main')
+    );
+}
+
+const countByQcBucket = (fn: (r: EndlineRecord) => boolean) =>
+    records.value.filter(fn).length;
+const sumQtyByQcBucket = (fn: (r: EndlineRecord) => boolean) =>
+    records.value.filter(fn).reduce((s, r) => s + (r.lot_qty ?? 0), 0);
 const totalQty = () => records.value.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
 
 // Output status breakdown helper
 function statusBreakdown(recs: EndlineRecord[]) {
-    const pending = recs.filter((r) => r.output_status === 'Pending');
+    const pending = recs.filter(
+        (r) =>
+            r.output_status === 'Pending' &&
+            r.final_decision !== 'In Progress' &&
+            r.final_decision !== 'Technical',
+    );
     const inProgress = recs.filter(
         (r) =>
-            r.output_status !== 'Pending' &&
             r.output_status !== 'Completed' &&
-            r.output_status !== 'Rework',
+            r.output_status !== 'Rework' &&
+            (r.final_decision === 'In Progress' ||
+                r.final_decision === 'Technical'),
     );
     const done = recs.filter(
         (r) => r.output_status === 'Completed' || r.output_status === 'Rework',
@@ -1367,17 +1410,21 @@ const techVerifBreakdown = computed(() =>
     ),
 );
 const mainlotBreakdown = computed(() =>
-    statusBreakdown(records.value.filter((r) => r.qc_result === 'Main')),
+    statusBreakdown(records.value.filter(isMainlot)),
 );
-const rrBreakdown = computed(() =>
-    statusBreakdown(records.value.filter((r) => r.qc_result === 'RR')),
+
+function isRework(r: EndlineRecord): boolean {
+    return isRRework(r) || isLRework(r);
+}
+function isQcOk(r: EndlineRecord): boolean {
+    return r.qc_result === 'OK';
+}
+
+const reworkBreakdown = computed(() =>
+    statusBreakdown(records.value.filter(isRework)),
 );
-const lyBreakdown = computed(() =>
-    statusBreakdown(
-        records.value.filter(
-            (r) => r.qc_result === 'LY' || r.qc_result === 'OK',
-        ),
-    ),
+const qcOkBreakdown = computed(() =>
+    statusBreakdown(records.value.filter(isQcOk)),
 );
 
 function qcNgBadgeClass(type: string) {

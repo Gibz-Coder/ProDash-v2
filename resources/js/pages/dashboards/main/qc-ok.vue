@@ -598,21 +598,35 @@
                                     class="px-2 py-2 text-xs whitespace-nowrap text-amber-600 dark:text-amber-400"
                                 >
                                     {{
-                                        rec.created_at
-                                            ? formatDuration(
-                                                  Math.floor(
-                                                      ((rec.lot_completed_at
-                                                          ? new Date(
-                                                                rec.lot_completed_at,
-                                                            ).getTime()
-                                                          : Date.now()) -
-                                                          new Date(
-                                                              rec.created_at,
-                                                          ).getTime()) /
-                                                          60_000,
-                                                  ),
-                                              )
-                                            : '—'
+                                        rec.output_status === 'Completed' ||
+                                        rec.output_status === 'Rework'
+                                            ? rec.lot_completed_at &&
+                                              rec.updated_at
+                                                ? formatDuration(
+                                                      Math.abs(
+                                                          Math.floor(
+                                                              (new Date(
+                                                                  rec.updated_at,
+                                                              ).getTime() -
+                                                                  new Date(
+                                                                      rec.lot_completed_at,
+                                                                  ).getTime()) /
+                                                                  60_000,
+                                                          ),
+                                                      ),
+                                                  )
+                                                : '—'
+                                            : rec.updated_at
+                                              ? formatDuration(
+                                                    Math.floor(
+                                                        (Date.now() -
+                                                            new Date(
+                                                                rec.updated_at,
+                                                            ).getTime()) /
+                                                            60_000,
+                                                    ),
+                                                )
+                                              : '—'
                                     }}
                                 </td>
                                 <td

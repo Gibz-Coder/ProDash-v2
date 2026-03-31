@@ -25,7 +25,7 @@ class RestrictQcPartAccess
 
         // If user is QC Part, only allow access to endline routes
         if ($userRole === 'qc-part') {
-            $allowedRoutes = ['endline', 'endline_details', 'endline_delay', 'qc_analysis', 'vi_technical', 'qc_ok', 'logout', 'settings.profile', 'settings.password', 'settings.two-factor'];
+            $allowedRoutes = ['endline', 'endline_details', 'endline_delay', 'endline_trend', 'qc_analysis', 'vi_technical', 'qc_ok', 'logout', 'settings.profile', 'settings.password', 'settings.two-factor'];
             
             // Check if current route is in allowed routes
             $currentRoute = $request->route()->getName();

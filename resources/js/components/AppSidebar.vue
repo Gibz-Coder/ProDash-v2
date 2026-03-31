@@ -66,9 +66,14 @@ const allNavItems: NavItem[] = [
         icon: '🏪',
     },
     {
-        title: 'ENDLINE',
+        title: 'ENDLINE TREND',
+        href: '/endline-trend',
+        icon: '📈',
+    },
+    {
+        title: 'QC INSPECTION',
         href: endline_delay(),
-        icon: '🔚',
+        icon: '🔍',
     },
     {
         title: 'QC ANALYSIS',
@@ -78,7 +83,7 @@ const allNavItems: NavItem[] = [
     {
         title: 'VI TECHNICAL',
         href: vi_technical(),
-        icon: '🔍',
+        icon: '📊',
     },
     {
         title: 'QC OK',
@@ -96,9 +101,13 @@ const mainNavItems = computed(() => {
     // QC Part role can only see ENDLINE, QC ANALYSIS, and VI TECHNICAL
     if (userRole === 'qc part' || userRole === 'qc-part') {
         return allNavItems.filter((item) =>
-            ['ENDLINE', 'QC ANALYSIS', 'VI TECHNICAL', 'QC OK'].includes(
-                item.title,
-            ),
+            [
+                // 'ENDLINE TREND',
+                'QC INSPECTION',
+                'QC ANALYSIS',
+                'VI TECHNICAL',
+                'QC OK',
+            ].includes(item.title),
         );
     }
 

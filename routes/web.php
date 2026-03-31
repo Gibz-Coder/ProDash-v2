@@ -111,6 +111,11 @@ Route::get('endline-delay', function () {
     return Inertia::render('dashboards/main/endline-delay');
 })->middleware(['auth', 'verified', 'permission:Manage Endline'])->name('endline_delay');
 
+// Endline Trend monitoring
+Route::get('endline-trend', function () {
+    return Inertia::render('dashboards/main/endline-trend');
+})->middleware(['auth', 'verified', 'permission:Manage Endline'])->name('endline_trend');
+
 // QC Analysis monitor
 Route::get('qc-analysis', function () {
     return Inertia::render('dashboards/main/qc-analysis');
