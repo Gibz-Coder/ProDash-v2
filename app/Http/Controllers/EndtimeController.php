@@ -524,20 +524,57 @@ class EndtimeController extends Controller
             ->first();
 
         if ($submittedLot) {
-            // Lot exists but submitted - warn user to select WL/RW or RL/LY
+            // Lot exists but submitted - fetch fresh data from mes_data.wip_status
+            $wipLot = \DB::table('mes_data.wip_status as w')
+                ->leftJoin('mes_data.monthly_plan as mp', 'mp.chip_model', '=', 'w.model_id')
+                ->where('w.lot_no', $lotId)
+                ->select(
+                    'w.lot_no',
+                    'w.model_id as model_15',
+                    'w.current_qty as lot_qty',
+                    \DB::raw("CASE w.size
+                        WHEN '0603' THEN '03'
+                        WHEN '1005' THEN '05'
+                        WHEN '1608' THEN '10'
+                        WHEN '2012' THEN '21'
+                        WHEN '3216' THEN '31'
+                        WHEN '3225' THEN '32'
+                        ELSE '10'
+                    END as lot_size"),
+                    \DB::raw("CASE
+                        WHEN w.warehouse_rework_yn = 'Y' THEN 'WH REWORK'
+                        WHEN w.rework_type = 'Normal' THEN 'NORMAL'
+                        WHEN w.rework_type = 'Process Rework' THEN 'PROCESS RW'
+                        WHEN w.rework_type = 'Outgoing NG' THEN 'OI REWORK'
+                        ELSE 'NORMAL'
+                    END as work_type"),
+                    'mp.vi_lipas_yn as lipas_yn',
+                )
+                ->first();
+
+            // Fall back to submitted lot data if not found in wip_status
+            $lotData = $wipLot ? [
+                'lot_id' => $wipLot->lot_no,
+                'lot_qty' => $wipLot->lot_qty ?? 0,
+                'lot_size' => $wipLot->lot_size ?? '10',
+                'model_15' => $wipLot->model_15 ?? '',
+                'work_type' => $wipLot->work_type ?? 'NORMAL',
+                'lipas_yn' => $wipLot->lipas_yn ?? 'N',
+            ] : [
+                'lot_id' => $submittedLot->lot_id,
+                'lot_qty' => $submittedLot->lot_qty,
+                'lot_size' => $submittedLot->lot_size,
+                'model_15' => $submittedLot->model_15,
+                'work_type' => $submittedLot->work_type,
+                'lipas_yn' => $submittedLot->lipas_yn,
+            ];
+
             return response()->json([
                 'success' => true,
                 'existingEndtime' => true,
                 'status' => 'Submitted',
                 'message' => 'Lot already submitted. To create new entry, select WL/RW or RL/LY lot type.',
-                'lot' => [
-                    'lot_id' => $submittedLot->lot_id,
-                    'lot_qty' => $submittedLot->lot_qty,
-                    'lot_size' => $submittedLot->lot_size,
-                    'model_15' => $submittedLot->model_15,
-                    'work_type' => $submittedLot->work_type,
-                    'lipas_yn' => $submittedLot->lipas_yn,
-                ]
+                'lot' => $lotData,
             ]);
         }
 
