@@ -196,7 +196,7 @@
             </div>
         </template>
 
-        <div class="flex h-full flex-1 flex-col gap-4 p-4">
+        <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4">
             <div
                 class="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between"
             >
@@ -773,7 +773,7 @@
 
             <!-- Table -->
             <div
-                class="flex flex-1 flex-col overflow-hidden rounded-xl border border-border/50 bg-card shadow-lg"
+                class="flex min-h-0 flex-1 flex-col rounded-xl border border-border/50 bg-card shadow-lg"
             >
                 <div v-if="loading" class="flex justify-center py-10">
                     <div
@@ -783,7 +783,7 @@
                         <span class="sr-only">Loading...</span>
                     </div>
                 </div>
-                <div v-else class="h-full overflow-auto">
+                <div v-else class="min-h-0 flex-1 overflow-auto">
                     <table class="w-full min-w-[1100px] table-fixed text-xs">
                         <colgroup>
                             <col class="w-[40px]" />
@@ -1370,7 +1370,7 @@ const sumQtyByQcBucket = (fn: (r: EndlineRecord) => boolean) =>
     records.value.filter(fn).reduce((s, r) => s + (r.lot_qty ?? 0), 0);
 const totalQty = () => records.value.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
 
-// Output status breakdown helper
+// Output status breakdown helper — generic for overall/mainlot/rework/qcok cards
 function statusBreakdown(recs: EndlineRecord[]) {
     const pending = recs.filter(
         (r) =>
@@ -1398,14 +1398,46 @@ function statusBreakdown(recs: EndlineRecord[]) {
     };
 }
 
+// Breakdown for QC Analysis card — uses qc_ana_* fields
+function qcAnalysisStageBreakdown(recs: EndlineRecord[]) {
+    const done = recs.filter((r) => !!r.qc_ana_result);
+    const inProgress = recs.filter((r) => !r.qc_ana_result && !!r.qc_ana_start);
+    const pending = recs.filter((r) => !r.qc_ana_result && !r.qc_ana_start);
+    return {
+        pendingCount: pending.length,
+        pendingQty: pending.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+        inProgressCount: inProgress.length,
+        inProgressQty: inProgress.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+        doneCount: done.length,
+        doneQty: done.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+    };
+}
+
+// Breakdown for VI Technical card — uses vi_techl_* fields
+function viTechnicalStageBreakdown(recs: EndlineRecord[]) {
+    const done = recs.filter((r) => !!r.vi_techl_result);
+    const inProgress = recs.filter(
+        (r) => !r.vi_techl_result && !!r.vi_techl_start,
+    );
+    const pending = recs.filter((r) => !r.vi_techl_result && !r.vi_techl_start);
+    return {
+        pendingCount: pending.length,
+        pendingQty: pending.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+        inProgressCount: inProgress.length,
+        inProgressQty: inProgress.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+        doneCount: done.length,
+        doneQty: done.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+    };
+}
+
 const totalBreakdown = computed(() => statusBreakdown(records.value));
 const qcAnalysisBreakdown = computed(() =>
-    statusBreakdown(
+    qcAnalysisStageBreakdown(
         records.value.filter((r) => r.defect_class === 'QC Analysis'),
     ),
 );
 const techVerifBreakdown = computed(() =>
-    statusBreakdown(
+    viTechnicalStageBreakdown(
         records.value.filter((r) => r.defect_class === "Tech'l Verification"),
     ),
 );
@@ -1417,15 +1449,44 @@ function isRework(r: EndlineRecord): boolean {
     return isRRework(r) || isLRework(r);
 }
 function isQcOk(r: EndlineRecord): boolean {
-    return r.qc_result === 'OK';
+    return (
+        r.qc_result === 'OK' ||
+        r.qc_ana_result === 'Proceed' ||
+        r.vi_techl_result === 'Proceed'
+    );
 }
 
 const reworkBreakdown = computed(() =>
     statusBreakdown(records.value.filter(isRework)),
 );
-const qcOkBreakdown = computed(() =>
-    statusBreakdown(records.value.filter(isQcOk)),
-);
+const qcOkBreakdown = computed(() => {
+    const recs = records.value.filter(isQcOk);
+    const done = recs.filter(
+        (r) => r.output_status === 'Completed' || r.output_status === 'Rework',
+    );
+    const inProgress = recs.filter(
+        (r) =>
+            r.output_status !== 'Completed' &&
+            r.output_status !== 'Rework' &&
+            (r.final_decision === 'In Progress' ||
+                r.final_decision === 'Technical'),
+    );
+    const pending = recs.filter(
+        (r) =>
+            r.output_status !== 'Completed' &&
+            r.output_status !== 'Rework' &&
+            r.final_decision !== 'In Progress' &&
+            r.final_decision !== 'Technical',
+    );
+    return {
+        pendingCount: pending.length,
+        pendingQty: pending.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+        inProgressCount: inProgress.length,
+        inProgressQty: inProgress.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+        doneCount: done.length,
+        doneQty: done.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+    };
+});
 
 function qcNgBadgeClass(type: string) {
     if (type === 'Main')

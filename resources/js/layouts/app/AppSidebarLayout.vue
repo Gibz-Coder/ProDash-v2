@@ -26,7 +26,7 @@ withDefaults(defineProps<Props>(), {
                     <slot name="filters" />
                 </template>
             </AppSidebarHeader>
-            <div class="flex-1 overflow-y-auto overflow-x-hidden">
+            <div class="flex min-h-0 flex-1 flex-col overflow-hidden">
                 <slot />
             </div>
         </AppContent>

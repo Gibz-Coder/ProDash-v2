@@ -186,7 +186,7 @@
             </div>
         </template>
 
-        <div class="flex h-full flex-1 flex-col gap-4 p-4">
+        <div class="flex min-h-0 flex-1 flex-col gap-4 overflow-hidden p-4">
             <!-- Title row -->
             <div class="flex items-center justify-between">
                 <div>
@@ -515,7 +515,7 @@
 
             <!-- Table -->
             <div
-                class="flex max-h-[600px] flex-col overflow-hidden rounded-xl border border-border/50 bg-card shadow-lg"
+                class="flex min-h-0 flex-1 flex-col rounded-xl border border-border/50 bg-card shadow-lg"
             >
                 <div
                     v-if="error"
@@ -531,7 +531,10 @@
                         <span class="sr-only">Loading...</span>
                     </div>
                 </div>
-                <div v-else class="flex-1 overflow-x-auto overflow-y-scroll">
+                <div
+                    v-else
+                    class="min-h-0 flex-1 overflow-x-auto overflow-y-auto"
+                >
                     <table class="w-full min-w-[900px] table-fixed text-xs">
                         <colgroup>
                             <col class="w-[40px]" />

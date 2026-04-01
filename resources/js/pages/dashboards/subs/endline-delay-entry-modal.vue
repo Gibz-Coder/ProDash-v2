@@ -178,33 +178,8 @@ const defectCache = ref<
 >({});
 
 async function commitDefectInput(i: number) {
-    const val = rows.value[i].defect_input
-        .trim()
-        .replace(/,$/, '')
-        .toUpperCase();
-    if (val && !rows.value[i].defect_codes.includes(val)) {
-        rows.value[i].defect_codes.push(val);
-        // Fetch and cache if not already cached
-        if (!defectCache.value[val]) {
-            try {
-                const { data } = await axios.get<DefectOption[]>(
-                    '/api/endline-delay/defect-codes',
-                    { params: { q: val } },
-                );
-                // exact match only
-                const match = data.find((d) => d.defect_code === val);
-                if (match) {
-                    defectCache.value[val] = {
-                        defect_flow: match.defect_flow,
-                        defect_class: match.defect_class,
-                    };
-                }
-            } catch {
-                /* ignore */
-            }
-        }
-        resolveDefectFlow(rows.value[i]);
-    }
+    // Only allow codes that exist in the cache (selected from dropdown)
+    // Free-typed codes that were never confirmed via selectDefect are discarded
     rows.value[i].defect_input = '';
     defectOpen.value[i] = false;
     defectSuggestions.value[i] = [];
@@ -214,7 +189,18 @@ function onDefectKeydown(e: KeyboardEvent, i: number) {
     const row = rows.value[i];
     if (e.key === ',' || e.key === 'Enter') {
         e.preventDefault();
-        commitDefectInput(i);
+        // Only commit if there's an exact match in suggestions
+        const val = row.defect_input.trim().toUpperCase();
+        const exact = defectSuggestions.value[i]?.find(
+            (d) => d.defect_code === val,
+        );
+        if (exact) {
+            selectDefect(i, exact);
+        } else {
+            // discard — must pick from dropdown
+            row.defect_input = '';
+            defectOpen.value[i] = false;
+        }
     } else if (e.key === 'ArrowDown') {
         e.preventDefault();
         const next = defectInputRefs.value[i + 1];
@@ -229,6 +215,7 @@ function onDefectKeydown(e: KeyboardEvent, i: number) {
         row.defect_codes.length
     ) {
         row.defect_codes.pop();
+        resolveDefectFlow(row);
     }
 }
 
@@ -354,52 +341,129 @@ function rowToPayload(row: RowForm) {
 async function save() {
     submitting.value = true;
     rowErrors.value = {};
-    try {
-        if (isEditMode.value && editId.value) {
+
+    if (isEditMode.value && editId.value) {
+        try {
             await axios.put(
                 `/api/endline-delay/${editId.value}`,
                 rowToPayload(rows.value[0]),
             );
+            emit('saved');
+            emit('update:open', false);
+        } catch (err: any) {
+            if (err.response?.status === 422) {
+                rowErrors.value[0] = {};
+                const raw = err.response.data.errors as Record<
+                    string,
+                    string[]
+                >;
+                Object.keys(raw).forEach(
+                    (k) => (rowErrors.value[0][k] = raw[k][0]),
+                );
+            }
+        } finally {
+            submitting.value = false;
+        }
+        return;
+    }
+
+    const filled = rows.value.filter((r) => r.lot_id.trim() !== '');
+    if (filled.length === 0) {
+        submitting.value = false;
+        return;
+    }
+
+    // --- Validation ---
+    let hasErrors = false;
+
+    // 1. Duplicate lot numbers within the batch
+    const seenLots = new Map<string, number>();
+    rows.value.forEach((r, idx) => {
+        const id = r.lot_id.trim().toUpperCase();
+        if (!id) return;
+        if (seenLots.has(id)) {
+            rowErrors.value[idx] = rowErrors.value[idx] ?? {};
+            rowErrors.value[idx].lot_id = 'Duplicate lot number in batch';
+            const firstIdx = seenLots.get(id)!;
+            rowErrors.value[firstIdx] = rowErrors.value[firstIdx] ?? {};
+            rowErrors.value[firstIdx].lot_id = 'Duplicate lot number in batch';
+            hasErrors = true;
         } else {
-            const filled = rows.value.filter((r) => r.lot_id.trim() !== '');
-            if (filled.length === 0) {
-                submitting.value = false;
-                return;
-            }
-            // Validate: every filled row must have at least one QC NG selected
-            const invalidIndices = rows.value.reduce<number[]>(
-                (acc, r, idx) => {
-                    if (r.lot_id.trim() !== '' && r.qc_ng.length === 0)
-                        acc.push(idx);
-                    return acc;
-                },
-                [],
-            );
-            if (invalidIndices.length > 0) {
-                invalidIndices.forEach((idx) => {
-                    rowErrors.value[idx] = {
-                        qc_ng: 'Select QC Result before saving!',
-                    };
-                });
-                submitting.value = false;
-                return;
-            }
-            await Promise.all(
-                filled.map((row) =>
-                    axios.post('/api/endline-delay', rowToPayload(row)),
-                ),
-            );
+            seenLots.set(id, idx);
         }
-        emit('saved');
-        emit('update:open', false);
-    } catch (err: any) {
-        if (err.response?.status === 422) {
-            rowErrors.value[0] = {};
-            const raw = err.response.data.errors as Record<string, string[]>;
-            Object.keys(raw).forEach(
-                (k) => (rowErrors.value[0][k] = raw[k][0]),
-            );
+    });
+
+    rows.value.forEach((r, idx) => {
+        if (!r.lot_id.trim()) return;
+
+        // 2. QC result required
+        if (r.qc_ng.length === 0) {
+            rowErrors.value[idx] = rowErrors.value[idx] ?? {};
+            rowErrors.value[idx].qc_ng = 'QC Result is required';
+            hasErrors = true;
         }
+
+        // 3. Inspection times required
+        if (r.inspection_times == null || r.inspection_times < 1) {
+            rowErrors.value[idx] = rowErrors.value[idx] ?? {};
+            rowErrors.value[idx].inspection_times = 'Required';
+            hasErrors = true;
+        }
+
+        // 4. Defect code required when QC result is Main, RR, or LY
+        const needsDefect = r.qc_ng.some((v) =>
+            ['Main', 'RR', 'LY'].includes(v),
+        );
+        if (needsDefect && r.defect_codes.length === 0) {
+            rowErrors.value[idx] = rowErrors.value[idx] ?? {};
+            rowErrors.value[idx].defect_codes =
+                'Defect code required for Main/RR/LY';
+            hasErrors = true;
+        }
+    });
+
+    if (hasErrors) {
+        submitting.value = false;
+        return;
+    }
+
+    try {
+        await Promise.all(
+            filled.map((row, filledIdx) =>
+                axios
+                    .post('/api/endline-delay', rowToPayload(row))
+                    .catch((err: any) => {
+                        if (err.response?.status === 422) {
+                            const realIdx = rows.value.indexOf(row);
+                            const data = err.response.data;
+                            if (data.message && !data.errors) {
+                                rowErrors.value[realIdx] = {
+                                    lot_id: data.message,
+                                };
+                            } else if (data.errors) {
+                                rowErrors.value[realIdx] = {};
+                                const raw = data.errors as Record<
+                                    string,
+                                    string[]
+                                >;
+                                Object.keys(raw).forEach(
+                                    (k) =>
+                                        (rowErrors.value[realIdx][k] =
+                                            raw[k][0]),
+                                );
+                            }
+                            hasErrors = true;
+                        }
+                        throw err;
+                    }),
+            ),
+        );
+        if (!hasErrors) {
+            emit('saved');
+            emit('update:open', false);
+        }
+    } catch {
+        // individual errors already mapped above
     } finally {
         submitting.value = false;
     }
@@ -547,7 +611,9 @@ const filledCount = () =>
                                         @input="
                                             row.lot_id = (
                                                 $event.target as HTMLInputElement
-                                            ).value.toUpperCase()
+                                            ).value.toUpperCase();
+                                            if (rowErrors[i]?.lot_id)
+                                                delete rowErrors[i].lot_id;
                                         "
                                         @keydown.enter="onLotIdEnter($event, i)"
                                         @blur="lookupLot(row)"
@@ -561,6 +627,12 @@ const filledCount = () =>
                                         ></span>
                                     </span>
                                 </div>
+                                <p
+                                    v-if="rowErrors[i]?.lot_id"
+                                    class="mt-0.5 text-[10px] text-destructive"
+                                >
+                                    {{ rowErrors[i].lot_id }}
+                                </p>
                             </td>
 
                             <!-- QC NG — multi-select toggle buttons (OK is exclusive) -->
@@ -610,9 +682,20 @@ const filledCount = () =>
                                     type="number"
                                     min="1"
                                     max="255"
-                                    class="h-8 w-full rounded border border-input bg-background px-2 text-center text-xs placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                                    class="h-8 w-full rounded border bg-background px-2 text-center text-xs placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                                    :class="
+                                        rowErrors[i]?.inspection_times
+                                            ? 'border-destructive'
+                                            : 'border-input'
+                                    "
                                     placeholder="—"
                                 />
+                                <p
+                                    v-if="rowErrors[i]?.inspection_times"
+                                    class="mt-0.5 text-[10px] text-destructive"
+                                >
+                                    {{ rowErrors[i].inspection_times }}
+                                </p>
                             </td>
 
                             <!-- Defect Code -->
@@ -620,7 +703,12 @@ const filledCount = () =>
                                 <div class="relative">
                                     <!-- Tag container -->
                                     <div
-                                        class="flex min-h-8 w-full flex-wrap items-center gap-1 rounded border border-input bg-background px-1.5 py-1 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
+                                        class="flex min-h-8 w-full flex-wrap items-center gap-1 rounded border bg-background px-1.5 py-1 focus-within:border-primary focus-within:ring-1 focus-within:ring-primary"
+                                        :class="
+                                            rowErrors[i]?.defect_codes
+                                                ? 'border-destructive'
+                                                : 'border-input'
+                                        "
                                     >
                                         <span
                                             v-for="code in row.defect_codes"
@@ -692,7 +780,24 @@ const filledCount = () =>
                                             >
                                         </li>
                                     </ul>
+                                    <!-- No results hint -->
+                                    <div
+                                        v-else-if="
+                                            defectOpen[i] &&
+                                            !defectSuggestions[i]?.length &&
+                                            rows[i]?.defect_input?.trim()
+                                        "
+                                        class="absolute top-full left-0 z-50 mt-0.5 w-64 rounded-md border border-border bg-popover px-3 py-2 text-xs text-muted-foreground shadow-lg"
+                                    >
+                                        No matching defect codes
+                                    </div>
                                 </div>
+                                <p
+                                    v-if="rowErrors[i]?.defect_codes"
+                                    class="mt-0.5 text-[10px] text-destructive"
+                                >
+                                    {{ rowErrors[i].defect_codes }}
+                                </p>
                             </td>
 
                             <!-- Defect Flow (auto-resolved, read-only) -->

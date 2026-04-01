@@ -614,6 +614,30 @@ class EndlineDelayController extends Controller
             'inspection_times'  => 'nullable|integer|min:1|max:255',
         ]);
 
+        // Block duplicate lot if an open QC Analysis or VI Technical entry already exists
+        $duplicate = DB::table('endline_delay')
+            ->where('lot_id', $validated['lot_id'])
+            ->where(function ($q) {
+                // QC Analysis open: started but no result yet
+                $q->where(function ($q2) {
+                    $q2->whereNotNull('qc_ana_start')
+                       ->whereNull('qc_ana_result');
+                })
+                // VI Technical open: started but no result yet
+                ->orWhere(function ($q2) {
+                    $q2->whereNotNull('vi_techl_start')
+                       ->whereNull('vi_techl_result');
+                });
+            })
+            ->exists();
+
+        if ($duplicate) {
+            return response()->json([
+                'success' => false,
+                'message' => "Lot {$validated['lot_id']} already has an open QC Analysis or VI Technical entry. Complete or close it before creating a new entry.",
+            ], 422);
+        }
+
         $id = DB::table('endline_delay')->insertGetId(array_merge($validated, [
             'qc_ana_start'   => $validated['defect_class'] === 'QC Analysis'        ? now() : null,
             'vi_techl_start' => $validated['defect_class'] === "Tech'l Verification" ? now() : null,
