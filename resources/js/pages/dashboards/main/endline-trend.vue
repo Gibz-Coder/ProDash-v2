@@ -72,100 +72,114 @@
         </template>
 
         <div class="flex h-full flex-1 flex-col gap-4 p-4">
-            <!-- Z-ROW 1: Title + KPI cards -->
-            <div class="flex items-start justify-between gap-4">
-                <!-- Left: Title -->
-                <div class="min-w-[200px]">
-                    <h1 class="text-xl leading-tight font-bold">
-                        Endline Trend
-                    </h1>
-                    <p class="text-[11px] text-muted-foreground">
-                        QC inspection trend monitoring
+            <!-- ROW 1: Title -->
+            <div>
+                <h1 class="text-xl leading-tight font-bold">Endline Trend</h1>
+                <p class="text-[11px] text-muted-foreground">
+                    QC inspection trend monitoring
+                </p>
+                <p
+                    v-if="lastUpdated"
+                    class="mt-0.5 text-[10px] text-muted-foreground/60"
+                >
+                    Updated {{ lastUpdated }}
+                </p>
+            </div>
+
+            <!-- ROW 2: 5 KPI cards -->
+            <div class="grid grid-cols-5 gap-3">
+                <div
+                    v-for="kpi in kpiCards"
+                    :key="kpi.label"
+                    class="rounded-xl border border-border/50 px-4 py-5 shadow-sm"
+                    :class="kpi.bg"
+                >
+                    <p
+                        class="text-[10px] font-semibold tracking-widest uppercase"
+                        :class="kpi.labelColor"
+                    >
+                        {{ kpi.label }}
                     </p>
                     <p
-                        v-if="lastUpdated"
-                        class="mt-0.5 text-[10px] text-muted-foreground/60"
+                        class="mt-0.5 text-2xl leading-none font-bold"
+                        :class="kpi.valueColor"
                     >
-                        Updated {{ lastUpdated }}
+                        {{ kpi.value }}
+                    </p>
+                    <p class="mt-1 text-[10px]" :class="kpi.subColor">
+                        {{ kpi.sub }}
+                    </p>
+                </div>
+            </div>
+
+            <!-- ROW 3: 4 panels — first 3 equal narrow, 4th slightly wider -->
+            <div class="grid min-h-0 flex-1 grid-cols-9 gap-4">
+                <!-- Panel 1: Monthly Trend -->
+                <div
+                    class="col-span-2 flex h-full flex-col rounded-xl border border-border/50 bg-card p-3 shadow-sm"
+                >
+                    <p
+                        class="mb-2 shrink-0 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                    >
+                        Monthly Trend
+                    </p>
+                    <div
+                        v-if="loading"
+                        class="flex min-h-0 flex-1 items-center justify-center"
+                    >
+                        <div
+                            class="h-7 w-7 animate-spin rounded-full border-4 border-primary border-r-transparent"
+                        ></div>
+                    </div>
+                    <div
+                        v-else
+                        ref="chartEl"
+                        id="trend-main-chart"
+                        class="min-h-0 w-full flex-1"
+                    ></div>
+                </div>
+
+                <!-- Panel 2: Weekly Trend -->
+                <div
+                    class="col-span-2 flex h-full flex-col rounded-xl border border-border/50 bg-card p-3 shadow-sm"
+                >
+                    <p
+                        class="mb-2 shrink-0 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                    >
+                        Weekly Trend
                     </p>
                 </div>
 
-                <!-- Right: KPI cards -->
-                <div class="flex gap-3">
-                    <div
-                        v-for="kpi in kpiCards"
-                        :key="kpi.label"
-                        class="min-w-[130px] rounded-xl border border-border/50 px-4 py-3 shadow-sm"
-                        :class="kpi.bg"
-                    >
-                        <p
-                            class="text-[10px] font-semibold tracking-widest uppercase"
-                            :class="kpi.labelColor"
-                        >
-                            {{ kpi.label }}
-                        </p>
-                        <p
-                            class="mt-0.5 text-2xl leading-none font-bold"
-                            :class="kpi.valueColor"
-                        >
-                            {{ kpi.value }}
-                        </p>
-                        <p class="mt-1 text-[10px]" :class="kpi.subColor">
-                            {{ kpi.sub }}
-                        </p>
-                    </div>
-                </div>
-            </div>
-
-            <!-- Z-ROW 2: Main trend chart (wide) -->
-            <div
-                class="rounded-xl border border-border/50 bg-card p-4 shadow-lg"
-            >
-                <div class="mb-3 flex items-center justify-between">
-                    <h2 class="text-sm font-bold text-foreground">
-                        Daily Lot Volume Trend
-                    </h2>
-                    <div class="flex gap-1">
-                        <button
-                            v-for="m in chartModes"
-                            :key="m.value"
-                            @click="
-                                chartMode = m.value;
-                                buildChart();
-                            "
-                            class="rounded-md border px-2.5 py-1 text-xs font-medium transition-colors"
-                            :class="
-                                chartMode === m.value
-                                    ? 'border-blue-600 bg-blue-600 text-white'
-                                    : 'border-blue-600 bg-transparent text-blue-600 hover:bg-blue-600 hover:text-white'
-                            "
-                        >
-                            {{ m.label }}
-                        </button>
-                    </div>
-                </div>
+                <!-- Panel 3: Daily Trend -->
                 <div
-                    v-if="loading"
-                    class="flex h-[260px] items-center justify-center"
+                    class="col-span-2 flex h-full flex-col rounded-xl border border-border/50 bg-card p-3 shadow-sm"
                 >
-                    <div
-                        class="h-7 w-7 animate-spin rounded-full border-4 border-primary border-r-transparent"
-                    ></div>
+                    <p
+                        class="mb-2 shrink-0 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                    >
+                        Daily Trend
+                    </p>
                 </div>
+
+                <!-- Panel 4: Every Cut-Off Trend -->
                 <div
-                    v-else
-                    id="trend-main-chart"
-                    class="h-[260px] w-full"
-                ></div>
+                    class="col-span-3 flex h-full flex-col rounded-xl border border-border/50 bg-card p-3 shadow-sm"
+                >
+                    <p
+                        class="mb-2 shrink-0 text-[10px] font-bold tracking-widest text-muted-foreground uppercase"
+                    >
+                        Every Cut-Off Trend
+                    </p>
+                </div>
             </div>
 
-            <!-- Z-ROW 3: Detail cards -->
-            <div class="grid grid-cols-3 gap-4">
+            <!-- ROW 4: 4 cards, fixed height with scroll -->
+            <div class="grid grid-cols-4 gap-4">
                 <!-- Top Defect Code -->
                 <div
-                    class="rounded-xl border border-border/50 bg-card p-4 shadow-sm"
+                    class="flex h-[220px] flex-col rounded-xl border border-border/50 bg-card p-4 shadow-sm"
                 >
-                    <div class="mb-3 flex items-center gap-2">
+                    <div class="mb-3 flex shrink-0 items-center gap-2">
                         <div
                             class="rounded-full bg-red-500/10 p-1.5 ring-1 ring-red-500/20"
                         >
@@ -177,48 +191,54 @@
                             Top Defect Code
                         </p>
                     </div>
-                    <div v-if="topDefects.length" class="space-y-2">
-                        <div
-                            v-for="(d, i) in topDefects.slice(0, 5)"
-                            :key="d.code"
-                            class="flex items-center gap-2"
-                        >
-                            <span
-                                class="w-4 text-[10px] font-bold text-muted-foreground"
-                                >{{ i + 1 }}</span
+                    <div class="min-h-0 flex-1 overflow-y-auto">
+                        <div v-if="topDefects.length" class="space-y-2">
+                            <div
+                                v-for="(d, i) in topDefects"
+                                :key="d.code"
+                                class="flex items-center gap-2"
                             >
-                            <div class="flex-1">
-                                <div class="flex items-center justify-between">
-                                    <span
-                                        class="text-xs font-semibold text-foreground"
-                                        >{{ d.code }}</span
-                                    >
-                                    <span
-                                        class="text-[10px] text-muted-foreground"
-                                        >{{ d.count }} lots</span
-                                    >
-                                </div>
-                                <div
-                                    class="mt-0.5 h-1.5 w-full rounded-full bg-muted"
+                                <span
+                                    class="w-4 text-[10px] font-bold text-muted-foreground"
+                                    >{{ i + 1 }}</span
                                 >
+                                <div class="flex-1">
                                     <div
-                                        class="h-1.5 rounded-full bg-red-500 transition-all"
-                                        :style="{
-                                            width: `${(d.count / topDefects[0].count) * 100}%`,
-                                        }"
-                                    ></div>
+                                        class="flex items-center justify-between"
+                                    >
+                                        <span
+                                            class="text-xs font-semibold text-foreground"
+                                            >{{ d.code }}</span
+                                        >
+                                        <span
+                                            class="text-[10px] text-muted-foreground"
+                                            >{{ d.count }} lots</span
+                                        >
+                                    </div>
+                                    <div
+                                        class="mt-0.5 h-1.5 w-full rounded-full bg-muted"
+                                    >
+                                        <div
+                                            class="h-1.5 rounded-full bg-red-500 transition-all"
+                                            :style="{
+                                                width: `${(d.count / topDefects[0].count) * 100}%`,
+                                            }"
+                                        ></div>
+                                    </div>
                                 </div>
                             </div>
                         </div>
+                        <p v-else class="text-xs text-muted-foreground">
+                            No data
+                        </p>
                     </div>
-                    <p v-else class="text-xs text-muted-foreground">No data</p>
                 </div>
 
-                <!-- Flow Distribution -->
+                <!-- QC Inspection Lot Distribution -->
                 <div
-                    class="rounded-xl border border-border/50 bg-card p-4 shadow-sm"
+                    class="flex h-[220px] flex-col rounded-xl border border-border/50 bg-card p-4 shadow-sm"
                 >
-                    <div class="mb-3 flex items-center gap-2">
+                    <div class="mb-3 flex shrink-0 items-center gap-2">
                         <div
                             class="rounded-full bg-indigo-500/10 p-1.5 ring-1 ring-indigo-500/20"
                         >
@@ -227,49 +247,84 @@
                         <p
                             class="text-xs font-bold tracking-wide text-foreground uppercase"
                         >
-                            Flow Distribution
+                            QC Inspection Lot Distribution
                         </p>
                     </div>
-                    <div class="space-y-2.5">
-                        <div
-                            v-for="f in flowStats"
-                            :key="f.label"
-                            class="flex items-center gap-3"
-                        >
-                            <div class="w-24 shrink-0">
-                                <p
-                                    class="text-[10px] font-semibold"
-                                    :class="f.color"
-                                >
-                                    {{ f.label }}
-                                </p>
-                            </div>
-                            <div class="flex-1">
-                                <div class="h-2 w-full rounded-full bg-muted">
-                                    <div
-                                        class="h-2 rounded-full transition-all"
-                                        :class="f.bar"
-                                        :style="{ width: `${f.pct}%` }"
-                                    ></div>
+                    <div class="min-h-0 flex-1 overflow-y-auto">
+                        <div class="space-y-3">
+                            <div
+                                v-for="f in flowStats"
+                                :key="f.label"
+                                class="flex items-center gap-3"
+                            >
+                                <div class="w-24 shrink-0">
+                                    <p
+                                        class="text-[10px] font-semibold"
+                                        :class="f.color"
+                                    >
+                                        {{ f.label }}
+                                    </p>
                                 </div>
+                                <div class="flex-1">
+                                    <div
+                                        class="h-4 w-full rounded-full bg-muted"
+                                    >
+                                        <div
+                                            class="h-4 rounded-full transition-all"
+                                            :class="f.bar"
+                                            :style="{ width: `${f.pct}%` }"
+                                        ></div>
+                                    </div>
+                                </div>
+                                <span
+                                    class="w-10 text-right text-[10px] font-bold text-foreground"
+                                    >{{ f.pct }}%</span
+                                >
+                                <span
+                                    class="w-12 text-right text-[10px] text-muted-foreground"
+                                    >{{ f.count }} lots</span
+                                >
                             </div>
-                            <span
-                                class="w-10 text-right text-[10px] font-bold text-foreground"
-                                >{{ f.pct }}%</span
+                        </div>
+
+                        <!-- Distribution insight -->
+                        <div
+                            v-if="qcAnalysisInsight"
+                            class="mt-3 flex items-center gap-1.5 border-t border-border/40 pt-3"
+                        >
+                            <AlertCircle
+                                v-if="
+                                    qcAnalysisInsight.type === 'warn' ||
+                                    qcAnalysisInsight.type === 'alert'
+                                "
+                                class="h-3.5 w-3.5 shrink-0"
+                                :class="qcAnalysisInsight.color"
+                            />
+                            <CheckCircle2
+                                v-else-if="qcAnalysisInsight.type === 'ok'"
+                                class="h-3.5 w-3.5 shrink-0"
+                                :class="qcAnalysisInsight.color"
+                            />
+                            <Info
+                                v-else
+                                class="h-3.5 w-3.5 shrink-0"
+                                :class="qcAnalysisInsight.color"
+                            />
+                            <p
+                                class="text-[10px] leading-snug"
+                                :class="qcAnalysisInsight.color"
                             >
-                            <span
-                                class="w-12 text-right text-[10px] text-muted-foreground"
-                                >{{ f.count }} lots</span
-                            >
+                                {{ qcAnalysisInsight.text }}
+                            </p>
                         </div>
                     </div>
                 </div>
 
-                <!-- Watch Out: Prev Day Pending -->
+                <!-- Delay & Pending Lots -->
                 <div
-                    class="rounded-xl border border-border/50 bg-card p-4 shadow-sm"
+                    class="flex h-[220px] flex-col rounded-xl border border-border/50 bg-card p-4 shadow-sm"
                 >
-                    <div class="mb-3 flex items-center gap-2">
+                    <div class="mb-3 flex shrink-0 items-center gap-2">
                         <div
                             class="rounded-full bg-amber-500/10 p-1.5 ring-1 ring-amber-500/20"
                         >
@@ -278,38 +333,101 @@
                         <p
                             class="text-xs font-bold tracking-wide text-foreground uppercase"
                         >
-                            Watch Out
+                            Delay & Pending Lots
                         </p>
                     </div>
-                    <div v-if="watchOutLots.length" class="space-y-2">
-                        <div
-                            v-for="lot in watchOutLots.slice(0, 5)"
-                            :key="lot.lot_id"
-                            class="flex items-center justify-between rounded-lg bg-amber-50/50 px-2.5 py-1.5 dark:bg-amber-950/20"
-                        >
-                            <div>
-                                <p
-                                    class="font-mono text-xs font-bold text-primary"
-                                >
-                                    {{ lot.lot_id }}
-                                </p>
-                                <p class="text-[10px] text-muted-foreground">
-                                    {{ lot.defect_class || '—' }}
-                                </p>
+                    <div class="min-h-0 flex-1 overflow-y-auto">
+                        <div v-if="watchOutLots.length" class="space-y-2">
+                            <div
+                                v-for="lot in watchOutLots"
+                                :key="lot.lot_id"
+                                class="flex items-center justify-between rounded-lg bg-amber-50/50 px-2.5 py-1.5 dark:bg-amber-950/20"
+                            >
+                                <div>
+                                    <p
+                                        class="font-mono text-xs font-bold text-primary"
+                                    >
+                                        {{ lot.lot_id }}
+                                    </p>
+                                    <p
+                                        class="text-[10px] text-muted-foreground"
+                                    >
+                                        {{ lot.defect_class || '—' }}
+                                    </p>
+                                </div>
+                                <div class="text-right">
+                                    <p
+                                        class="text-xs font-semibold text-amber-600"
+                                    >
+                                        {{ lot.elapsed }}
+                                    </p>
+                                    <p
+                                        class="text-[10px] text-muted-foreground"
+                                    >
+                                        {{ lot.final_decision }}
+                                    </p>
+                                </div>
                             </div>
-                            <div class="text-right">
-                                <p class="text-xs font-semibold text-amber-600">
-                                    {{ lot.elapsed }}
-                                </p>
-                                <p class="text-[10px] text-muted-foreground">
-                                    {{ lot.final_decision }}
+                        </div>
+                        <p v-else class="text-xs text-muted-foreground">
+                            No pending lots from previous days
+                        </p>
+                    </div>
+                </div>
+
+                <!-- Watch Out & Reminders -->
+                <div
+                    class="flex h-[220px] flex-col rounded-xl border border-border/50 bg-card p-4 shadow-sm"
+                >
+                    <div class="mb-3 flex shrink-0 items-center gap-2">
+                        <div
+                            class="rounded-full bg-sky-500/10 p-1.5 ring-1 ring-sky-500/20"
+                        >
+                            <Lightbulb class="h-4 w-4 text-sky-600" />
+                        </div>
+                        <p
+                            class="text-xs font-bold tracking-wide text-foreground uppercase"
+                        >
+                            Watch Out & Reminders
+                        </p>
+                    </div>
+                    <div class="min-h-0 flex-1 overflow-y-auto">
+                        <div class="space-y-2">
+                            <div
+                                v-for="insight in distributionInsights"
+                                :key="insight.text"
+                                class="flex items-center gap-2 rounded-lg px-2.5 py-2"
+                                :class="insight.bg"
+                            >
+                                <AlertCircle
+                                    v-if="insight.type === 'warn'"
+                                    class="h-3.5 w-3.5 shrink-0 text-amber-600"
+                                />
+                                <AlertCircle
+                                    v-else-if="insight.type === 'alert'"
+                                    class="h-3.5 w-3.5 shrink-0 text-red-600"
+                                />
+                                <CheckCircle2
+                                    v-else-if="insight.type === 'ok'"
+                                    class="h-3.5 w-3.5 shrink-0 text-teal-600"
+                                />
+                                <Clock
+                                    v-else-if="insight.type === 'pending'"
+                                    class="h-3.5 w-3.5 shrink-0 text-orange-600"
+                                />
+                                <Info
+                                    v-else
+                                    class="h-3.5 w-3.5 shrink-0 text-indigo-600"
+                                />
+                                <p
+                                    class="text-[10px] leading-snug"
+                                    :class="insight.color"
+                                >
+                                    {{ insight.text }}
                                 </p>
                             </div>
                         </div>
                     </div>
-                    <p v-else class="text-xs text-muted-foreground">
-                        No pending lots from previous days
-                    </p>
                 </div>
             </div>
         </div>
@@ -320,7 +438,15 @@
 import AppLayout from '@/layouts/AppLayout.vue';
 import axios from 'axios';
 import * as echarts from 'echarts';
-import { AlertCircle, Clock, GitBranch, RefreshCw } from 'lucide-vue-next';
+import {
+    AlertCircle,
+    CheckCircle2,
+    Clock,
+    GitBranch,
+    Info,
+    Lightbulb,
+    RefreshCw,
+} from 'lucide-vue-next';
 import { computed, onBeforeUnmount, onMounted, ref } from 'vue';
 
 // ── Filters ──────────────────────────────────────────────────────────────────
@@ -365,20 +491,38 @@ const rows = ref<EndlineRow[]>([]);
 const kpiCards = computed(() => {
     const total = rows.value.length;
     const totalQty = rows.value.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
-    const done = rows.value.filter(
-        (r) => r.output_status === 'Completed' || r.output_status === 'Rework',
+    const qcOk = rows.value.filter((r) => r.qc_result === 'OK').length;
+    const qcAnalysis = rows.value.filter(
+        (r) => r.defect_class === 'QC Analysis',
     ).length;
-    const pending = rows.value.filter(
+    const viTechnical = rows.value.filter(
+        (r) => r.defect_class === "Tech'l Verification",
+    ).length;
+    // Average TAT in hours (from created_at to now, for completed lots)
+    const completedWithTime = rows.value.filter(
         (r) =>
-            r.output_status === 'Pending' &&
-            r.final_decision !== 'In Progress' &&
-            r.final_decision !== 'Technical',
-    ).length;
-    const pct = total ? Math.round((done / total) * 100) : 0;
+            (r.output_status === 'Completed' || r.output_status === 'Rework') &&
+            r.created_at,
+    );
+    const avgTatHrs = completedWithTime.length
+        ? Math.round(
+              completedWithTime.reduce(
+                  (s, r) =>
+                      s +
+                      (Date.now() - new Date(r.created_at!).getTime()) /
+                          3600000,
+                  0,
+              ) / completedWithTime.length,
+          )
+        : 0;
+    const avgTat =
+        avgTatHrs >= 24
+            ? `${Math.floor(avgTatHrs / 24)}d ${avgTatHrs % 24}h`
+            : `${avgTatHrs}h`;
 
     return [
         {
-            label: 'Total Lots',
+            label: 'Total Inspected Lots',
             value: total.toLocaleString(),
             sub: `${(totalQty / 1000).toFixed(1)}K pcs`,
             bg: 'bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20',
@@ -387,22 +531,44 @@ const kpiCards = computed(() => {
             subColor: 'text-blue-600/70',
         },
         {
-            label: 'Pending',
-            value: pending.toLocaleString(),
-            sub: 'awaiting action',
+            label: 'QC OK Lots',
+            value: qcOk.toLocaleString(),
+            sub: total ? `${Math.round((qcOk / total) * 100)}% pass rate` : '—',
+            bg: 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20',
+            labelColor: 'text-emerald-700 dark:text-emerald-300',
+            valueColor: 'text-emerald-900 dark:text-emerald-100',
+            subColor: 'text-emerald-600/70',
+        },
+        {
+            label: 'QC Analysis Lots',
+            value: qcAnalysis.toLocaleString(),
+            sub: total
+                ? `${Math.round((qcAnalysis / total) * 100)}% of total`
+                : '—',
             bg: 'bg-gradient-to-br from-amber-50 to-amber-100/50 dark:from-amber-950/30 dark:to-amber-900/20',
             labelColor: 'text-amber-700 dark:text-amber-300',
             valueColor: 'text-amber-900 dark:text-amber-100',
             subColor: 'text-amber-600/70',
         },
         {
-            label: 'Completed',
-            value: done.toLocaleString(),
-            sub: `${pct}% completion rate`,
-            bg: 'bg-gradient-to-br from-emerald-50 to-emerald-100/50 dark:from-emerald-950/30 dark:to-emerald-900/20',
-            labelColor: 'text-emerald-700 dark:text-emerald-300',
-            valueColor: 'text-emerald-900 dark:text-emerald-100',
-            subColor: 'text-emerald-600/70',
+            label: 'Vi Technical Lots',
+            value: viTechnical.toLocaleString(),
+            sub: total
+                ? `${Math.round((viTechnical / total) * 100)}% of total`
+                : '—',
+            bg: 'bg-gradient-to-br from-violet-50 to-violet-100/50 dark:from-violet-950/30 dark:to-violet-900/20',
+            labelColor: 'text-violet-700 dark:text-violet-300',
+            valueColor: 'text-violet-900 dark:text-violet-100',
+            subColor: 'text-violet-600/70',
+        },
+        {
+            label: 'Average TAT',
+            value: avgTat,
+            sub: 'avg turnaround time',
+            bg: 'bg-gradient-to-br from-orange-50 to-orange-100/50 dark:from-orange-950/30 dark:to-orange-900/20',
+            labelColor: 'text-orange-700 dark:text-orange-300',
+            valueColor: 'text-orange-900 dark:text-orange-100',
+            subColor: 'text-orange-600/70',
         },
     ];
 });
@@ -435,7 +601,6 @@ const flowStats = computed(() => {
         (r) => r.defect_class === "Tech'l Verification",
     ).length;
     const qcOk = rows.value.filter((r) => r.qc_result === 'OK').length;
-    const other = total - qcA - viT - qcOk;
 
     return [
         {
@@ -459,14 +624,126 @@ const flowStats = computed(() => {
             color: 'text-teal-600',
             bar: 'bg-teal-500',
         },
-        {
-            label: 'Other',
-            count: other,
-            pct: Math.round((other / total) * 100),
-            color: 'text-slate-500',
-            bar: 'bg-slate-400',
-        },
     ];
+});
+
+// ── Distribution insights ─────────────────────────────────────────────────────
+const qcAnalysisInsight = computed(() => {
+    const total = rows.value.length || 1;
+    const qcA = flowStats.value.find((f) => f.label === 'QC Analysis');
+    const viT = flowStats.value.find((f) => f.label === "Tech'l Verif.");
+    const qcOk = flowStats.value.find((f) => f.label === 'QC OK');
+
+    // Pick the most notable insight across all 3 categories
+    if (qcA && qcA.pct >= 50)
+        return {
+            type: 'warn',
+            text: `High QC Analysis rate (${qcA.pct}%) — review defect root causes.`,
+            color: 'text-amber-700 dark:text-amber-300',
+        };
+    if (viT && viT.pct >= 20)
+        return {
+            type: 'warn',
+            text: `Tech'l Verification at ${viT.pct}% — escalate if unresolved.`,
+            color: 'text-amber-700 dark:text-amber-300',
+        };
+    if (qcOk && qcOk.pct >= 80)
+        return {
+            type: 'ok',
+            text: `Strong QC OK rate at ${qcOk.pct}% — good quality trend.`,
+            color: 'text-teal-700 dark:text-teal-300',
+        };
+    if (qcOk && qcOk.pct < 30 && total > 5)
+        return {
+            type: 'alert',
+            text: `Low QC OK rate (${qcOk.pct}%) — quality attention needed.`,
+            color: 'text-red-700 dark:text-red-300',
+        };
+    if (qcA && qcA.count > 0)
+        return {
+            type: 'info',
+            text: `${qcA.count} lots under QC Analysis — monitor closely.`,
+            color: 'text-indigo-700 dark:text-indigo-300',
+        };
+    return null;
+});
+const distributionInsights = computed(() => {
+    const total = rows.value.length || 1;
+    const qcA = flowStats.value.find((f) => f.label === 'QC Analysis');
+    const viT = flowStats.value.find((f) => f.label === "Tech'l Verif.");
+    const qcOk = flowStats.value.find((f) => f.label === 'QC OK');
+    const pending = rows.value.filter(
+        (r) => r.output_status === 'Pending',
+    ).length;
+    const insights: {
+        type: string;
+        text: string;
+        color: string;
+        bg: string;
+    }[] = [];
+
+    if (qcA && qcA.pct >= 50)
+        insights.push({
+            type: 'warn',
+            text: `High QC Analysis rate (${qcA.pct}%) — review defect root causes.`,
+            color: 'text-amber-700 dark:text-amber-300',
+            bg: 'bg-amber-50/60 dark:bg-amber-950/20',
+        });
+    else if (qcA && qcA.pct > 0)
+        insights.push({
+            type: 'info',
+            text: `${qcA.count} lots under QC Analysis — monitor closely.`,
+            color: 'text-indigo-700 dark:text-indigo-300',
+            bg: 'bg-indigo-50/60 dark:bg-indigo-950/20',
+        });
+
+    if (viT && viT.pct >= 20)
+        insights.push({
+            type: 'warn',
+            text: `Tech'l Verification at ${viT.pct}% — escalate if unresolved.`,
+            color: 'text-amber-700 dark:text-amber-300',
+            bg: 'bg-amber-50/60 dark:bg-amber-950/20',
+        });
+    else if (viT && viT.count > 0)
+        insights.push({
+            type: 'info',
+            text: `${viT.count} lots pending technical verification.`,
+            color: 'text-purple-700 dark:text-purple-300',
+            bg: 'bg-purple-50/60 dark:bg-purple-950/20',
+        });
+
+    if (qcOk && qcOk.pct >= 80)
+        insights.push({
+            type: 'ok',
+            text: `Strong QC OK rate at ${qcOk.pct}% — good quality trend.`,
+            color: 'text-teal-700 dark:text-teal-300',
+            bg: 'bg-teal-50/60 dark:bg-teal-950/20',
+        });
+    else if (qcOk && qcOk.pct < 30 && total > 5)
+        insights.push({
+            type: 'alert',
+            text: `Low QC OK rate (${qcOk.pct}%) — quality attention needed.`,
+            color: 'text-red-700 dark:text-red-300',
+            bg: 'bg-red-50/60 dark:bg-red-950/20',
+        });
+
+    if (pending > 10)
+        insights.push({
+            type: 'pending',
+            text: `${pending} lots still pending — check for bottlenecks.`,
+            color: 'text-orange-700 dark:text-orange-300',
+            bg: 'bg-orange-50/60 dark:bg-orange-950/20',
+        });
+
+    if (insights.length === 0)
+        insights.push({
+            type: 'ok',
+            text: 'All metrics look normal. No immediate action required.',
+            color: 'text-muted-foreground',
+            bg: 'bg-muted/30',
+        });
+
+    return insights;
 });
 
 // ── Watch out: prev-day pending ───────────────────────────────────────────────
@@ -505,11 +782,17 @@ const watchOutLots = computed(() => {
 
 // ── Chart ─────────────────────────────────────────────────────────────────────
 let chart: echarts.ECharts | null = null;
+const chartEl = ref<HTMLElement | null>(null);
+let resizeObserver: ResizeObserver | null = null;
 
 function buildChart() {
     const el = document.getElementById('trend-main-chart');
     if (!el) return;
-    if (!chart) chart = echarts.init(el);
+    if (!chart) {
+        chart = echarts.init(el);
+    } else {
+        chart.resize();
+    }
 
     // Group by date
     const byDate: Record<string, EndlineRow[]> = {};
@@ -658,8 +941,15 @@ function onResize() {
 onMounted(() => {
     fetchData();
     window.addEventListener('resize', onResize);
+    // ResizeObserver keeps chart sized to its flex container
+    const el = document.getElementById('trend-main-chart');
+    if (el) {
+        resizeObserver = new ResizeObserver(() => chart?.resize());
+        resizeObserver.observe(el);
+    }
 });
 onBeforeUnmount(() => {
+    resizeObserver?.disconnect();
     chart?.dispose();
     window.removeEventListener('resize', onResize);
 });

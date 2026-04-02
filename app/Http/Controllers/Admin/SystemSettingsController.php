@@ -82,20 +82,17 @@ class SystemSettingsController extends Controller
     }
 
     /**
-     * Optimize application.
+     * Clear all optimization caches (routes, config, views).
      */
     public function optimize()
     {
-        Artisan::call('optimize');
-        Artisan::call('config:cache');
-        Artisan::call('route:cache');
-        Artisan::call('view:cache');
+        Artisan::call('optimize:clear');
 
         $timestamp = Carbon::now();
         Cache::put('last_optimization', $timestamp, now()->addYear());
 
         return response()->json([
-            'message' => 'Application optimized successfully',
+            'message' => 'Optimization caches cleared successfully',
             'last_optimization' => $timestamp,
         ]);
     }
