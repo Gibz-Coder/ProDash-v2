@@ -202,6 +202,12 @@
                             <option value="For Verify (Production)">
                                 For Verify (Production)
                             </option>
+                            <option value="For Decision (Tech'l)">
+                                For Decision (Tech'l)
+                            </option>
+                            <option value="For Decide (QC)">
+                                For Decide (QC)
+                            </option>
                             <option value="Completed">Completed</option>
                         </optgroup>
                     </select>
@@ -339,6 +345,10 @@ const routingHint = computed(() => {
         return 'No routing — final decision set to Recovery';
     if (selectedStatus.value === 'For Verify (Production)')
         return 'No routing — final decision set to For Verify';
+    if (selectedStatus.value === "For Decision (Tech'l)")
+        return "No routing — final decision set to For Decision Tech'l";
+    if (selectedStatus.value === 'For Decide (QC)')
+        return 'No routing — final decision set to For Decide QC';
     if (selectedStatus.value === 'Completed')
         return 'Marks lot as Completed — output released';
     return '';
@@ -421,7 +431,10 @@ async function submit() {
     try {
         await axios.post(
             `/api/endline-delay/${resolvedLot.value.id}/update-qc-ok-status`,
-            { status: selectedStatus.value },
+            {
+                status: selectedStatus.value,
+                remarks: remarks.value || undefined,
+            },
         );
         emit('saved');
         emit('update:open', false);

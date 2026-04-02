@@ -1365,10 +1365,11 @@ function isLRework(r: EndlineRecord): boolean {
 }
 
 const countByQcBucket = (fn: (r: EndlineRecord) => boolean) =>
-    records.value.filter(fn).length;
+    (records.value ?? []).filter(fn).length;
 const sumQtyByQcBucket = (fn: (r: EndlineRecord) => boolean) =>
-    records.value.filter(fn).reduce((s, r) => s + (r.lot_qty ?? 0), 0);
-const totalQty = () => records.value.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
+    (records.value ?? []).filter(fn).reduce((s, r) => s + (r.lot_qty ?? 0), 0);
+const totalQty = () =>
+    (records.value ?? []).reduce((s, r) => s + (r.lot_qty ?? 0), 0);
 
 // Output status breakdown helper — generic for overall/mainlot/rework/qcok cards
 function statusBreakdown(recs: EndlineRecord[]) {
@@ -1585,9 +1586,10 @@ async function fetchRecords() {
                 },
             },
         );
+        const rows = Array.isArray(data) ? data : [];
         records.value = decisionFilter.value
-            ? data.filter((r) => getDecision(r) === decisionFilter.value)
-            : data;
+            ? rows.filter((r) => getDecision(r) === decisionFilter.value)
+            : rows;
     } catch {
         console.error('Failed to load records.');
     } finally {

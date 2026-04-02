@@ -596,11 +596,11 @@
                                 </th>
                                 <th
                                     class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
-                                    @click="toggleSort('created_at')"
+                                    @click="toggleSort('vi_techl_start')"
                                 >
                                     Date Time
                                     <span class="opacity-60">{{
-                                        sortIcon('created_at')
+                                        sortIcon('vi_techl_start')
                                     }}</span>
                                 </th>
                                 <th
@@ -705,7 +705,7 @@
                                 <td
                                     class="px-2 py-2 text-xs whitespace-nowrap text-muted-foreground"
                                 >
-                                    {{ formatDateTime(rec.created_at) }}
+                                    {{ formatDateTime(rec.vi_techl_start) }}
                                 </td>
                                 <td class="px-2 py-2">
                                     <span
@@ -1081,9 +1081,9 @@ const filteredRecords = computed(() => {
         if (sf === 'completed') return !!r.vi_techl_result;
         if (sf === 'prevday') {
             if (r.vi_techl_result) return false;
-            if (!r.created_at) return false;
+            if (!r.vi_techl_start) return false;
             return (
-                new Date(r.created_at).toLocaleDateString('en-CA', {
+                new Date(r.vi_techl_start).toLocaleDateString('en-CA', {
                     timeZone: 'Asia/Manila',
                 }) < todayStr
             );

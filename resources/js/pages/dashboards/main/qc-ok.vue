@@ -595,7 +595,7 @@
                                 <td
                                     class="px-2 py-2 text-xs whitespace-nowrap text-muted-foreground"
                                 >
-                                    {{ formatDateTime(rec.created_at) }}
+                                    {{ formatDateTime(arrivalAt(rec)) }}
                                 </td>
                                 <td
                                     class="px-2 py-2 text-xs whitespace-nowrap text-amber-600 dark:text-amber-400"
@@ -606,13 +606,14 @@
                                             ? rec.lot_completed_at &&
                                               rec.updated_at
                                                 ? formatDuration(
-                                                      Math.abs(
+                                                      Math.max(
+                                                          0,
                                                           Math.floor(
                                                               (new Date(
-                                                                  rec.updated_at,
+                                                                  rec.lot_completed_at,
                                                               ).getTime() -
                                                                   new Date(
-                                                                      rec.lot_completed_at,
+                                                                      rec.updated_at,
                                                                   ).getTime()) /
                                                                   60_000,
                                                           ),
@@ -778,6 +779,8 @@ interface QcOkRecord {
     qc_ana_result: string | null;
     vi_techl_start: string | null;
     vi_techl_result: string | null;
+    qc_ana_completed_at: string | null;
+    vi_techl_completed_at: string | null;
 }
 
 const filterDate = ref(
@@ -818,7 +821,16 @@ function formatDateTime(dt: string | null) {
     });
 }
 
+// Arrival date on the QC OK page:
+// vi_techl_completed_at → qc_ana_completed_at → created_at
+function arrivalAt(rec: QcOkRecord): string | null {
+    return (
+        rec.vi_techl_completed_at ?? rec.qc_ana_completed_at ?? rec.created_at
+    );
+}
+
 const records = ref<QcOkRecord[]>([]);
+const prevDayRecords = ref<QcOkRecord[]>([]);
 const loading = ref(false);
 const error = ref<string | null>(null);
 const tableSearch = ref('');
@@ -882,6 +894,20 @@ async function fetchRecords() {
         });
         records.value = data.data ?? [];
         if (data.meta) meta.value = data.meta;
+
+        // Fetch prev-day pending records independently (no date filter)
+        const { data: prevData } = await axios.get<{
+            success: boolean;
+            data: QcOkRecord[];
+        }>('/api/endline-delay/qc-ok-monitor', {
+            params: {
+                prev_day_only: 1,
+                shift: filterShift.value || undefined,
+                work_type: filterWorktype.value || undefined,
+                lipas_yn: filterLipas.value || undefined,
+            },
+        });
+        prevDayRecords.value = prevData.data ?? [];
     } catch (e: unknown) {
         error.value = e instanceof Error ? e.message : 'Failed to load records';
     } finally {
@@ -1028,22 +1054,26 @@ const filteredRecords = computed(() => {
     if (cardFilter.value === 'qc_pending') {
         base = base.filter(
             (r) =>
-                r.defect_class === 'QC Analysis' &&
-                !r.qc_ana_result &&
-                r.qc_result === 'OK',
+                (r.defect_class === 'QC Analysis' &&
+                    !r.qc_ana_result &&
+                    r.qc_result === 'OK') ||
+                r.final_decision === 'For Decide QC',
         );
     } else if (cardFilter.value === 'tech_pending') {
         base = base.filter(
             (r) =>
-                r.defect_class === "Tech'l Verification" &&
-                r.vi_techl_start &&
-                !r.vi_techl_result,
+                (r.defect_class === "Tech'l Verification" &&
+                    r.vi_techl_start &&
+                    !r.vi_techl_result) ||
+                r.final_decision === "For Decision Tech'l",
         );
     } else if (cardFilter.value === 'prod_pending') {
         base = base.filter(
             (r) =>
                 r.output_status !== 'Completed' &&
                 r.output_status !== 'Rework' &&
+                r.final_decision !== "For Decision Tech'l" &&
+                r.final_decision !== 'For Decide QC' &&
                 ((r.qc_result === 'OK' &&
                     !r.qc_ana_result &&
                     !r.vi_techl_result &&
@@ -1059,24 +1089,24 @@ const filteredRecords = computed(() => {
                 r.output_status === 'Completed' || r.output_status === 'Rework',
         );
     } else if (cardFilter.value === 'prev_day') {
-        const today = new Date().toLocaleDateString('en-CA', {
-            timeZone: 'Asia/Manila',
-        });
-        base = base.filter(
-            (r) =>
-                !r.qc_ana_result &&
-                !r.vi_techl_result &&
-                r.created_at &&
-                new Date(r.created_at).toLocaleDateString('en-CA', {
-                    timeZone: 'Asia/Manila',
-                }) < today,
-        );
+        // Use the independently-fetched prev-day records so they show
+        // even when the current date filter has no matching data (e.g. viewing today)
+        const q = tableSearch.value.trim().toLowerCase();
+        base = q
+            ? prevDayRecords.value.filter(
+                  (r) =>
+                      r.lot_id?.toLowerCase().includes(q) ||
+                      r.model?.toLowerCase().includes(q) ||
+                      r.qc_defect?.toLowerCase().includes(q),
+              )
+            : prevDayRecords.value.slice();
     }
 
     const now = Date.now();
-    return applySort(base, (r: QcOkRecord) =>
-        r.created_at ? now - new Date(r.created_at).getTime() : 0,
-    );
+    return applySort(base, (r: QcOkRecord) => {
+        const at = arrivalAt(r);
+        return at ? now - new Date(at).getTime() : 0;
+    });
 });
 
 const totalQtyFmt = computed(() => formatQty(meta.value.total_qty));

@@ -147,7 +147,67 @@ class EndlineDelayController extends Controller
 
     public function qcOkIndex(Request $request): JsonResponse
     {
-        $records = $this->buildQuery($request)
+        $today = now()->toDateString();
+
+        // When prev_day_only=1, return only unresolved lots from previous days
+        // (independent of the date filter) so the card always shows correct data.
+        if ($request->boolean('prev_day_only')) {
+            $query = DB::table('endline_delay')
+                ->leftJoin('qc_defect_class', 'endline_delay.qc_defect', '=', 'qc_defect_class.defect_code')
+                ->where(function ($q) {
+                    $q->where('endline_delay.qc_result', 'OK')
+                      ->orWhere('endline_delay.qc_ana_result', 'Proceed')
+                      ->orWhere('endline_delay.vi_techl_result', 'Proceed');
+                })
+                ->whereNotIn('endline_delay.output_status', ['Completed', 'Rework'])
+                ->where(function ($q) use ($today) {
+                    $q->where(function ($q2) use ($today) {
+                        $q2->whereDate('endline_delay.created_at', '<', $today)
+                           ->whereNull('endline_delay.qc_ana_completed_at')
+                           ->whereNull('endline_delay.vi_techl_completed_at');
+                    })
+                    ->orWhere(function ($q2) use ($today) {
+                        $q2->whereNotNull('endline_delay.qc_ana_completed_at')
+                           ->whereDate('endline_delay.qc_ana_completed_at', '<', $today)
+                           ->whereNull('endline_delay.vi_techl_completed_at');
+                    })
+                    ->orWhere(function ($q2) use ($today) {
+                        $q2->whereNotNull('endline_delay.vi_techl_completed_at')
+                           ->whereDate('endline_delay.vi_techl_completed_at', '<', $today);
+                    });
+                })
+                ->select('endline_delay.*', 'qc_defect_class.defect_name');
+
+            if ($request->filled('shift')) {
+                $shift = $request->shift;
+                if ($shift === 'DAY') {
+                    $query->whereTime('endline_delay.created_at', '>=', '07:00:00')
+                          ->whereTime('endline_delay.created_at', '<', '19:00:00');
+                } elseif ($shift === 'NIGHT') {
+                    $query->where(function ($q) {
+                        $q->whereTime('endline_delay.created_at', '>=', '19:00:00')
+                          ->orWhereTime('endline_delay.created_at', '<', '07:00:00');
+                    });
+                }
+            }
+            if ($request->filled('work_type')) {
+                $query->where('endline_delay.work_type', $request->work_type);
+            }
+            if ($request->filled('lipas_yn')) {
+                $query->where('endline_delay.lipas_yn', $request->lipas_yn);
+            }
+
+            $prevDayData = $query->orderBy('endline_delay.created_at', 'desc')->get();
+
+            return response()->json([
+                'success' => true,
+                'data'    => $prevDayData,
+                'error'   => null,
+                'meta'    => null,
+            ]);
+        }
+
+        $qcOkQuery = DB::table('endline_delay')
             ->leftJoin('qc_defect_class', 'endline_delay.qc_defect', '=', 'qc_defect_class.defect_code')
             ->where(function ($q) {
                 // QC OK lots entered directly
@@ -157,30 +217,101 @@ class EndlineDelayController extends Controller
                   // OR any lot that cleared VI Technical with Proceed
                   ->orWhere('endline_delay.vi_techl_result', 'Proceed');
             })
-            ->orderBy('endline_delay.created_at', 'desc')
-            ->select('endline_delay.*', 'qc_defect_class.defect_name')
-            ->get();
+            ->select('endline_delay.*', 'qc_defect_class.defect_name');
 
-        $today = now()->toDateString();
+        // Date filter: match the "arrival" date on the QC OK page.
+        // A lot arrives here when it was entered as QC OK (created_at),
+        // or when QC Analysis cleared it (qc_ana_completed_at),
+        // or when VI Technical cleared it (vi_techl_completed_at).
+        if ($request->filled('date') && !$request->filled('search')) {
+            $date = $request->date;
+            $qcOkQuery->where(function ($q) use ($date) {
+                $q->whereDate('endline_delay.created_at', $date)
+                  ->orWhereDate('endline_delay.qc_ana_completed_at', $date)
+                  ->orWhereDate('endline_delay.vi_techl_completed_at', $date);
+            });
+        }
+        if ($request->filled('date_from')) {
+            $df = $request->date_from;
+            $qcOkQuery->where(function ($q) use ($df) {
+                $q->whereDate('endline_delay.created_at', '>=', $df)
+                  ->orWhereDate('endline_delay.qc_ana_completed_at', '>=', $df)
+                  ->orWhereDate('endline_delay.vi_techl_completed_at', '>=', $df);
+            });
+        }
+        if ($request->filled('date_to')) {
+            $dt = $request->date_to;
+            $qcOkQuery->where(function ($q) use ($dt) {
+                $q->whereDate('endline_delay.created_at', '<=', $dt)
+                  ->orWhereDate('endline_delay.qc_ana_completed_at', '<=', $dt)
+                  ->orWhereDate('endline_delay.vi_techl_completed_at', '<=', $dt);
+            });
+        }
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $qcOkQuery->where(function ($q) use ($search) {
+                $q->where('endline_delay.lot_id', 'like', "%{$search}%")
+                  ->orWhere('endline_delay.model', 'like', "%{$search}%");
+            });
+        }
+        if ($request->filled('shift')) {
+            $shift = $request->shift;
+            if ($shift === 'DAY') {
+                $qcOkQuery->whereTime('endline_delay.created_at', '>=', '07:00:00')
+                          ->whereTime('endline_delay.created_at', '<', '19:00:00');
+            } elseif ($shift === 'NIGHT') {
+                $qcOkQuery->where(function ($q) {
+                    $q->whereTime('endline_delay.created_at', '>=', '19:00:00')
+                      ->orWhereTime('endline_delay.created_at', '<', '07:00:00');
+                });
+            }
+        }
+        if ($request->filled('cutoff')) {
+            $ranges = [
+                '00:00~03:59' => ['00:00:00', '03:59:59'],
+                '04:00~06:59' => ['04:00:00', '06:59:59'],
+                '07:00~11:59' => ['07:00:00', '11:59:59'],
+                '12:00~15:59' => ['12:00:00', '15:59:59'],
+                '16:00~18:59' => ['16:00:00', '18:59:59'],
+                '19:00~23:59' => ['19:00:00', '23:59:59'],
+            ];
+            if (isset($ranges[$request->cutoff])) {
+                [$from, $to] = $ranges[$request->cutoff];
+                $qcOkQuery->whereTime('endline_delay.created_at', '>=', $from)
+                          ->whereTime('endline_delay.created_at', '<=', $to);
+            }
+        }
+        if ($request->filled('work_type')) {
+            $qcOkQuery->where('endline_delay.work_type', $request->work_type);
+        }
+        if ($request->filled('lipas_yn')) {
+            $qcOkQuery->where('endline_delay.lipas_yn', $request->lipas_yn);
+        }
 
-        // QC Pending: routed to QC Analysis, awaiting result (only QC OK source lots)
+        $records = $qcOkQuery->orderBy('endline_delay.created_at', 'desc')->get();
+
+        // QC Pending: routed to QC Analysis awaiting result, OR "For Decide QC" no-routing lots
         $qcPending = $records->filter(
-            fn($r) => trim($r->qc_result ?? '') === 'OK'
+            fn($r) => (trim($r->qc_result ?? '') === 'OK'
                    && $r->defect_class === 'QC Analysis'
-                   && is_null($r->qc_ana_result)
+                   && is_null($r->qc_ana_result))
+                   || $r->final_decision === 'For Decide QC'
         )->values();
 
-        // Technical Pending: routed to VI Technical, awaiting result
+        // Technical Pending: routed to VI Technical awaiting result, OR "For Decision Tech'l" no-routing lots
         $techPending = $records->filter(
-            fn($r) => $r->defect_class === "Tech'l Verification"
+            fn($r) => ($r->defect_class === "Tech'l Verification"
                    && !is_null($r->vi_techl_start)
-                   && is_null($r->vi_techl_result)
+                   && is_null($r->vi_techl_result))
+                   || $r->final_decision === "For Decision Tech'l"
         )->values();
 
         // Production Pending: fresh QC OK lots not yet routed, "For Verify", or cleared QC/VI — but not already finalized
         $prodPending = $records->filter(
             fn($r) => $r->output_status !== 'Completed'
                    && $r->output_status !== 'Rework'
+                   && $r->final_decision !== "For Decision Tech'l"
+                   && $r->final_decision !== 'For Decide QC'
                    && (
                        // Fresh QC OK lot — no routing applied yet
                        (trim($r->qc_result ?? '') === 'OK'
@@ -199,11 +330,56 @@ class EndlineDelayController extends Controller
             fn($r) => $r->output_status === 'Completed' || $r->output_status === 'Rework'
         )->values();
 
-        $prevDay = $records->filter(fn($r) =>
-            is_null($r->qc_ana_result) && is_null($r->vi_techl_result) &&
-            !is_null($r->created_at) &&
-            \Carbon\Carbon::parse($r->created_at)->toDateString() < $today
-        )->values();
+        // Prev day pending: lots whose QC OK arrival date is before today and still unresolved.
+        // Arrival date = created_at (direct QC OK), qc_ana_completed_at (cleared QC Analysis),
+        // or vi_techl_completed_at (cleared VI Technical).
+        $prevDayQuery = DB::table('endline_delay')
+            ->leftJoin('qc_defect_class', 'endline_delay.qc_defect', '=', 'qc_defect_class.defect_code')
+            ->where(function ($q) {
+                $q->where('endline_delay.qc_result', 'OK')
+                  ->orWhere('endline_delay.qc_ana_result', 'Proceed')
+                  ->orWhere('endline_delay.vi_techl_result', 'Proceed');
+            })
+            ->whereNotIn('endline_delay.output_status', ['Completed', 'Rework'])
+            ->where(function ($q) use ($today) {
+                // Arrival date is before today across all possible arrival columns
+                $q->where(function ($q2) use ($today) {
+                    $q2->whereDate('endline_delay.created_at', '<', $today)
+                       ->whereNull('endline_delay.qc_ana_completed_at')
+                       ->whereNull('endline_delay.vi_techl_completed_at');
+                })
+                ->orWhere(function ($q2) use ($today) {
+                    $q2->whereNotNull('endline_delay.qc_ana_completed_at')
+                       ->whereDate('endline_delay.qc_ana_completed_at', '<', $today)
+                       ->whereNull('endline_delay.vi_techl_completed_at');
+                })
+                ->orWhere(function ($q2) use ($today) {
+                    $q2->whereNotNull('endline_delay.vi_techl_completed_at')
+                       ->whereDate('endline_delay.vi_techl_completed_at', '<', $today);
+                });
+            })
+            ->select('endline_delay.*', 'qc_defect_class.defect_name');
+
+        if ($request->filled('shift')) {
+            $shift = $request->shift;
+            if ($shift === 'DAY') {
+                $prevDayQuery->whereTime('endline_delay.created_at', '>=', '07:00:00')
+                             ->whereTime('endline_delay.created_at', '<', '19:00:00');
+            } elseif ($shift === 'NIGHT') {
+                $prevDayQuery->where(function ($q) {
+                    $q->whereTime('endline_delay.created_at', '>=', '19:00:00')
+                      ->orWhereTime('endline_delay.created_at', '<', '07:00:00');
+                });
+            }
+        }
+        if ($request->filled('work_type')) {
+            $prevDayQuery->where('endline_delay.work_type', $request->work_type);
+        }
+        if ($request->filled('lipas_yn')) {
+            $prevDayQuery->where('endline_delay.lipas_yn', $request->lipas_yn);
+        }
+
+        $prevDay = $prevDayQuery->get();
 
         return response()->json([
             'success' => true,
@@ -228,6 +404,8 @@ class EndlineDelayController extends Controller
 
     public function qcAnalysisIndex(Request $request): JsonResponse
     {
+        // QC Analysis: date filter on created_at (lot was entered on that date)
+        // Also include lots from previous days that are still pending/in-progress
         $records = $this->buildQuery($request)
             ->leftJoin('qc_defect_class', 'endline_delay.qc_defect', '=', 'qc_defect_class.defect_code')
             ->where('endline_delay.defect_class', 'QC Analysis')
@@ -250,9 +428,9 @@ class EndlineDelayController extends Controller
 
     public function viTechnicalIndex(Request $request): JsonResponse
     {
-        // Show lots that are natively VI Technical OR lots handed off from QC Analysis
-        // (qc_ana_result = Rework/DRB Approval sets vi_techl_start)
-        $records = $this->buildQuery($request)
+        // VI Technical: use vi_techl_start as the activity date so that lots
+        // handed off from QC Analysis on a different day appear on the correct date.
+        $query = DB::table('endline_delay')
             ->leftJoin('qc_defect_class', 'endline_delay.qc_defect', '=', 'qc_defect_class.defect_code')
             ->where(function ($q) {
                 $q->where('endline_delay.defect_class', "Tech'l Verification")
@@ -261,9 +439,55 @@ class EndlineDelayController extends Controller
                          ->whereNotNull('endline_delay.vi_techl_start');
                   });
             })
-            ->orderBy('endline_delay.created_at', 'desc')
-            ->select('endline_delay.*', 'qc_defect_class.defect_name')
-            ->get();
+            ->select('endline_delay.*', 'qc_defect_class.defect_name');
+
+        // Date filter: match vi_techl_start date (the date the lot entered VI Technical)
+        if ($request->filled('date')) {
+            $query->whereDate('endline_delay.vi_techl_start', $request->date);
+        }
+        if ($request->filled('date_from')) {
+            $query->whereDate('endline_delay.vi_techl_start', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('endline_delay.vi_techl_start', '<=', $request->date_to);
+        }
+
+        // Shift/cutoff filter on vi_techl_start time
+        if ($request->filled('shift')) {
+            $shift = $request->shift;
+            if ($shift === 'DAY') {
+                $query->whereTime('endline_delay.vi_techl_start', '>=', '07:00:00')
+                      ->whereTime('endline_delay.vi_techl_start', '<', '19:00:00');
+            } elseif ($shift === 'NIGHT') {
+                $query->where(function ($q) {
+                    $q->whereTime('endline_delay.vi_techl_start', '>=', '19:00:00')
+                      ->orWhereTime('endline_delay.vi_techl_start', '<', '07:00:00');
+                });
+            }
+        }
+        if ($request->filled('cutoff')) {
+            $ranges = [
+                '00:00~03:59' => ['00:00:00', '03:59:59'],
+                '04:00~06:59' => ['04:00:00', '06:59:59'],
+                '07:00~11:59' => ['07:00:00', '11:59:59'],
+                '12:00~15:59' => ['12:00:00', '15:59:59'],
+                '16:00~18:59' => ['16:00:00', '18:59:59'],
+                '19:00~23:59' => ['19:00:00', '23:59:59'],
+            ];
+            if (isset($ranges[$request->cutoff])) {
+                [$from, $to] = $ranges[$request->cutoff];
+                $query->whereTime('endline_delay.vi_techl_start', '>=', $from)
+                      ->whereTime('endline_delay.vi_techl_start', '<=', $to);
+            }
+        }
+        if ($request->filled('work_type')) {
+            $query->where('endline_delay.work_type', $request->work_type);
+        }
+        if ($request->filled('lipas_yn')) {
+            $query->where('endline_delay.lipas_yn', $request->lipas_yn);
+        }
+
+        $records = $query->orderBy('endline_delay.vi_techl_start', 'desc')->get();
 
         $prevDay = $this->buildPrevDayQuery($request, "Tech'l Verification")->get();
 
@@ -382,7 +606,7 @@ class EndlineDelayController extends Controller
                     'lot_completed_at'    => now(),
                     'remarks'             => $baseRemarks . ' - NG',
                     'updated_by'          => $by,
-                    'updated_at'          => now(),
+                    // updated_at intentionally NOT updated — elapsed = lot_completed_at - updated_at
                 ]);
             } else {
                 // Normal lot Rework → hand off to VI Technical
@@ -745,7 +969,7 @@ class EndlineDelayController extends Controller
                     'output_status'    => 'Completed',
                     'lot_completed_at' => now(),
                     'updated_by'       => $by,
-                    'updated_at'       => now(),
+                    // updated_at intentionally NOT updated — elapsed = lot_completed_at - updated_at
                 ]);
         }
 
@@ -783,7 +1007,7 @@ class EndlineDelayController extends Controller
                 'lot_completed_at' => now(),
                 'remarks'          => $remarks,
                 'updated_by'       => $by,
-                'updated_at'       => now(),
+                // updated_at intentionally NOT updated — elapsed = lot_completed_at - updated_at
             ]);
 
             return response()->json([
@@ -843,13 +1067,31 @@ class EndlineDelayController extends Controller
                 'lot_completed_at' => now(),
                 'remarks'          => $status,
                 'updated_by'       => $by,
-                'updated_at'       => now(),
+                // updated_at intentionally NOT updated — elapsed = lot_completed_at - updated_at
             ]);
         } elseif ($status === 'For Verify (Production)') {
             DB::table('endline_delay')->where('id', $id)->update([
                 'qc_defect'      => $status,
                 'final_decision' => 'For Verify',
                 'remarks'        => $status,
+                'updated_by'     => $by,
+                'updated_at'     => now(),
+            ]);
+        } elseif ($status === "For Decision (Tech'l)") {
+            $userRemarks = trim($validated['remarks'] ?? '');
+            DB::table('endline_delay')->where('id', $id)->update([
+                'qc_defect'      => $status,
+                'final_decision' => "For Decision Tech'l",
+                'remarks'        => $userRemarks ? "{$status} - {$userRemarks}" : $status,
+                'updated_by'     => $by,
+                'updated_at'     => now(),
+            ]);
+        } elseif ($status === 'For Decide (QC)') {
+            $userRemarks = trim($validated['remarks'] ?? '');
+            DB::table('endline_delay')->where('id', $id)->update([
+                'qc_defect'      => $status,
+                'final_decision' => 'For Decide QC',
+                'remarks'        => $userRemarks ? "{$status} - {$userRemarks}" : $status,
                 'updated_by'     => $by,
                 'updated_at'     => now(),
             ]);

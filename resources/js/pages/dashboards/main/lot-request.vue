@@ -1081,7 +1081,7 @@ watch(tableSearch, (val) => {
         </template>
 
         <div
-            class="flex h-full flex-1 flex-col gap-3 overflow-auto bg-gradient-to-br from-background via-background to-muted/10 p-4"
+            class="flex h-full flex-1 flex-col gap-3 overflow-hidden bg-gradient-to-br from-background via-background to-muted/10 p-4"
         >
             <!-- Top Section: Donut Chart Left, Stats + Bar Chart Right -->
             <div class="grid gap-3 md:grid-cols-4">
@@ -1416,9 +1416,9 @@ watch(tableSearch, (val) => {
             </div>
 
             <!-- Table with Fixed Header -->
-            <Card class="flex flex-col">
+            <Card class="flex min-h-0 flex-1 flex-col">
                 <div
-                    class="flex items-center justify-between border-b px-4 py-2"
+                    class="flex h-8 items-center justify-between border-b px-3"
                 >
                     <span
                         class="text-xs font-semibold tracking-wide text-muted-foreground uppercase"
@@ -1429,7 +1429,7 @@ watch(tableSearch, (val) => {
                             v-model="tableSearch"
                             type="text"
                             placeholder="Search lot, MC, model..."
-                            class="h-7 w-56 rounded-md border border-input bg-background pr-6 pl-7 text-xs placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
+                            class="h-6 w-56 rounded-md border border-input bg-background pr-6 pl-7 text-xs placeholder:text-muted-foreground/50 focus:border-primary focus:ring-1 focus:ring-primary focus:outline-none"
                         />
                         <svg
                             class="absolute top-1/2 left-2 h-3.5 w-3.5 -translate-y-1/2 text-muted-foreground/50"
@@ -1450,7 +1450,7 @@ watch(tableSearch, (val) => {
                         </button>
                     </div>
                 </div>
-                <div class="overflow-auto">
+                <div class="min-h-0 flex-1 overflow-auto">
                     <table class="w-full min-w-[1400px] table-fixed text-xs">
                         <colgroup>
                             <col class="w-[80px]" />
