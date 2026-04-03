@@ -368,12 +368,12 @@
                             <p
                                 class="text-2xl font-bold text-teal-900 dark:text-teal-100"
                             >
-                                {{ formatQty(sumQtyByQcBucket(isQcOk)) }}
+                                {{ formatQty(qcOkMonitorSummary.totalQty) }}
                             </p>
                             <p
                                 class="text-xs text-teal-600/70 dark:text-teal-400/70"
                             >
-                                {{ countByQcBucket(isQcOk) }} lots
+                                {{ qcOkMonitorSummary.total }} lots
                             </p>
                         </div>
                         <div
@@ -448,16 +448,12 @@
                             <p
                                 class="text-2xl font-bold text-indigo-900 dark:text-indigo-100"
                             >
-                                {{
-                                    formatQty(
-                                        sumQtyByDefectClass('QC Analysis'),
-                                    )
-                                }}
+                                {{ formatQty(qcMonitorSummary.totalQty) }}
                             </p>
                             <p
                                 class="text-xs text-indigo-600/70 dark:text-indigo-400/70"
                             >
-                                {{ countByDefectClass('QC Analysis') }} lots
+                                {{ qcMonitorSummary.total }} lots
                             </p>
                         </div>
                         <div
@@ -534,19 +530,12 @@
                             <p
                                 class="text-2xl font-bold text-purple-900 dark:text-purple-100"
                             >
-                                {{
-                                    formatQty(
-                                        sumQtyByDefectClass(
-                                            "Tech'l Verification",
-                                        ),
-                                    )
-                                }}
+                                {{ formatQty(viMonitorSummary.totalQty) }}
                             </p>
                             <p
                                 class="text-xs text-purple-600/70 dark:text-purple-400/70"
                             >
-                                {{ countByDefectClass("Tech'l Verification") }}
-                                lots
+                                {{ viMonitorSummary.total }} lots
                             </p>
                         </div>
                         <div
@@ -1200,9 +1189,11 @@ interface EndlineRecord {
     qc_defect: string | null;
     defect_class: string | null;
     qc_ana_start: string | null;
+    qc_ana_prog: string | null;
     qc_ana_result: string | null;
     qc_ana_completed_at: string | null;
     vi_techl_start: string | null;
+    vi_techl_prog: string | null;
     vi_techl_result: string | null;
     vi_techl_completed_at: string | null;
     work_type: string | null;
@@ -1221,6 +1212,140 @@ const records = ref<EndlineRecord[]>([]);
 const loading = ref(false);
 const searchQuery = ref('');
 const decisionFilter = ref('');
+
+// Separate monitor summaries fetched from the dedicated endpoints
+// so the cards match the vi-technical and qc-analysis pages exactly
+interface MonitorSummary {
+    total: number;
+    totalQty: number;
+    pending: number;
+    pendingQty: number;
+    inProgress: number;
+    inProgressQty: number;
+    done: number;
+    doneQty: number;
+}
+const qcMonitorSummary = ref<MonitorSummary>({
+    total: 0,
+    totalQty: 0,
+    pending: 0,
+    pendingQty: 0,
+    inProgress: 0,
+    inProgressQty: 0,
+    done: 0,
+    doneQty: 0,
+});
+const viMonitorSummary = ref<MonitorSummary>({
+    total: 0,
+    totalQty: 0,
+    pending: 0,
+    pendingQty: 0,
+    inProgress: 0,
+    inProgressQty: 0,
+    done: 0,
+    doneQty: 0,
+});
+const qcOkMonitorSummary = ref<MonitorSummary>({
+    total: 0,
+    totalQty: 0,
+    pending: 0,
+    pendingQty: 0,
+    inProgress: 0,
+    inProgressQty: 0,
+    done: 0,
+    doneQty: 0,
+});
+
+async function fetchMonitorSummaries() {
+    const params: Record<string, string | undefined> = {
+        date: filterDate.value || undefined,
+        shift: filterShift.value || undefined,
+        cutoff: filterCutoff.value || undefined,
+        work_type: filterWorktype.value || undefined,
+        lipas_yn: filterLipas.value || undefined,
+    };
+    const [qcRes, viRes, qcOkRes] = await Promise.allSettled([
+        axios.get<{ success: boolean; data: any[] }>(
+            '/api/endline-delay/qc-monitor',
+            { params },
+        ),
+        axios.get<{ success: boolean; data: any[] }>(
+            '/api/endline-delay/vi-monitor',
+            { params },
+        ),
+        axios.get<{ success: boolean; data: any[] }>(
+            '/api/endline-delay/qc-ok-monitor',
+            { params },
+        ),
+    ]);
+
+    const sum = (arr: any[]) =>
+        arr.reduce((s: number, r: any) => s + (r.lot_qty ?? 0), 0);
+
+    if (qcRes.status === 'fulfilled') {
+        const recs = qcRes.value.data.data ?? [];
+        const done = recs.filter((r: any) => !!r.qc_ana_result);
+        const inProg = recs.filter(
+            (r: any) => !r.qc_ana_result && !!r.qc_ana_prog,
+        );
+        const pending = recs.filter(
+            (r: any) => !r.qc_ana_result && !r.qc_ana_prog,
+        );
+        qcMonitorSummary.value = {
+            total: recs.length,
+            totalQty: sum(recs),
+            pending: pending.length,
+            pendingQty: sum(pending),
+            inProgress: inProg.length,
+            inProgressQty: sum(inProg),
+            done: done.length,
+            doneQty: sum(done),
+        };
+    }
+
+    if (viRes.status === 'fulfilled') {
+        const recs = viRes.value.data.data ?? [];
+        const done = recs.filter((r: any) => !!r.vi_techl_result);
+        const inProg = recs.filter(
+            (r: any) => !r.vi_techl_result && !!r.vi_techl_prog,
+        );
+        const pending = recs.filter(
+            (r: any) => !r.vi_techl_result && !r.vi_techl_prog,
+        );
+        viMonitorSummary.value = {
+            total: recs.length,
+            totalQty: sum(recs),
+            pending: pending.length,
+            pendingQty: sum(pending),
+            inProgress: inProg.length,
+            inProgressQty: sum(inProg),
+            done: done.length,
+            doneQty: sum(done),
+        };
+    }
+
+    if (qcOkRes.status === 'fulfilled') {
+        const recs = qcOkRes.value.data.data ?? [];
+        const done = recs.filter(
+            (r: any) =>
+                r.output_status === 'Completed' || r.output_status === 'Rework',
+        );
+        const pending = recs.filter(
+            (r: any) =>
+                r.output_status !== 'Completed' && r.output_status !== 'Rework',
+        );
+        qcOkMonitorSummary.value = {
+            total: recs.length,
+            totalQty: sum(recs),
+            pending: pending.length,
+            pendingQty: sum(pending),
+            inProgress: 0,
+            inProgressQty: 0,
+            done: done.length,
+            doneQty: sum(done),
+        };
+    }
+}
 const filterDate = ref(
     new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }),
 );
@@ -1345,6 +1470,8 @@ const sumQtyByQcResult = (v: string | string[]) => {
 };
 
 // Bucket helpers based on qc_result combinations
+// Mainlot = any lot with 'Main' in qc_result
+// RL-Rework = RR or LY but NOT Main (mutually exclusive with Mainlot)
 function isMainlot(r: EndlineRecord): boolean {
     return !!(r.qc_result && r.qc_result.includes('Main'));
 }
@@ -1359,7 +1486,6 @@ function isLRework(r: EndlineRecord): boolean {
     return !!(
         r.qc_result &&
         r.qc_result.includes('LY') &&
-        !r.qc_result.includes('RR') &&
         !r.qc_result.includes('Main')
     );
 }
@@ -1371,39 +1497,37 @@ const sumQtyByQcBucket = (fn: (r: EndlineRecord) => boolean) =>
 const totalQty = () =>
     (records.value ?? []).reduce((s, r) => s + (r.lot_qty ?? 0), 0);
 
-// Output status breakdown helper — generic for overall/mainlot/rework/qcok cards
+// Output status breakdown helper — for mainlot/rework cards
+// Pending: not done at any level
+// Done = subTotal - Pending (always balances)
 function statusBreakdown(recs: EndlineRecord[]) {
     const pending = recs.filter(
         (r) =>
-            r.output_status === 'Pending' &&
-            r.final_decision !== 'In Progress' &&
-            r.final_decision !== 'Technical',
-    );
-    const inProgress = recs.filter(
-        (r) =>
             r.output_status !== 'Completed' &&
             r.output_status !== 'Rework' &&
-            (r.final_decision === 'In Progress' ||
-                r.final_decision === 'Technical'),
+            !r.qc_ana_result &&
+            !r.vi_techl_result,
     );
-    const done = recs.filter(
-        (r) => r.output_status === 'Completed' || r.output_status === 'Rework',
-    );
+    const totalQtyVal = recs.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
+    const pendingQtyVal = pending.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
     return {
         pendingCount: pending.length,
-        pendingQty: pending.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
-        inProgressCount: inProgress.length,
-        inProgressQty: inProgress.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
-        doneCount: done.length,
-        doneQty: done.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+        pendingQty: pendingQtyVal,
+        inProgressCount: 0,
+        inProgressQty: 0,
+        doneCount: recs.length - pending.length,
+        doneQty: totalQtyVal - pendingQtyVal,
     };
 }
 
-// Breakdown for QC Analysis card — uses qc_ana_* fields
+// Breakdown for QC Analysis card — mirrors qc-analysis.vue logic
+// Pending: no qc_ana_prog AND no qc_ana_result
+// In Progress: has qc_ana_prog but no qc_ana_result
+// Done: has qc_ana_result
 function qcAnalysisStageBreakdown(recs: EndlineRecord[]) {
     const done = recs.filter((r) => !!r.qc_ana_result);
-    const inProgress = recs.filter((r) => !r.qc_ana_result && !!r.qc_ana_start);
-    const pending = recs.filter((r) => !r.qc_ana_result && !r.qc_ana_start);
+    const inProgress = recs.filter((r) => !r.qc_ana_result && !!r.qc_ana_prog);
+    const pending = recs.filter((r) => !r.qc_ana_result && !r.qc_ana_prog);
     return {
         pendingCount: pending.length,
         pendingQty: pending.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
@@ -1414,13 +1538,16 @@ function qcAnalysisStageBreakdown(recs: EndlineRecord[]) {
     };
 }
 
-// Breakdown for VI Technical card — uses vi_techl_* fields
+// Breakdown for VI Technical card — mirrors vi-technical.vue logic
+// Pending: no vi_techl_prog AND no vi_techl_result
+// In Progress: has vi_techl_prog but no vi_techl_result
+// Done: has vi_techl_result
 function viTechnicalStageBreakdown(recs: EndlineRecord[]) {
     const done = recs.filter((r) => !!r.vi_techl_result);
     const inProgress = recs.filter(
-        (r) => !r.vi_techl_result && !!r.vi_techl_start,
+        (r) => !r.vi_techl_result && !!r.vi_techl_prog,
     );
-    const pending = recs.filter((r) => !r.vi_techl_result && !r.vi_techl_start);
+    const pending = recs.filter((r) => !r.vi_techl_result && !r.vi_techl_prog);
     return {
         pendingCount: pending.length,
         pendingQty: pending.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
@@ -1431,20 +1558,48 @@ function viTechnicalStageBreakdown(recs: EndlineRecord[]) {
     };
 }
 
-const totalBreakdown = computed(() => statusBreakdown(records.value));
-const qcAnalysisBreakdown = computed(() =>
-    qcAnalysisStageBreakdown(
-        records.value.filter((r) => r.defect_class === 'QC Analysis'),
-    ),
-);
-const techVerifBreakdown = computed(() =>
-    viTechnicalStageBreakdown(
-        records.value.filter((r) => r.defect_class === "Tech'l Verification"),
-    ),
-);
-const mainlotBreakdown = computed(() =>
-    statusBreakdown(records.value.filter(isMainlot)),
-);
+const totalBreakdown = computed(() => {
+    const pendingCount =
+        qcOkMonitorSummary.value.pending +
+        qcMonitorSummary.value.pending +
+        viMonitorSummary.value.pending;
+    const pendingQty =
+        qcOkMonitorSummary.value.pendingQty +
+        qcMonitorSummary.value.pendingQty +
+        viMonitorSummary.value.pendingQty;
+    const inProgressCount =
+        qcMonitorSummary.value.inProgress + viMonitorSummary.value.inProgress;
+    const inProgressQty =
+        qcMonitorSummary.value.inProgressQty +
+        viMonitorSummary.value.inProgressQty;
+    // Done = Total - Pending - InProg (avoids double-counting across monitor endpoints)
+    const totalCount = records.value.length;
+    const totalQtyVal = records.value.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
+    return {
+        pendingCount,
+        pendingQty,
+        inProgressCount,
+        inProgressQty,
+        doneCount: Math.max(0, totalCount - pendingCount - inProgressCount),
+        doneQty: Math.max(0, totalQtyVal - pendingQty - inProgressQty),
+    };
+});
+const qcAnalysisBreakdown = computed(() => ({
+    pendingCount: qcMonitorSummary.value.pending,
+    pendingQty: qcMonitorSummary.value.pendingQty,
+    inProgressCount: qcMonitorSummary.value.inProgress,
+    inProgressQty: qcMonitorSummary.value.inProgressQty,
+    doneCount: qcMonitorSummary.value.done,
+    doneQty: qcMonitorSummary.value.doneQty,
+}));
+const techVerifBreakdown = computed(() => ({
+    pendingCount: viMonitorSummary.value.pending,
+    pendingQty: viMonitorSummary.value.pendingQty,
+    inProgressCount: viMonitorSummary.value.inProgress,
+    inProgressQty: viMonitorSummary.value.inProgressQty,
+    doneCount: viMonitorSummary.value.done,
+    doneQty: viMonitorSummary.value.doneQty,
+}));
 
 function isRework(r: EndlineRecord): boolean {
     return isRRework(r) || isLRework(r);
@@ -1457,37 +1612,21 @@ function isQcOk(r: EndlineRecord): boolean {
     );
 }
 
+const qcOkBreakdown = computed(() => ({
+    pendingCount: qcOkMonitorSummary.value.pending,
+    pendingQty: qcOkMonitorSummary.value.pendingQty,
+    inProgressCount: 0,
+    inProgressQty: 0,
+    doneCount: qcOkMonitorSummary.value.done,
+    doneQty: qcOkMonitorSummary.value.doneQty,
+}));
+
+const mainlotBreakdown = computed(() =>
+    statusBreakdown(records.value.filter(isMainlot)),
+);
 const reworkBreakdown = computed(() =>
     statusBreakdown(records.value.filter(isRework)),
 );
-const qcOkBreakdown = computed(() => {
-    const recs = records.value.filter(isQcOk);
-    const done = recs.filter(
-        (r) => r.output_status === 'Completed' || r.output_status === 'Rework',
-    );
-    const inProgress = recs.filter(
-        (r) =>
-            r.output_status !== 'Completed' &&
-            r.output_status !== 'Rework' &&
-            (r.final_decision === 'In Progress' ||
-                r.final_decision === 'Technical'),
-    );
-    const pending = recs.filter(
-        (r) =>
-            r.output_status !== 'Completed' &&
-            r.output_status !== 'Rework' &&
-            r.final_decision !== 'In Progress' &&
-            r.final_decision !== 'Technical',
-    );
-    return {
-        pendingCount: pending.length,
-        pendingQty: pending.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
-        inProgressCount: inProgress.length,
-        inProgressQty: inProgress.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
-        doneCount: done.length,
-        doneQty: done.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
-    };
-});
 
 function qcNgBadgeClass(type: string) {
     if (type === 'Main')
@@ -1573,9 +1712,8 @@ function resetToDefaults() {
 async function fetchRecords() {
     loading.value = true;
     try {
-        const { data } = await axios.get<EndlineRecord[]>(
-            '/api/endline-delay',
-            {
+        const [recordsRes] = await Promise.all([
+            axios.get<EndlineRecord[]>('/api/endline-delay', {
                 params: {
                     search: searchQuery.value || undefined,
                     date: filterDate.value || undefined,
@@ -1584,9 +1722,10 @@ async function fetchRecords() {
                     cutoff: filterCutoff.value || undefined,
                     work_type: filterWorktype.value || undefined,
                 },
-            },
-        );
-        const rows = Array.isArray(data) ? data : [];
+            }),
+            fetchMonitorSummaries(),
+        ]);
+        const rows = Array.isArray(recordsRes.data) ? recordsRes.data : [];
         records.value = decisionFilter.value
             ? rows.filter((r) => getDecision(r) === decisionFilter.value)
             : rows;

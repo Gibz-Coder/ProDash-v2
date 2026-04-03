@@ -151,7 +151,7 @@ Route::middleware(['auth', 'verified', 'permission:Manage Endline'])->group(func
     Route::delete('api/endline-delay/{id}', [App\Http\Controllers\EndlineDelayController::class, 'destroy'])->middleware('permission:Delete Endline');
 });
 
-// QC Defect Class data entry
+// QC Defect Class — accessible by Manage Endline permission and QC Part role (read-only view)
 Route::get('qc-defect-class', function () {
     return Inertia::render('dashboards/main/qc-defect-class');
 })->middleware(['auth', 'verified', 'permission:Manage Endline'])->name('qc_defect_class');
