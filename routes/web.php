@@ -151,6 +151,14 @@ Route::middleware(['auth', 'verified', 'permission:Manage Endline'])->group(func
     Route::delete('api/endline-delay/{id}', [App\Http\Controllers\EndlineDelayController::class, 'destroy'])->middleware('permission:Delete Endline');
 });
 
+// QC Inspection
+Route::middleware(['auth', 'verified', 'permission:Manage Endline'])->group(function () {
+    Route::get('api/qc-inspection', [App\Http\Controllers\QcInspectionController::class, 'index']);
+    Route::post('api/qc-inspection', [App\Http\Controllers\QcInspectionController::class, 'store']);
+    Route::put('api/qc-inspection/{id}', [App\Http\Controllers\QcInspectionController::class, 'update']);
+    Route::delete('api/qc-inspection/{id}', [App\Http\Controllers\QcInspectionController::class, 'destroy']);
+});
+
 // QC Defect Class — accessible by Manage Endline permission and QC Part role (read-only view)
 Route::get('qc-defect-class', function () {
     return Inertia::render('dashboards/main/qc-defect-class');

@@ -261,6 +261,12 @@
                         <option value="Low Yield">Low Yield</option>
                     </select>
                     <button
+                        class="inline-flex items-center rounded-lg border border-teal-600 bg-transparent px-6 py-2.5 text-sm font-semibold text-teal-600 shadow-lg transition-all duration-200 hover:bg-teal-600 hover:text-white hover:-translate-y-0.5"
+                        @click="showQcInspectedLotsModal = true"
+                    >
+                        <PlusCircle class="mr-2 h-4 w-4" /> Add Lot
+                    </button>
+                    <button
                         class="inline-flex items-center rounded-lg bg-gradient-to-r from-primary to-primary/90 px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/25"
                         @click="openCreateModal"
                     >
@@ -1059,6 +1065,12 @@
             @saved="fetchRecords"
         />
 
+        <QcInspectedLotsModal
+            :open="showQcInspectedLotsModal"
+            @update:open="showQcInspectedLotsModal = $event"
+            @saved="fetchRecords"
+        />
+
         <!-- Delete Modal -->
         <div
             v-if="showDeleteModal"
@@ -1140,6 +1152,7 @@
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
 import EndlineDelayEntryModal from '@/pages/dashboards/subs/endline-delay-entry-modal.vue';
+import QcInspectedLotsModal from '@/pages/dashboards/subs/qc-inspected-lots-modal.vue';
 import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
 import {
@@ -1404,6 +1417,7 @@ const exportUrl = computed(() => {
 
 const showModal = ref(false);
 const editRecordData = ref<EndlineRecord | null>(null);
+const showQcInspectedLotsModal = ref(false);
 const showDeleteModal = ref(false);
 const recordToDelete = ref<EndlineRecord | null>(null);
 const deleting = ref(false);
