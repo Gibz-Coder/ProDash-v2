@@ -151,12 +151,40 @@ Route::middleware(['auth', 'verified', 'permission:Manage Endline'])->group(func
     Route::delete('api/endline-delay/{id}', [App\Http\Controllers\EndlineDelayController::class, 'destroy'])->middleware('permission:Delete Endline');
 });
 
+// QC OK (qc_ok table)
+Route::middleware(['auth', 'verified', 'permission:Manage Endline'])->group(function () {
+    Route::get('api/qc-ok', [App\Http\Controllers\QcOkController::class, 'index']);
+    Route::put('api/qc-ok/{id}', [App\Http\Controllers\QcOkController::class, 'update']);
+});
+
 // QC Inspection
 Route::middleware(['auth', 'verified', 'permission:Manage Endline'])->group(function () {
+    Route::get('api/qc-inspection/check-lot', [App\Http\Controllers\QcInspectionController::class, 'checkLot']);
+    Route::get('api/qc-inspection/export', [App\Http\Controllers\QcInspectionController::class, 'export']);
     Route::get('api/qc-inspection', [App\Http\Controllers\QcInspectionController::class, 'index']);
     Route::post('api/qc-inspection', [App\Http\Controllers\QcInspectionController::class, 'store']);
     Route::put('api/qc-inspection/{id}', [App\Http\Controllers\QcInspectionController::class, 'update']);
     Route::delete('api/qc-inspection/{id}', [App\Http\Controllers\QcInspectionController::class, 'destroy']);
+});
+
+// QC Analysis
+Route::middleware(['auth', 'verified', 'permission:Manage Endline'])->group(function () {
+    Route::get('api/qc-analysis', [App\Http\Controllers\QcAnalysisController::class, 'index']);
+    Route::get('api/qc-analysis/chart-data', [App\Http\Controllers\QcAnalysisController::class, 'chartData']);
+    Route::get('api/qc-analysis/find-by-lot', [App\Http\Controllers\QcAnalysisController::class, 'findByLot']);
+    Route::get('api/qc-analysis/export', [App\Http\Controllers\QcAnalysisController::class, 'export']);
+    Route::put('api/qc-analysis/{id}', [App\Http\Controllers\QcAnalysisController::class, 'update']);
+});
+
+// VI Technical
+Route::middleware(['auth', 'verified', 'permission:Manage Endline'])->group(function () {
+    Route::get('api/vi-technical', [App\Http\Controllers\ViTechnicalController::class, 'index']);
+    Route::get('api/vi-technical/chart-data', [App\Http\Controllers\ViTechnicalController::class, 'chartData']);
+    Route::get('api/vi-technical/find-by-lot', [App\Http\Controllers\ViTechnicalController::class, 'findByLot']);
+    Route::get('api/vi-technical/equipment-lookup', [App\Http\Controllers\ViTechnicalController::class, 'equipmentLookup']);
+    Route::get('api/vi-technical/equipment-search', [App\Http\Controllers\ViTechnicalController::class, 'equipmentSearch']);
+    Route::get('api/vi-technical/export', [App\Http\Controllers\ViTechnicalController::class, 'export']);
+    Route::put('api/vi-technical/{id}', [App\Http\Controllers\ViTechnicalController::class, 'update']);
 });
 
 // QC Defect Class — accessible by Manage Endline permission and QC Part role (read-only view)

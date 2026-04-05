@@ -10,6 +10,40 @@ use Illuminate\Http\Request;
 
 final class QcInspectionController extends Controller
 {
+    public function checkLot(Request $request): JsonResponse
+    {
+        $lotId = strtoupper(trim($request->input('lot_id', '')));
+        if (!$lotId) {
+            return response()->json(['pending' => false, 'message' => null]);
+        }
+
+        $record = QcInspection::where('lot_id', $lotId)
+            ->where('output_status', 'pending')
+            ->latest()
+            ->first();
+
+        if (!$record) {
+            return response()->json(['pending' => false, 'message' => null]);
+        }
+
+        // Determine where it's stuck
+        if ($record->technical_start_at && !$record->technical_completd_at) {
+            $stage = 'VI Technical';
+        } elseif ($record->analysis_start_at && !$record->analysis_completed_at) {
+            $stage = 'QC Analysis';
+        } elseif ($record->production_start_at && !$record->production_completed_at) {
+            $stage = 'Production';
+        } else {
+            $stage = 'QC Inspection';
+        }
+
+        return response()->json([
+            'pending' => true,
+            'message' => "With Pending {$stage}!",
+            'stage'   => $stage,
+        ]);
+    }
+
     public function index(Request $request): JsonResponse
     {
         $query = QcInspection::query();
@@ -33,6 +67,35 @@ final class QcInspectionController extends Controller
 
         if ($request->filled('lipas_yn')) {
             $query->where('lipas_yn', $request->lipas_yn);
+        }
+
+        if ($request->filled('shift')) {
+            $shift = $request->shift;
+            if ($shift === 'DAY') {
+                $query->whereTime('created_at', '>=', '07:00:00')
+                      ->whereTime('created_at', '<', '19:00:00');
+            } elseif ($shift === 'NIGHT') {
+                $query->where(function ($q) {
+                    $q->whereTime('created_at', '>=', '19:00:00')
+                      ->orWhereTime('created_at', '<', '07:00:00');
+                });
+            }
+        }
+
+        if ($request->filled('cutoff')) {
+            $ranges = [
+                '00:00~03:59' => ['00:00:00', '03:59:59'],
+                '04:00~06:59' => ['04:00:00', '06:59:59'],
+                '07:00~11:59' => ['07:00:00', '11:59:59'],
+                '12:00~15:59' => ['12:00:00', '15:59:59'],
+                '16:00~18:59' => ['16:00:00', '18:59:59'],
+                '19:00~23:59' => ['19:00:00', '23:59:59'],
+            ];
+            if (isset($ranges[$request->cutoff])) {
+                [$from, $to] = $ranges[$request->cutoff];
+                $query->whereTime('created_at', '>=', $from)
+                      ->whereTime('created_at', '<=', $to);
+            }
         }
 
         return response()->json([
@@ -190,5 +253,52 @@ final class QcInspectionController extends Controller
             'error'   => null,
             'meta'    => null,
         ]);
+    }
+
+    public function export(Request $request)
+    {
+        $query = QcInspection::query();
+
+        if ($request->filled('date_from')) {
+            $query->whereDate('created_at', '>=', $request->date_from);
+        }
+        if ($request->filled('date_to')) {
+            $query->whereDate('created_at', '<=', $request->date_to);
+        }
+        if ($request->filled('work_type')) {
+            $query->where('work_type', $request->work_type);
+        }
+        if ($request->filled('lipas_yn')) {
+            $query->where('lipas_yn', $request->lipas_yn);
+        }
+
+        $records = $query->orderByDesc('created_at')->get();
+
+        $columns = [
+            'lot_id','model','lot_qty','lipas_yn','work_type',
+            'inspection_times','inspection_spl','inspected_bin',
+            'inspection_result','mainlot_result','rr_result','ly_result',
+            'defect_code','defect_flow','analysis_start_at','analysis_completed_at',
+            'analysis_result','technical_start_at','technical_completd_at',
+            'technical_result','production_start_at','production_completed_at',
+            'final_decision','output_status','lot_completed_at','total_tat',
+            'remarks','created_by','updated_by','created_at',
+        ];
+
+        $headers = [
+            'Content-Type'        => 'text/csv',
+            'Content-Disposition' => 'attachment; filename="qc_inspection_' . now()->format('Ymd_His') . '.csv"',
+        ];
+
+        $callback = function () use ($records, $columns) {
+            $handle = fopen('php://output', 'w');
+            fputcsv($handle, array_map('strtoupper', $columns));
+            foreach ($records as $row) {
+                fputcsv($handle, array_map(fn($col) => $row->$col ?? '', $columns));
+            }
+            fclose($handle);
+        };
+
+        return response()->stream($callback, 200, $headers);
     }
 }

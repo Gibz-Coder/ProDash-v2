@@ -10,15 +10,15 @@ return new class extends Migration
 {
     public function up(): void
     {
-        Schema::table('qc_ok', function (Blueprint $table) {
-            $table->string('pending')->nullable()->after('technical_result');
+        Schema::table('vi_technical', function (Blueprint $table) {
+            $table->json('defect_details')->nullable()->after('defect_code');
         });
     }
 
     public function down(): void
     {
-        Schema::table('qc_ok', function (Blueprint $table) {
-            $table->dropColumn('pending');
+        Schema::table('vi_technical', function (Blueprint $table) {
+            $table->dropColumn('defect_details');
         });
     }
 };

@@ -261,14 +261,8 @@
                         <option value="Low Yield">Low Yield</option>
                     </select>
                     <button
-                        class="inline-flex items-center rounded-lg border border-teal-600 bg-transparent px-6 py-2.5 text-sm font-semibold text-teal-600 shadow-lg transition-all duration-200 hover:bg-teal-600 hover:text-white hover:-translate-y-0.5"
-                        @click="showQcInspectedLotsModal = true"
-                    >
-                        <PlusCircle class="mr-2 h-4 w-4" /> Add Lot
-                    </button>
-                    <button
                         class="inline-flex items-center rounded-lg bg-gradient-to-r from-primary to-primary/90 px-6 py-2.5 text-sm font-semibold text-primary-foreground shadow-lg transition-all duration-200 hover:-translate-y-0.5 hover:shadow-xl hover:shadow-primary/25"
-                        @click="openCreateModal"
+                        @click="showQcInspectedLotsModal = true"
                     >
                         <PlusCircle class="mr-2 h-4 w-4" /> Add Record
                         <span
@@ -374,12 +368,12 @@
                             <p
                                 class="text-2xl font-bold text-teal-900 dark:text-teal-100"
                             >
-                                {{ formatQty(qcOkMonitorSummary.totalQty) }}
+                                {{ formatQty(qcOkBreakdown.totalQty) }}
                             </p>
                             <p
                                 class="text-xs text-teal-600/70 dark:text-teal-400/70"
                             >
-                                {{ qcOkMonitorSummary.total }} lots
+                                {{ qcOkBreakdown.total }} lots
                             </p>
                         </div>
                         <div
@@ -454,12 +448,12 @@
                             <p
                                 class="text-2xl font-bold text-indigo-900 dark:text-indigo-100"
                             >
-                                {{ formatQty(qcMonitorSummary.totalQty) }}
+                                {{ formatQty(qcAnalysisBreakdown.totalQty) }}
                             </p>
                             <p
                                 class="text-xs text-indigo-600/70 dark:text-indigo-400/70"
                             >
-                                {{ qcMonitorSummary.total }} lots
+                                {{ qcAnalysisBreakdown.total }} lots
                             </p>
                         </div>
                         <div
@@ -536,12 +530,12 @@
                             <p
                                 class="text-2xl font-bold text-purple-900 dark:text-purple-100"
                             >
-                                {{ formatQty(viMonitorSummary.totalQty) }}
+                                {{ formatQty(techVerifBreakdown.totalQty) }}
                             </p>
                             <p
                                 class="text-xs text-purple-600/70 dark:text-purple-400/70"
                             >
-                                {{ viMonitorSummary.total }} lots
+                                {{ techVerifBreakdown.total }} lots
                             </p>
                         </div>
                         <div
@@ -783,33 +777,35 @@
                         <colgroup>
                             <col class="w-[40px]" />
                             <!-- No. -->
-                            <col class="w-[100px]" />
+                            <col class="w-[80px]" />
                             <!-- Lot No -->
-                            <col class="w-[60px]" />
-                            <!-- QC NG -->
-                            <col class="w-[70px]" />
-                            <!-- Defect -->
-                            <col class="w-[130px]" />
-                            <!-- Defect Class -->
-                            <col class="w-[130px]" />
+                            <col class="w-[120px]" />
                             <!-- Model -->
                             <col class="w-[90px]" />
                             <!-- Qty -->
-                            <col class="w-[56px]" />
+                            <col class="w-[40px]" />
                             <!-- LIPAS -->
-                            <col class="w-[100px]" />
+                            <col class="w-[75px]" />
                             <!-- WorkType -->
-                            <col class="w-[120px]" />
+                            <col class="w-[50px]" />
+                            <!-- RESULT -->
+                            <col class="w-[140px]" />
+                            <!-- Defect -->
+                            <col class="w-[100px]" />
+                            <!-- Defect Class -->
+                            <col class="w-[100px]" />
                             <!-- Date Time -->
                             <col class="w-[90px]" />
                             <!-- Decision -->
-                            <col class="w-[90px]" />
+                            <col class="w-[70px]" />
                             <!-- Elapsed -->
                             <col class="w-[110px]" />
                             <!-- Created By -->
-                            <col class="w-[100px]" />
-                            <!-- Updated By -->
                             <col class="w-[110px]" />
+                            <!-- Updated By -->
+                            <col class="w-[160px]" />
+                            <!-- Remarks -->
+                            <col class="w-[70px]" />
                             <!-- Actions -->
                         </colgroup>
                         <thead class="sticky top-0 z-10">
@@ -825,21 +821,6 @@
                                     class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
                                 >
                                     Lot No
-                                </th>
-                                <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
-                                >
-                                    QC NG
-                                </th>
-                                <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
-                                >
-                                    Defect
-                                </th>
-                                <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
-                                >
-                                    Defect Class
                                 </th>
                                 <th
                                     class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
@@ -860,6 +841,21 @@
                                     class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
                                 >
                                     WorkType
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    RESULT
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Defect
+                                </th>
+                                <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Defect Class
                                 </th>
                                 <th
                                     class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
@@ -887,6 +883,11 @@
                                     Updated By
                                 </th>
                                 <th
+                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                >
+                                    Remarks
+                                </th>
+                                <th
                                     class="px-2 py-2.5 text-center text-[10px] font-bold tracking-widest text-slate-100 uppercase"
                                 >
                                     Actions
@@ -908,38 +909,6 @@
                                     class="px-2 py-1.5 font-mono text-xs font-semibold text-primary"
                                 >
                                     {{ rec.lot_id }}
-                                </td>
-                                <td class="px-2 py-1.5">
-                                    <span
-                                        v-if="rec.qc_result"
-                                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
-                                        :class="qcNgBadgeClass(rec.qc_result)"
-                                        >{{ rec.qc_result }}</span
-                                    >
-                                    <span v-else class="text-muted-foreground"
-                                        >—</span
-                                    >
-                                </td>
-                                <td
-                                    class="truncate px-2 py-1.5 text-xs text-foreground"
-                                    :title="rec.qc_defect ?? ''"
-                                >
-                                    {{ rec.qc_defect || '—' }}
-                                </td>
-                                <td class="px-2 py-1.5">
-                                    <span
-                                        v-if="rec.defect_class"
-                                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
-                                        :class="
-                                            rec.defect_class === 'QC Analysis'
-                                                ? 'bg-indigo-50 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-950/30 dark:text-indigo-400'
-                                                : 'bg-purple-50 text-purple-700 ring-purple-600/20 dark:bg-purple-950/30 dark:text-purple-400'
-                                        "
-                                        >{{ rec.defect_class }}</span
-                                    >
-                                    <span v-else class="text-muted-foreground"
-                                        >—</span
-                                    >
                                 </td>
                                 <td
                                     class="truncate px-2 py-1.5 text-xs text-foreground"
@@ -976,6 +945,42 @@
                                     :title="rec.work_type ?? ''"
                                 >
                                     {{ rec.work_type || '—' }}
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <span
+                                        v-if="rec.inspection_result"
+                                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
+                                        :class="
+                                            qcNgBadgeClass(
+                                                rec.inspection_result,
+                                            )
+                                        "
+                                        >{{ rec.inspection_result }}</span
+                                    >
+                                    <span v-else class="text-muted-foreground"
+                                        >—</span
+                                    >
+                                </td>
+                                <td
+                                    class="truncate px-2 py-1.5 text-xs text-foreground"
+                                    :title="rec.defect_code ?? ''"
+                                >
+                                    {{ rec.defect_code || '—' }}
+                                </td>
+                                <td class="px-2 py-1.5">
+                                    <span
+                                        v-if="rec.defect_flow"
+                                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
+                                        :class="
+                                            rec.defect_flow === 'QC Analysis'
+                                                ? 'bg-indigo-50 text-indigo-700 ring-indigo-600/20 dark:bg-indigo-950/30 dark:text-indigo-400'
+                                                : 'bg-purple-50 text-purple-700 ring-purple-600/20 dark:bg-purple-950/30 dark:text-purple-400'
+                                        "
+                                        >{{ rec.defect_flow }}</span
+                                    >
+                                    <span v-else class="text-muted-foreground"
+                                        >—</span
+                                    >
                                 </td>
                                 <td
                                     class="px-2 py-1.5 text-xs whitespace-nowrap text-muted-foreground"
@@ -1020,6 +1025,12 @@
                                 >
                                     {{ rec.updated_by || '—' }}
                                 </td>
+                                <td
+                                    class="max-w-[160px] truncate px-2 py-1.5 text-xs text-muted-foreground"
+                                    :title="rec.remarks ?? ''"
+                                >
+                                    {{ rec.remarks || '—' }}
+                                </td>
                                 <td class="px-2 py-1.5">
                                     <div
                                         class="flex items-center justify-center gap-1"
@@ -1029,7 +1040,6 @@
                                             @click="editRecord(rec)"
                                         >
                                             <Pencil class="inline h-3 w-3" />
-                                            Edit
                                         </button>
                                         <button
                                             v-if="canDeleteEndline"
@@ -1043,7 +1053,7 @@
                             </tr>
                             <tr v-if="records.length === 0">
                                 <td
-                                    colspan="14"
+                                    colspan="15"
                                     class="py-10 text-center text-muted-foreground"
                                 >
                                     <Clock
@@ -1067,6 +1077,7 @@
 
         <QcInspectedLotsModal
             :open="showQcInspectedLotsModal"
+            :edit-record="qcEditRecordData"
             @update:open="showQcInspectedLotsModal = $event"
             @saved="fetchRecords"
         />
@@ -1151,7 +1162,6 @@
 
 <script setup lang="ts">
 import AppLayout from '@/layouts/AppLayout.vue';
-import EndlineDelayEntryModal from '@/pages/dashboards/subs/endline-delay-entry-modal.vue';
 import QcInspectedLotsModal from '@/pages/dashboards/subs/qc-inspected-lots-modal.vue';
 import { usePage } from '@inertiajs/vue3';
 import axios from 'axios';
@@ -1188,7 +1198,8 @@ function onClickOutside(e: MouseEvent) {
 function onKeydown(e: KeyboardEvent) {
     if (e.key === 'F2') {
         e.preventDefault();
-        openCreateModal();
+        qcEditRecordData.value = null;
+        showQcInspectedLotsModal.value = true;
     }
 }
 
@@ -1198,23 +1209,29 @@ interface EndlineRecord {
     model: string | null;
     lot_qty: number | null;
     lipas_yn: string | null;
-    qc_result: string | null;
-    qc_defect: string | null;
-    defect_class: string | null;
-    qc_ana_start: string | null;
-    qc_ana_prog: string | null;
-    qc_ana_result: string | null;
-    qc_ana_completed_at: string | null;
-    vi_techl_start: string | null;
-    vi_techl_prog: string | null;
-    vi_techl_result: string | null;
-    vi_techl_completed_at: string | null;
+    inspection_result: string | null; // OK / NG
+    defect_code: string | null;
+    defect_flow: string | null;
+    inspected_bin: string | null;
+    mainlot_result: string | null;
+    rr_result: string | null;
+    ly_result: string | null;
+    analysis_start_at: string | null;
+    analysis_result: string | null;
+    analysis_completed_at: string | null;
+    technical_start_at: string | null;
+    technical_result: string | null;
+    technical_completd_at: string | null;
+    production_start_at: string | null;
+    production_completed_at: string | null;
+    production_result: string | null;
     work_type: string | null;
     final_decision: string | null;
     output_status: string | null;
     lot_completed_at: string | null;
     remarks: string | null;
     inspection_times: number | null;
+    inspection_spl: number | null;
     updated_by: string | null;
     created_by: string | null;
     created_at: string | null;
@@ -1226,139 +1243,6 @@ const loading = ref(false);
 const searchQuery = ref('');
 const decisionFilter = ref('');
 
-// Separate monitor summaries fetched from the dedicated endpoints
-// so the cards match the vi-technical and qc-analysis pages exactly
-interface MonitorSummary {
-    total: number;
-    totalQty: number;
-    pending: number;
-    pendingQty: number;
-    inProgress: number;
-    inProgressQty: number;
-    done: number;
-    doneQty: number;
-}
-const qcMonitorSummary = ref<MonitorSummary>({
-    total: 0,
-    totalQty: 0,
-    pending: 0,
-    pendingQty: 0,
-    inProgress: 0,
-    inProgressQty: 0,
-    done: 0,
-    doneQty: 0,
-});
-const viMonitorSummary = ref<MonitorSummary>({
-    total: 0,
-    totalQty: 0,
-    pending: 0,
-    pendingQty: 0,
-    inProgress: 0,
-    inProgressQty: 0,
-    done: 0,
-    doneQty: 0,
-});
-const qcOkMonitorSummary = ref<MonitorSummary>({
-    total: 0,
-    totalQty: 0,
-    pending: 0,
-    pendingQty: 0,
-    inProgress: 0,
-    inProgressQty: 0,
-    done: 0,
-    doneQty: 0,
-});
-
-async function fetchMonitorSummaries() {
-    const params: Record<string, string | undefined> = {
-        date: filterDate.value || undefined,
-        shift: filterShift.value || undefined,
-        cutoff: filterCutoff.value || undefined,
-        work_type: filterWorktype.value || undefined,
-        lipas_yn: filterLipas.value || undefined,
-    };
-    const [qcRes, viRes, qcOkRes] = await Promise.allSettled([
-        axios.get<{ success: boolean; data: any[] }>(
-            '/api/endline-delay/qc-monitor',
-            { params },
-        ),
-        axios.get<{ success: boolean; data: any[] }>(
-            '/api/endline-delay/vi-monitor',
-            { params },
-        ),
-        axios.get<{ success: boolean; data: any[] }>(
-            '/api/endline-delay/qc-ok-monitor',
-            { params },
-        ),
-    ]);
-
-    const sum = (arr: any[]) =>
-        arr.reduce((s: number, r: any) => s + (r.lot_qty ?? 0), 0);
-
-    if (qcRes.status === 'fulfilled') {
-        const recs = qcRes.value.data.data ?? [];
-        const done = recs.filter((r: any) => !!r.qc_ana_result);
-        const inProg = recs.filter(
-            (r: any) => !r.qc_ana_result && !!r.qc_ana_prog,
-        );
-        const pending = recs.filter(
-            (r: any) => !r.qc_ana_result && !r.qc_ana_prog,
-        );
-        qcMonitorSummary.value = {
-            total: recs.length,
-            totalQty: sum(recs),
-            pending: pending.length,
-            pendingQty: sum(pending),
-            inProgress: inProg.length,
-            inProgressQty: sum(inProg),
-            done: done.length,
-            doneQty: sum(done),
-        };
-    }
-
-    if (viRes.status === 'fulfilled') {
-        const recs = viRes.value.data.data ?? [];
-        const done = recs.filter((r: any) => !!r.vi_techl_result);
-        const inProg = recs.filter(
-            (r: any) => !r.vi_techl_result && !!r.vi_techl_prog,
-        );
-        const pending = recs.filter(
-            (r: any) => !r.vi_techl_result && !r.vi_techl_prog,
-        );
-        viMonitorSummary.value = {
-            total: recs.length,
-            totalQty: sum(recs),
-            pending: pending.length,
-            pendingQty: sum(pending),
-            inProgress: inProg.length,
-            inProgressQty: sum(inProg),
-            done: done.length,
-            doneQty: sum(done),
-        };
-    }
-
-    if (qcOkRes.status === 'fulfilled') {
-        const recs = qcOkRes.value.data.data ?? [];
-        const done = recs.filter(
-            (r: any) =>
-                r.output_status === 'Completed' || r.output_status === 'Rework',
-        );
-        const pending = recs.filter(
-            (r: any) =>
-                r.output_status !== 'Completed' && r.output_status !== 'Rework',
-        );
-        qcOkMonitorSummary.value = {
-            total: recs.length,
-            totalQty: sum(recs),
-            pending: pending.length,
-            pendingQty: sum(pending),
-            inProgress: 0,
-            inProgressQty: 0,
-            done: done.length,
-            doneQty: sum(done),
-        };
-    }
-}
 const filterDate = ref(
     new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }),
 );
@@ -1399,7 +1283,9 @@ function triggerExport() {
     const p = new URLSearchParams();
     if (exportDateFrom.value) p.set('date_from', exportDateFrom.value);
     if (exportDateTo.value) p.set('date_to', exportDateTo.value);
-    window.location.href = `/api/endline-delay/export?${p.toString()}`;
+    if (filterWorktype.value) p.set('work_type', filterWorktype.value);
+    if (filterLipas.value) p.set('lipas_yn', filterLipas.value);
+    window.location.href = `/api/qc-inspection/export?${p.toString()}`;
     showExportPicker.value = false;
 }
 
@@ -1418,6 +1304,7 @@ const exportUrl = computed(() => {
 const showModal = ref(false);
 const editRecordData = ref<EndlineRecord | null>(null);
 const showQcInspectedLotsModal = ref(false);
+const qcEditRecordData = ref<any>(null);
 const showDeleteModal = ref(false);
 const recordToDelete = ref<EndlineRecord | null>(null);
 const deleting = ref(false);
@@ -1427,13 +1314,12 @@ function getDecision(rec: EndlineRecord): string | null {
     return rec.final_decision ?? null;
 }
 
-// DateTime: from created_at
+// DateTime: from created_at — short format (Apr 04, 07:57 PM)
 function getDateTime(rec: EndlineRecord): string {
     if (!rec.created_at) return '—';
     return new Date(rec.created_at).toLocaleString('en-US', {
         month: 'short',
         day: '2-digit',
-        year: 'numeric',
         hour: '2-digit',
         minute: '2-digit',
     });
@@ -1448,7 +1334,6 @@ function formatDuration(minutes: number): string {
     return `${hours}h ${mins}m`;
 }
 
-// ElapsedTime: now - created_at for active lots; lot_completed_at - created_at for finalized
 function getElapsedTime(rec: EndlineRecord): number | null {
     if (!rec.created_at) return null;
     const start = new Date(rec.created_at).getTime();
@@ -1464,44 +1349,17 @@ const countByDecision = (d: string) =>
     records.value.filter((r) => getDecision(r) === d).length;
 const countByLipas = (v: string) =>
     records.value.filter((r) => r.lipas_yn === v).length;
-const countByDefectClass = (c: string) =>
-    records.value.filter((r) => r.defect_class === c).length;
-const sumQtyByDefectClass = (c: string) =>
-    records.value
-        .filter((r) => r.defect_class === c)
-        .reduce((s, r) => s + (r.lot_qty ?? 0), 0);
-const countByQcResult = (v: string | string[]) => {
-    const vals = Array.isArray(v) ? v : [v];
-    return records.value.filter(
-        (r) => r.qc_result && vals.includes(r.qc_result),
-    ).length;
-};
-const sumQtyByQcResult = (v: string | string[]) => {
-    const vals = Array.isArray(v) ? v : [v];
-    return records.value
-        .filter((r) => r.qc_result && vals.includes(r.qc_result))
-        .reduce((s, r) => s + (r.lot_qty ?? 0), 0);
-};
 
-// Bucket helpers based on qc_result combinations
-// Mainlot = any lot with 'Main' in qc_result
-// RL-Rework = RR or LY but NOT Main (mutually exclusive with Mainlot)
+// Mainlot = mainlot_result is 'NG'
+// RL-Rework = mainlot_result is 'OK' but rr_result or ly_result is 'NG'
 function isMainlot(r: EndlineRecord): boolean {
-    return !!(r.qc_result && r.qc_result.includes('Main'));
+    return r.mainlot_result === 'NG';
 }
 function isRRework(r: EndlineRecord): boolean {
-    return !!(
-        r.qc_result &&
-        r.qc_result.includes('RR') &&
-        !r.qc_result.includes('Main')
-    );
+    return r.mainlot_result === 'OK' && r.rr_result === 'NG';
 }
 function isLRework(r: EndlineRecord): boolean {
-    return !!(
-        r.qc_result &&
-        r.qc_result.includes('LY') &&
-        !r.qc_result.includes('Main')
-    );
+    return r.mainlot_result === 'OK' && r.ly_result === 'NG';
 }
 
 const countByQcBucket = (fn: (r: EndlineRecord) => boolean) =>
@@ -1514,143 +1372,116 @@ const totalQty = () =>
 // Output status breakdown helper — for mainlot/rework cards
 // Pending: not done at any level
 // Done = subTotal - Pending (always balances)
-function statusBreakdown(recs: EndlineRecord[]) {
+const DONE_DECISIONS = [
+    'Proceed',
+    'Rework',
+    'Low Yield',
+    'Derive / Scrap (RL)',
+    'Proceed - w/ OTHER',
+    'DRB',
+];
+const INPROG_DECISIONS = [
+    'In Progress',
+    'Technical',
+    'QC OK',
+    'For Verify',
+    "For Decision Tech'l",
+    'For Decide QC',
+    'Recovery',
+];
+
+function decisionBreakdown(recs: EndlineRecord[]) {
+    const sum = (arr: EndlineRecord[]) =>
+        arr.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
     const pending = recs.filter(
-        (r) =>
-            r.output_status !== 'Completed' &&
-            r.output_status !== 'Rework' &&
-            !r.qc_ana_result &&
-            !r.vi_techl_result,
+        (r) => !r.final_decision || r.final_decision === 'Pending',
     );
-    const totalQtyVal = recs.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
-    const pendingQtyVal = pending.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
-    return {
-        pendingCount: pending.length,
-        pendingQty: pendingQtyVal,
-        inProgressCount: 0,
-        inProgressQty: 0,
-        doneCount: recs.length - pending.length,
-        doneQty: totalQtyVal - pendingQtyVal,
-    };
-}
-
-// Breakdown for QC Analysis card — mirrors qc-analysis.vue logic
-// Pending: no qc_ana_prog AND no qc_ana_result
-// In Progress: has qc_ana_prog but no qc_ana_result
-// Done: has qc_ana_result
-function qcAnalysisStageBreakdown(recs: EndlineRecord[]) {
-    const done = recs.filter((r) => !!r.qc_ana_result);
-    const inProgress = recs.filter((r) => !r.qc_ana_result && !!r.qc_ana_prog);
-    const pending = recs.filter((r) => !r.qc_ana_result && !r.qc_ana_prog);
-    return {
-        pendingCount: pending.length,
-        pendingQty: pending.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
-        inProgressCount: inProgress.length,
-        inProgressQty: inProgress.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
-        doneCount: done.length,
-        doneQty: done.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
-    };
-}
-
-// Breakdown for VI Technical card — mirrors vi-technical.vue logic
-// Pending: no vi_techl_prog AND no vi_techl_result
-// In Progress: has vi_techl_prog but no vi_techl_result
-// Done: has vi_techl_result
-function viTechnicalStageBreakdown(recs: EndlineRecord[]) {
-    const done = recs.filter((r) => !!r.vi_techl_result);
-    const inProgress = recs.filter(
-        (r) => !r.vi_techl_result && !!r.vi_techl_prog,
+    const inProg = recs.filter(
+        (r) => r.final_decision && INPROG_DECISIONS.includes(r.final_decision),
     );
-    const pending = recs.filter((r) => !r.vi_techl_result && !r.vi_techl_prog);
+    const done = recs.filter(
+        (r) => r.final_decision && DONE_DECISIONS.includes(r.final_decision),
+    );
     return {
         pendingCount: pending.length,
-        pendingQty: pending.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
-        inProgressCount: inProgress.length,
-        inProgressQty: inProgress.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+        pendingQty: sum(pending),
+        inProgressCount: inProg.length,
+        inProgressQty: sum(inProg),
         doneCount: done.length,
-        doneQty: done.reduce((s, r) => s + (r.lot_qty ?? 0), 0),
+        doneQty: sum(done),
     };
 }
 
 const totalBreakdown = computed(() => {
-    const pendingCount =
-        qcOkMonitorSummary.value.pending +
-        qcMonitorSummary.value.pending +
-        viMonitorSummary.value.pending;
-    const pendingQty =
-        qcOkMonitorSummary.value.pendingQty +
-        qcMonitorSummary.value.pendingQty +
-        viMonitorSummary.value.pendingQty;
-    const inProgressCount =
-        qcMonitorSummary.value.inProgress + viMonitorSummary.value.inProgress;
-    const inProgressQty =
-        qcMonitorSummary.value.inProgressQty +
-        viMonitorSummary.value.inProgressQty;
-    // Done = Total - Pending - InProg (avoids double-counting across monitor endpoints)
-    const totalCount = records.value.length;
-    const totalQtyVal = records.value.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
+    const {
+        pendingCount,
+        pendingQty,
+        inProgressCount,
+        inProgressQty,
+        doneCount,
+        doneQty,
+    } = decisionBreakdown(records.value);
     return {
         pendingCount,
         pendingQty,
         inProgressCount,
         inProgressQty,
-        doneCount: Math.max(0, totalCount - pendingCount - inProgressCount),
-        doneQty: Math.max(0, totalQtyVal - pendingQty - inProgressQty),
+        doneCount,
+        doneQty,
     };
 });
-const qcAnalysisBreakdown = computed(() => ({
-    pendingCount: qcMonitorSummary.value.pending,
-    pendingQty: qcMonitorSummary.value.pendingQty,
-    inProgressCount: qcMonitorSummary.value.inProgress,
-    inProgressQty: qcMonitorSummary.value.inProgressQty,
-    doneCount: qcMonitorSummary.value.done,
-    doneQty: qcMonitorSummary.value.doneQty,
-}));
-const techVerifBreakdown = computed(() => ({
-    pendingCount: viMonitorSummary.value.pending,
-    pendingQty: viMonitorSummary.value.pendingQty,
-    inProgressCount: viMonitorSummary.value.inProgress,
-    inProgressQty: viMonitorSummary.value.inProgressQty,
-    doneCount: viMonitorSummary.value.done,
-    doneQty: viMonitorSummary.value.doneQty,
-}));
+
+const qcAnalysisBreakdown = computed(() => {
+    const recs = records.value.filter((r) => r.defect_flow === 'QC Analysis');
+    const sum = (arr: EndlineRecord[]) =>
+        arr.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
+    return {
+        total: recs.length,
+        totalQty: sum(recs),
+        ...decisionBreakdown(recs),
+    };
+});
+
+const techVerifBreakdown = computed(() => {
+    const recs = records.value.filter(
+        (r) => r.defect_flow === "Tech'l Verification",
+    );
+    const sum = (arr: EndlineRecord[]) =>
+        arr.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
+    return {
+        total: recs.length,
+        totalQty: sum(recs),
+        ...decisionBreakdown(recs),
+    };
+});
 
 function isRework(r: EndlineRecord): boolean {
     return isRRework(r) || isLRework(r);
 }
-function isQcOk(r: EndlineRecord): boolean {
-    return (
-        r.qc_result === 'OK' ||
-        r.qc_ana_result === 'Proceed' ||
-        r.vi_techl_result === 'Proceed'
-    );
-}
 
-const qcOkBreakdown = computed(() => ({
-    pendingCount: qcOkMonitorSummary.value.pending,
-    pendingQty: qcOkMonitorSummary.value.pendingQty,
-    inProgressCount: 0,
-    inProgressQty: 0,
-    doneCount: qcOkMonitorSummary.value.done,
-    doneQty: qcOkMonitorSummary.value.doneQty,
-}));
+const qcOkBreakdown = computed(() => {
+    const recs = records.value.filter((r) => r.inspection_result === 'OK');
+    const sum = (arr: EndlineRecord[]) =>
+        arr.reduce((s, r) => s + (r.lot_qty ?? 0), 0);
+    return {
+        total: recs.length,
+        totalQty: sum(recs),
+        ...decisionBreakdown(recs),
+    };
+});
 
 const mainlotBreakdown = computed(() =>
-    statusBreakdown(records.value.filter(isMainlot)),
+    decisionBreakdown(records.value.filter(isMainlot)),
 );
 const reworkBreakdown = computed(() =>
-    statusBreakdown(records.value.filter(isRework)),
+    decisionBreakdown(records.value.filter(isRework)),
 );
 
 function qcNgBadgeClass(type: string) {
-    if (type === 'Main')
-        return 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950/30 dark:text-blue-400';
-    if (type === 'RR')
-        return 'bg-orange-50 text-orange-700 ring-orange-600/20 dark:bg-orange-950/30 dark:text-orange-400';
-    if (type === 'LY')
-        return 'bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-950/30 dark:text-violet-400';
     if (type === 'OK')
         return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400';
+    if (type === 'NG')
+        return 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950/30 dark:text-red-400';
     return 'bg-slate-50 text-slate-600 ring-slate-600/20 dark:bg-slate-950/30 dark:text-slate-400';
 }
 
@@ -1726,20 +1557,23 @@ function resetToDefaults() {
 async function fetchRecords() {
     loading.value = true;
     try {
-        const [recordsRes] = await Promise.all([
-            axios.get<EndlineRecord[]>('/api/endline-delay', {
-                params: {
-                    search: searchQuery.value || undefined,
-                    date: filterDate.value || undefined,
-                    lipas_yn: filterLipas.value || undefined,
-                    shift: filterShift.value || undefined,
-                    cutoff: filterCutoff.value || undefined,
-                    work_type: filterWorktype.value || undefined,
-                },
-            }),
-            fetchMonitorSummaries(),
-        ]);
-        const rows = Array.isArray(recordsRes.data) ? recordsRes.data : [];
+        const isLotSearch = searchQuery.value.trim().length === 7;
+        const recordsRes = await axios.get<{
+            success: boolean;
+            data: EndlineRecord[];
+        }>('/api/qc-inspection', {
+            params: {
+                search: searchQuery.value || undefined,
+                date: isLotSearch ? undefined : filterDate.value || undefined,
+                lipas_yn: filterLipas.value || undefined,
+                work_type: filterWorktype.value || undefined,
+                shift: filterShift.value || undefined,
+                cutoff: filterCutoff.value || undefined,
+            },
+        });
+        const rows =
+            recordsRes.data?.data ??
+            (Array.isArray(recordsRes.data) ? recordsRes.data : []);
         records.value = decisionFilter.value
             ? rows.filter((r) => getDecision(r) === decisionFilter.value)
             : rows;
@@ -1768,8 +1602,8 @@ function openCreateModal() {
 }
 
 function editRecord(rec: EndlineRecord) {
-    editRecordData.value = rec;
-    showModal.value = true;
+    qcEditRecordData.value = rec;
+    showQcInspectedLotsModal.value = true;
 }
 
 function confirmDelete(rec: EndlineRecord) {
@@ -1785,7 +1619,7 @@ async function deleteRecord() {
     if (!recordToDelete.value) return;
     deleting.value = true;
     try {
-        await axios.delete(`/api/endline-delay/${recordToDelete.value.id}`);
+        await axios.delete(`/api/qc-inspection/${recordToDelete.value.id}`);
         closeDeleteModal();
         fetchRecords();
     } catch {

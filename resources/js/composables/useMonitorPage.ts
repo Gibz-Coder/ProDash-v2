@@ -10,6 +10,7 @@ export interface MonitorRecord {
     qc_result: string | null;
     qc_defect: string | null;
     defect_class: string | null;
+    // endline_delay fields
     qc_ana_start: string | null;
     qc_ana_prog: string | null;
     qc_ana_result: string | null;
@@ -18,6 +19,11 @@ export interface MonitorRecord {
     vi_techl_prog: string | null;
     vi_techl_result: string | null;
     vi_techl_completed_at: string | null;
+    // qc_analysis table fields
+    defect_code: string | null;
+    analysis_start_at: string | null;
+    analysis_result: string | null;
+    analysis_completed_at: string | null;
     defect_name: string | null;
     work_type: string | null;
     final_decision: string | null;
@@ -28,7 +34,7 @@ export interface MonitorRecord {
     updated_at: string | null;
 }
 
-export type MonitorMode = 'qc' | 'vi';
+export type MonitorMode = 'qc' | 'vi' | 'qc_analysis';
 export type UnitType = 'pcs' | 'Kpcs' | 'Mpcs';
 
 interface UseMonitorPageOptions {
@@ -101,25 +107,71 @@ export function useMonitorPage({
         }
     }
 
-    const startKey = mode === 'qc' ? 'qc_ana_start' : 'vi_techl_start';
-    const progKey = mode === 'qc' ? 'qc_ana_prog' : 'vi_techl_prog';
-    const resultKey = mode === 'qc' ? 'qc_ana_result' : 'vi_techl_result';
+    const startKey =
+        mode === 'vi'
+            ? 'vi_techl_start'
+            : mode === 'qc_analysis'
+              ? 'analysis_start_at'
+              : 'qc_ana_start';
+    const progKey =
+        mode === 'vi'
+            ? 'vi_techl_prog'
+            : mode === 'qc_analysis'
+              ? null
+              : 'qc_ana_prog';
+    const resultKey =
+        mode === 'vi'
+            ? 'vi_techl_result'
+            : mode === 'qc_analysis'
+              ? 'analysis_result'
+              : 'qc_ana_result';
     const completedAtKey =
-        mode === 'qc' ? 'qc_ana_completed_at' : 'vi_techl_completed_at';
+        mode === 'vi'
+            ? 'vi_techl_completed_at'
+            : mode === 'qc_analysis'
+              ? 'analysis_completed_at'
+              : 'qc_ana_completed_at';
 
     const summaryStats = computed(() => {
-        // COMPLETED: result is not null/empty
-        const completedRecs = records.value.filter((r) => !!r[resultKey]);
-
-        // IN PROGRESS: prog is set but no result yet
-        const inProgressRecs = records.value.filter(
-            (r) => !!r[progKey] && !r[resultKey],
+        // COMPLETED: has a real final result (not In Progress)
+        const completedRecs = records.value.filter(
+            (r) =>
+                !!r[resultKey as keyof MonitorRecord] &&
+                r[resultKey as keyof MonitorRecord] !== 'In Progress' &&
+                r[resultKey as keyof MonitorRecord] !== 'For Decision',
         );
 
-        // PENDING: no prog and no result
-        const pendingRecs = records.value.filter(
-            (r) => !r[progKey] && !r[resultKey],
-        );
+        // IN PROGRESS: analysis_result === 'In Progress' OR progKey-based for other modes
+        const inProgressRecs =
+            mode === 'qc_analysis'
+                ? records.value.filter(
+                      (r) => r.analysis_result === 'In Progress',
+                  )
+                : progKey
+                  ? records.value.filter(
+                        (r) =>
+                            !!r[progKey as keyof MonitorRecord] &&
+                            !r[resultKey as keyof MonitorRecord],
+                    )
+                  : [];
+
+        // PENDING: no result, For Decision, and not in progress
+        const pendingRecs =
+            mode === 'qc_analysis'
+                ? records.value.filter(
+                      (r) =>
+                          !r.analysis_result ||
+                          r.analysis_result === 'For Decision',
+                  )
+                : progKey
+                  ? records.value.filter(
+                        (r) =>
+                            !r[progKey as keyof MonitorRecord] &&
+                            !r[resultKey as keyof MonitorRecord],
+                    )
+                  : records.value.filter(
+                        (r) => !r[resultKey as keyof MonitorRecord],
+                    );
 
         const u = unit?.value ?? 'pcs';
 
@@ -129,11 +181,17 @@ export function useMonitorPage({
         const avgTat = (() => {
             const now = Date.now();
             const minutes = records.value
-                .filter((r) => !!r[startKey])
+                .filter((r) => !!r[startKey as keyof MonitorRecord])
                 .map((r) => {
-                    const start = new Date(r[startKey] as string).getTime();
-                    const end = r[completedAtKey]
-                        ? new Date(r[completedAtKey] as string).getTime()
+                    const start = new Date(
+                        r[startKey as keyof MonitorRecord] as string,
+                    ).getTime();
+                    const end = r[completedAtKey as keyof MonitorRecord]
+                        ? new Date(
+                              r[
+                                  completedAtKey as keyof MonitorRecord
+                              ] as string,
+                          ).getTime()
                         : now;
                     return Math.round((end - start) / 60_000);
                 })

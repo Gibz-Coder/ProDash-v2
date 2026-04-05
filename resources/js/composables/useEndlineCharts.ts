@@ -7,13 +7,18 @@ import { onBeforeUnmount, ref } from 'vue';
 // Types
 // ---------------------------------------------------------------------------
 
-export type WorkTypeBucket = 'All' | 'Mainlot' | 'R-rework' | 'L-rework';
+export type WorkTypeBucket = 'All' | 'Mainlot' | 'RL-Rework';
 export type ChartCategory = 'Technical' | 'QC Analysis';
 
 export interface UseEndlineChartsOptions {
     chartIdPrefix: string;
     defaultCategory: ChartCategory;
     getParams: () => Record<string, string | undefined>;
+    chartDataUrl?: string;
+    pieLabels?: string[];
+    pieColors?: string[];
+    barSeriesNames?: string[];
+    barColors?: string[];
 }
 
 export interface UseEndlineChartsReturn {
@@ -53,7 +58,16 @@ const NO_DATA_TEXT = 'No data for selected filters';
 export function useEndlineCharts(
     options: UseEndlineChartsOptions,
 ): UseEndlineChartsReturn {
-    const { chartIdPrefix, defaultCategory, getParams } = options;
+    const {
+        chartIdPrefix,
+        defaultCategory,
+        getParams,
+        chartDataUrl = '/api/endline-delay/chart-data',
+        pieLabels = ['Mainlot', 'R-rework', 'L-rework'],
+        pieColors = ['#3b82f6', '#10b981', '#f59e0b'],
+        barSeriesNames = ['Mainlot', 'R-rework', 'L-rework'],
+        barColors = ['#3b82f6', '#10b981', '#f59e0b'],
+    } = options;
 
     const activeWorkType = ref<WorkTypeBucket>('All');
     const activeCategory = ref<ChartCategory>(defaultCategory);
@@ -129,7 +143,7 @@ export function useEndlineCharts(
         params['category'] = activeCategory.value;
 
         try {
-            const response = await axios.get('/api/endline-delay/chart-data', {
+            const response = await axios.get(chartDataUrl, {
                 params,
                 signal: abortController.signal,
             });
@@ -232,10 +246,10 @@ export function useEndlineCharts(
 
     function buildPieOptions(): object {
         return {
-            series: [0, 0, 0],
+            series: pieLabels.map(() => 0),
             chart: { height: 300, type: 'pie' },
-            colors: [...BUCKET_COLORS],
-            labels: ['Mainlot', 'R-rework', 'L-rework'],
+            colors: pieColors,
+            labels: pieLabels,
             noData: { text: NO_DATA_TEXT },
             legend: {
                 position: 'bottom',
@@ -246,8 +260,27 @@ export function useEndlineCharts(
             },
             dataLabels: {
                 enabled: true,
-                formatter: (val: number) => val.toFixed(1) + '%',
+                formatter: (val: number, opts: any) => {
+                    const count = opts.w.globals.series[opts.seriesIndex];
+                    return `${val.toFixed(1)}%\n(${count})`;
+                },
+                style: { fontSize: '11px', fontWeight: 600 },
                 dropShadow: { enabled: false },
+            },
+            tooltip: {
+                y: {
+                    formatter: (val: number, opts: any) => {
+                        const total = opts.globals.seriesTotals.reduce(
+                            (a: number, b: number) => a + b,
+                            0,
+                        );
+                        const pct =
+                            total > 0
+                                ? ((val / total) * 100).toFixed(1)
+                                : '0.0';
+                        return `${val} lots (${pct}%)`;
+                    },
+                },
             },
             responsive: [
                 {
@@ -263,20 +296,30 @@ export function useEndlineCharts(
 
     function buildBarOptions(): object {
         return {
-            series: [
-                { name: 'Mainlot', data: [0, 0, 0, 0, 0, 0] },
-                { name: 'R-rework', data: [0, 0, 0, 0, 0, 0] },
-                { name: 'L-rework', data: [0, 0, 0, 0, 0, 0] },
-            ],
+            series: barSeriesNames.map((name) => ({
+                name,
+                data: [0, 0, 0, 0, 0, 0],
+            })),
             chart: {
                 type: 'bar',
                 height: 300,
                 stacked: true,
                 toolbar: { show: false },
             },
-            plotOptions: { bar: { horizontal: true, borderRadius: 2 } },
+            plotOptions: {
+                bar: {
+                    horizontal: true,
+                    borderRadius: 2,
+                    dataLabels: {
+                        total: {
+                            enabled: true,
+                            style: { fontSize: '11px', fontWeight: 700 },
+                        },
+                    },
+                },
+            },
             stroke: { width: 1, colors: ['#fff'] },
-            colors: [...BUCKET_COLORS],
+            colors: barColors,
             grid: { borderColor: '#f2f5f7' },
             noData: { text: NO_DATA_TEXT },
             xaxis: {
@@ -284,7 +327,11 @@ export function useEndlineCharts(
                 labels: { show: true, style: AXIS_LABEL_STYLE },
             },
             yaxis: { labels: { show: true, style: AXIS_LABEL_STYLE } },
-            tooltip: { y: { formatter: (val: number) => val.toString() } },
+            tooltip: {
+                shared: true,
+                intersect: false,
+                y: { formatter: (val: number) => `${val} lots` },
+            },
             fill: { opacity: 1 },
             legend: {
                 position: 'bottom',

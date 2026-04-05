@@ -22,7 +22,10 @@ return new class extends Migration
             $table->string('inspection_result')->nullable();
             $table->string('analysis_result')->nullable();
             $table->string('technical_result')->nullable();
+            $table->string('pending')->nullable();
             $table->text('remarks')->nullable();
+            $table->string('output_status')->nullable();
+            $table->timestamp('lot_completed_at')->nullable();
             $table->string('created_by')->nullable();
             $table->string('updated_by')->nullable();
             $table->integer('total_tat')->nullable();

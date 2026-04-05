@@ -1,3 +1,413 @@
+<script setup lang="ts">
+import AutoRefreshControl from '@/components/AutoRefreshControl.vue';
+import { useAutoRefresh } from '@/composables/useAutoRefresh';
+import { useEndlineCharts } from '@/composables/useEndlineCharts';
+import AppLayout from '@/layouts/AppLayout.vue';
+import ViTechnicalModal from '@/pages/dashboards/subs/vi-technical-modal.vue';
+import axios from 'axios';
+import {
+    AlertCircle,
+    CheckCircle2,
+    Clock,
+    Download,
+    Loader2,
+    Package,
+    Plus,
+    RefreshCw,
+    Search,
+    Timer,
+} from 'lucide-vue-next';
+import { computed, onBeforeUnmount, onMounted, ref, watch } from 'vue';
+
+interface ViRecord {
+    id: number;
+    lot_id: string;
+    model: string | null;
+    lot_qty: number | null;
+    lipas_yn: string | null;
+    work_type: string | null;
+    defect_code: string | null;
+    technical_start_at: string | null;
+    technical_completed_at: string | null;
+    technical_result: string | null;
+    eqp_number: string | null;
+    eqp_maker: string | null;
+    remarks: string | null;
+    total_tat: number | null;
+    created_by: string | null;
+    updated_by: string | null;
+    // enriched
+    analysis_result: string | null;
+    mainlot_result: string | null;
+    rr_result: string | null;
+    ly_result: string | null;
+    inspection_result: string | null;
+}
+
+// ── Filters ──────────────────────────────────────────────────────────────────
+const filterDate = ref(
+    new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }),
+);
+const filterShift = ref('');
+const filterCutoff = ref('');
+const filterWorktype = ref('');
+const filterLipas = ref('');
+const filterUnit = ref<'pcs' | 'Kpcs' | 'Mpcs'>(
+    (localStorage.getItem('endline_unit') as 'pcs' | 'Kpcs' | 'Mpcs') ?? 'Kpcs',
+);
+const tableSearch = ref('');
+const statusFilter = ref<
+    'pending' | 'inprogress' | 'completed' | 'prevday' | null
+>(null);
+
+function setUnit(u: 'pcs' | 'Kpcs' | 'Mpcs') {
+    filterUnit.value = u;
+    localStorage.setItem('endline_unit', u);
+}
+
+function formatQty(qty: number): string {
+    if (filterUnit.value === 'Kpcs')
+        return (qty / 1000).toLocaleString(undefined, {
+            maximumFractionDigits: 1,
+        });
+    if (filterUnit.value === 'Mpcs')
+        return (qty / 1_000_000).toLocaleString(undefined, {
+            maximumFractionDigits: 2,
+        });
+    return qty.toLocaleString();
+}
+
+// ── Data ─────────────────────────────────────────────────────────────────────
+const records = ref<ViRecord[]>([]);
+const loading = ref(false);
+const error = ref<string | null>(null);
+const prevDayCount = ref(0);
+const prevDayQty = ref(0);
+
+async function fetchRecords() {
+    loading.value = true;
+    error.value = null;
+    try {
+        const params: Record<string, string> = {};
+        const isLotSearch = tableSearch.value.trim().length === 7;
+        if (tableSearch.value.trim()) {
+            params.search = tableSearch.value.trim();
+        }
+        // For prevday filter, drop the date so we get all unfinished lots regardless of date
+        if (
+            !isLotSearch &&
+            filterDate.value &&
+            statusFilter.value !== 'prevday'
+        ) {
+            params.date = filterDate.value;
+        }
+        if (filterShift.value) params.shift = filterShift.value;
+        if (filterCutoff.value) params.cutoff = filterCutoff.value;
+        if (filterWorktype.value) params.work_type = filterWorktype.value;
+        if (filterLipas.value) params.lipas_yn = filterLipas.value;
+        if (statusFilter.value) params.status_filter = statusFilter.value;
+
+        const { data } = await axios.get('/api/vi-technical', { params });
+        records.value = data.data ?? [];
+        prevDayCount.value = data.meta?.prev_day_count ?? 0;
+        prevDayQty.value = data.meta?.prev_day_qty ?? 0;
+    } catch (e: any) {
+        error.value = e.response?.data?.error ?? 'Failed to load records';
+    } finally {
+        loading.value = false;
+    }
+}
+
+// ── Charts ────────────────────────────────────────────────────────────────────
+const {
+    activeWorkType,
+    setWorkType,
+    fetchChartData,
+    initCharts,
+    destroyCharts,
+} = useEndlineCharts({
+    chartIdPrefix: 'vi',
+    defaultCategory: 'Technical',
+    chartDataUrl: '/api/vi-technical/chart-data',
+    pieLabels: ['Pending', 'In Progress', 'Completed'],
+    pieColors: ['#ef4444', '#f59e0b', '#10b981'],
+    barSeriesNames: ['Pending', 'In Progress', 'Completed'],
+    barColors: ['#ef4444', '#f59e0b', '#10b981'],
+    getParams: () => ({
+        date:
+            statusFilter.value === 'prevday'
+                ? undefined
+                : filterDate.value || undefined,
+        shift: filterShift.value || undefined,
+        cutoff: filterCutoff.value || undefined,
+        work_type: filterWorktype.value || undefined,
+        lipas_yn: filterLipas.value || undefined,
+    }),
+});
+
+// ── Summary stats ─────────────────────────────────────────────────────────────
+const summaryStats = computed(() => {
+    const today = new Date().toLocaleDateString('en-CA', {
+        timeZone: 'Asia/Manila',
+    });
+    let total = 0,
+        totalQty = 0,
+        pending = 0,
+        pendingQty = 0;
+    let inProgress = 0,
+        inProgressQty = 0,
+        completed = 0,
+        completedQty = 0;
+    let tatSum = 0,
+        tatCount = 0;
+
+    for (const r of records.value) {
+        total++;
+        totalQty += r.lot_qty ?? 0;
+        if (r.technical_result && r.technical_result !== 'In Progress') {
+            completed++;
+            completedQty += r.lot_qty ?? 0;
+            if (r.total_tat) {
+                tatSum += r.total_tat;
+                tatCount++;
+            }
+        } else if (
+            r.technical_start_at ||
+            r.technical_result === 'In Progress'
+        ) {
+            inProgress++;
+            inProgressQty += r.lot_qty ?? 0;
+        } else {
+            pending++;
+            pendingQty += r.lot_qty ?? 0;
+        }
+    }
+
+    const avgMins = tatCount ? Math.round(tatSum / tatCount) : 0;
+    const avgTat =
+        avgMins < 60
+            ? `${avgMins}m`
+            : `${Math.floor(avgMins / 60)}h ${avgMins % 60}m`;
+
+    return {
+        total,
+        totalQty: formatQty(totalQty),
+        pending,
+        pendingQty: formatQty(pendingQty),
+        inProgress,
+        inProgressQty: formatQty(inProgressQty),
+        completed,
+        completedQty: formatQty(completedQty),
+        avgTat,
+        prevDayPending: prevDayCount.value,
+        prevDayQty: formatQty(prevDayQty.value),
+    };
+});
+
+// ── Filtered + sorted records ─────────────────────────────────────────────────
+const sortKey = ref<keyof ViRecord | null>(null);
+const sortDir = ref<'asc' | 'desc'>('asc');
+
+function toggleSort(key: keyof ViRecord) {
+    if (sortKey.value === key)
+        sortDir.value = sortDir.value === 'asc' ? 'desc' : 'asc';
+    else {
+        sortKey.value = key;
+        sortDir.value = 'asc';
+    }
+}
+function sortIcon(key: keyof ViRecord) {
+    if (sortKey.value !== key) return '↕';
+    return sortDir.value === 'asc' ? '↑' : '↓';
+}
+
+const filteredRecords = computed(() => {
+    const q = tableSearch.value.trim().toLowerCase();
+    const sf = statusFilter.value;
+    const today = new Date().toLocaleDateString('en-CA', {
+        timeZone: 'Asia/Manila',
+    });
+
+    let base = records.value.filter((r) => {
+        if (
+            q &&
+            !(
+                r.lot_id?.toLowerCase().includes(q) ||
+                r.model?.toLowerCase().includes(q) ||
+                r.defect_code?.toLowerCase().includes(q)
+            )
+        )
+            return false;
+        if (sf === 'pending')
+            return !r.technical_start_at && !r.technical_result;
+        if (sf === 'inprogress')
+            return (
+                r.technical_result === 'In Progress' ||
+                (!!r.technical_start_at && !r.technical_result)
+            );
+        if (sf === 'completed')
+            return !!r.technical_result && r.technical_result !== 'In Progress';
+        if (sf === 'prevday') {
+            if (r.technical_result && r.technical_result !== 'In Progress')
+                return false;
+            if (!r.technical_start_at) return false;
+            return (
+                new Date(r.technical_start_at).toLocaleDateString('en-CA', {
+                    timeZone: 'Asia/Manila',
+                }) < today
+            );
+        }
+        return true;
+    });
+
+    if (sortKey.value) {
+        const k = sortKey.value;
+        base = [...base].sort((a, b) => {
+            const av = a[k] ?? '',
+                bv = b[k] ?? '';
+            const cmp = av < bv ? -1 : av > bv ? 1 : 0;
+            return sortDir.value === 'asc' ? cmp : -cmp;
+        });
+    } else {
+        // Default: pending first, then by start time desc
+        base = [...base].sort((a, b) => {
+            const aD = a.technical_start_at
+                ? new Date(a.technical_start_at).getTime()
+                : 0;
+            const bD = b.technical_start_at
+                ? new Date(b.technical_start_at).getTime()
+                : 0;
+            return bD - aD;
+        });
+    }
+
+    return base;
+});
+
+// ── Modal ─────────────────────────────────────────────────────────────────────
+const showModal = ref(false);
+const modalLot = ref<ViRecord | null>(null);
+const modalReadonly = ref(false);
+
+function openModal(rec: ViRecord | null = null, readonly = false) {
+    modalLot.value = rec;
+    modalReadonly.value = readonly;
+    showModal.value = true;
+}
+
+// ── Export ────────────────────────────────────────────────────────────────────
+const showExportPicker = ref(false);
+const today = new Date().toLocaleDateString('en-CA', {
+    timeZone: 'Asia/Manila',
+});
+const exportDateFrom = ref(today);
+const exportDateTo = ref(today);
+
+function triggerExport() {
+    const p = new URLSearchParams();
+    if (exportDateFrom.value) p.set('date_from', exportDateFrom.value);
+    if (exportDateTo.value) p.set('date_to', exportDateTo.value);
+    if (filterWorktype.value) p.set('work_type', filterWorktype.value);
+    if (filterLipas.value) p.set('lipas_yn', filterLipas.value);
+    window.location.href = `/api/vi-technical/export?${p.toString()}`;
+    showExportPicker.value = false;
+}
+
+// ── Auto-refresh ──────────────────────────────────────────────────────────────
+const {
+    enabled: autoRefreshEnabled,
+    interval: autoRefreshInterval,
+    toggle: toggleAutoRefresh,
+    setInterval: setAutoRefreshInterval,
+} = useAutoRefresh(() => {
+    fetchRecords();
+    fetchChartData();
+});
+
+// ── Helpers ───────────────────────────────────────────────────────────────────
+function statusLabel(r: ViRecord) {
+    if (r.technical_result && r.technical_result !== 'In Progress')
+        return 'Completed';
+    if (r.technical_start_at || r.technical_result === 'In Progress')
+        return 'In Progress';
+    return 'Pending';
+}
+
+function statusBadgeClass(r: ViRecord) {
+    if (r.technical_result && r.technical_result !== 'In Progress')
+        return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400';
+    if (r.technical_start_at || r.technical_result === 'In Progress')
+        return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-400';
+    return 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950/30 dark:text-red-400';
+}
+
+function rowClass(r: ViRecord) {
+    if (r.technical_result && r.technical_result !== 'In Progress')
+        return 'bg-emerald-50/40 hover:bg-emerald-50/60 dark:bg-emerald-950/10';
+    if (r.technical_start_at || r.technical_result === 'In Progress')
+        return 'bg-amber-50/60 hover:bg-amber-50/80 dark:bg-amber-950/20';
+    return 'hover:bg-muted/30';
+}
+
+function fmt(dt: string | null) {
+    if (!dt) return '—';
+    return new Date(dt).toLocaleString('en-US', {
+        month: 'short',
+        day: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit',
+    });
+}
+
+function elapsed(start: string | null, end: string | null = null): string {
+    if (!start) return '—';
+    const endMs = end ? new Date(end).getTime() : Date.now();
+    const mins = Math.floor((endMs - new Date(start).getTime()) / 60_000);
+    if (mins < 60) return `${mins}m`;
+    return `${Math.floor(mins / 60)}h ${mins % 60}m`;
+}
+
+function toggleStatusFilter(
+    val: 'pending' | 'inprogress' | 'completed' | 'prevday',
+) {
+    statusFilter.value = statusFilter.value === val ? null : val;
+    fetchRecords();
+    fetchChartData();
+}
+
+// ── Keyboard shortcut ─────────────────────────────────────────────────────────
+function onKeydown(e: KeyboardEvent) {
+    if (e.key !== 'F2') return;
+    e.preventDefault();
+    openModal(null);
+}
+
+// ── Search debounce ───────────────────────────────────────────────────────────
+let searchTimer: ReturnType<typeof setTimeout> | null = null;
+watch(tableSearch, () => {
+    if (searchTimer) clearTimeout(searchTimer);
+    searchTimer = setTimeout(() => fetchRecords(), 350);
+});
+
+watch(
+    [filterDate, filterShift, filterCutoff, filterWorktype, filterLipas],
+    () => {
+        fetchRecords();
+        fetchChartData();
+    },
+);
+onMounted(() => {
+    fetchRecords();
+    initCharts();
+    fetchChartData();
+    document.addEventListener('keydown', onKeydown);
+});
+onBeforeUnmount(() => {
+    destroyCharts();
+    document.removeEventListener('keydown', onKeydown);
+});
+</script>
+
 <template>
     <AppLayout>
         <template #filters>
@@ -31,7 +441,6 @@
                         <option value="NIGHT">Night</option>
                     </select>
                 </div>
-                <!-- Cutoff Filter -->
                 <div
                     class="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 shadow-sm"
                 >
@@ -41,7 +450,7 @@
                     <select
                         v-model="filterCutoff"
                         @change="fetchRecords"
-                        class="cursor-pointer border-0 bg-transparent pr-6 text-xs font-semibold text-foreground focus:ring-0 focus:outline-none [&>option]:bg-background [&>option]:text-foreground"
+                        class="cursor-pointer border-0 bg-transparent pr-6 text-xs font-semibold text-foreground focus:ring-0 focus:outline-none [&>option]:bg-background"
                     >
                         <option value="">ALL</option>
                         <option value="00:00~03:59">00:00~03:59</option>
@@ -52,7 +461,6 @@
                         <option value="19:00~23:59">19:00~23:59</option>
                     </select>
                 </div>
-                <!-- Worktype Filter -->
                 <div
                     class="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 shadow-sm"
                 >
@@ -62,7 +470,7 @@
                     <select
                         v-model="filterWorktype"
                         @change="fetchRecords"
-                        class="cursor-pointer border-0 bg-transparent pr-6 text-xs font-semibold text-foreground focus:ring-0 focus:outline-none [&>option]:bg-background [&>option]:text-foreground"
+                        class="cursor-pointer border-0 bg-transparent pr-6 text-xs font-semibold text-foreground focus:ring-0 focus:outline-none [&>option]:bg-background"
                     >
                         <option value="">ALL</option>
                         <option value="NORMAL">NORMAL</option>
@@ -71,7 +479,6 @@
                         <option value="OI REWORK">OI REWORK</option>
                     </select>
                 </div>
-                <!-- LIPAS Filter -->
                 <div
                     class="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 shadow-sm"
                 >
@@ -88,7 +495,6 @@
                         <option value="N">No</option>
                     </select>
                 </div>
-                <!-- Unit Filter -->
                 <div
                     class="flex items-center gap-2 rounded-lg border border-border bg-background px-3 py-1.5 shadow-sm"
                 >
@@ -105,14 +511,13 @@
                                     | 'Mpcs',
                             )
                         "
-                        class="cursor-pointer border-0 bg-transparent pr-6 text-xs font-semibold text-foreground focus:ring-0 focus:outline-none [&>option]:bg-background [&>option]:text-foreground"
+                        class="cursor-pointer border-0 bg-transparent pr-6 text-xs font-semibold text-foreground focus:ring-0 focus:outline-none [&>option]:bg-background"
                     >
                         <option value="pcs">pcs</option>
                         <option value="Kpcs">Kpcs</option>
                         <option value="Mpcs">Mpcs</option>
                     </select>
                 </div>
-                <!-- Auto-refresh control -->
                 <AutoRefreshControl
                     :enabled="autoRefreshEnabled"
                     :interval="autoRefreshInterval"
@@ -126,7 +531,6 @@
                 >
                     <RefreshCw class="h-3.5 w-3.5" /> Refresh
                 </button>
-                <!-- Export -->
                 <div class="export-picker-wrapper relative">
                     <button
                         class="flex items-center gap-1 rounded-lg border border-emerald-600 bg-transparent px-3 py-1.5 text-xs font-medium text-emerald-600 shadow-sm transition-colors hover:bg-emerald-600 hover:text-white"
@@ -194,7 +598,7 @@
                         VI Technical Monitoring
                     </h1>
                     <p class="text-[11px] text-muted-foreground">
-                        Lots pending VI verification
+                        Lots pending VI technical verification
                     </p>
                 </div>
                 <div class="flex items-center gap-2">
@@ -211,7 +615,7 @@
                     </div>
                     <button
                         class="flex h-8 items-center gap-1.5 rounded-lg bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
-                        @click="openAddModal"
+                        @click="openModal(null)"
                     >
                         <Plus class="h-3.5 w-3.5" /> Update Status
                         <span
@@ -222,11 +626,17 @@
                 </div>
             </div>
 
-            <!-- Summary cards row -->
+            <!-- Summary cards -->
             <div class="flex gap-2">
                 <!-- Total -->
                 <div
-                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-blue-50 to-blue-100/50 px-3 py-2 shadow dark:from-blue-950/30 dark:to-blue-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-blue-50 to-blue-100/50 px-3 py-2 shadow transition-all hover:ring-1 hover:ring-blue-300 dark:from-blue-950/30 dark:to-blue-900/20"
+                    :class="statusFilter === null ? 'ring-2 ring-blue-400' : ''"
+                    @click="
+                        statusFilter = null;
+                        fetchRecords();
+                        fetchChartData();
+                    "
                 >
                     <div
                         class="rounded-full bg-blue-500/10 p-1.5 ring-1 ring-blue-500/20"
@@ -255,7 +665,7 @@
                 </div>
                 <!-- Pending -->
                 <div
-                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 shadow transition-all dark:from-red-950/30 dark:to-red-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 shadow transition-all"
                     :class="
                         statusFilter === 'pending'
                             ? 'border-red-500 bg-red-100 ring-2 ring-red-400 dark:bg-red-950/50'
@@ -290,7 +700,7 @@
                 </div>
                 <!-- In Progress -->
                 <div
-                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 shadow transition-all dark:from-amber-950/30 dark:to-amber-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 shadow transition-all"
                     :class="
                         statusFilter === 'inprogress'
                             ? 'border-amber-500 bg-amber-100 ring-2 ring-amber-400 dark:bg-amber-950/50'
@@ -325,7 +735,7 @@
                 </div>
                 <!-- Completed -->
                 <div
-                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 shadow transition-all dark:from-emerald-950/30 dark:to-emerald-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 shadow transition-all"
                     :class="
                         statusFilter === 'completed'
                             ? 'border-emerald-500 bg-emerald-100 ring-2 ring-emerald-400 dark:bg-emerald-950/50'
@@ -358,7 +768,7 @@
                         </p>
                     </div>
                 </div>
-                <!-- Average TAT -->
+                <!-- Avg TAT -->
                 <div
                     class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-violet-50 to-violet-100/50 px-3 py-2 shadow dark:from-violet-950/30 dark:to-violet-900/20"
                 >
@@ -389,7 +799,7 @@
                 </div>
                 <!-- Prev Day -->
                 <div
-                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 shadow transition-all dark:from-rose-950/30 dark:to-rose-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 shadow transition-all"
                     :class="
                         statusFilter === 'prevday'
                             ? 'border-rose-500 bg-rose-100 ring-2 ring-rose-400 dark:bg-rose-950/50'
@@ -451,63 +861,10 @@
                 <div
                     class="relative h-[360px] overflow-hidden rounded-xl border border-sidebar-border/70 p-4 md:col-span-2 dark:border-sidebar-border"
                 >
-                    <div class="mb-2 flex items-center justify-between">
+                    <div class="mb-2 flex justify-center">
                         <h3 class="text-sm font-bold text-foreground">
                             Detailed VI Technical Delay
                         </h3>
-                        <div
-                            class="inline-flex rounded-md shadow-sm"
-                            role="group"
-                        >
-                            <button
-                                type="button"
-                                :class="[
-                                    'rounded-l-md border px-2 py-1 text-xs font-medium transition-colors focus:z-10',
-                                    activeWorkType === 'All'
-                                        ? 'border-blue-600 bg-blue-600 text-white'
-                                        : 'border-blue-600 bg-transparent text-blue-600 hover:bg-blue-600 hover:text-white dark:border-blue-500 dark:text-blue-500',
-                                ]"
-                                @click="setWorkType('All')"
-                            >
-                                All
-                            </button>
-                            <button
-                                type="button"
-                                :class="[
-                                    'border border-x-0 px-2 py-1 text-xs font-medium transition-colors focus:z-10',
-                                    activeWorkType === 'Mainlot'
-                                        ? 'border-blue-600 bg-blue-600 text-white'
-                                        : 'border-blue-600 bg-transparent text-blue-600 hover:bg-blue-600 hover:text-white dark:border-blue-500 dark:text-blue-500',
-                                ]"
-                                @click="setWorkType('Mainlot')"
-                            >
-                                Mainlot
-                            </button>
-                            <button
-                                type="button"
-                                :class="[
-                                    'border border-x-0 px-2 py-1 text-xs font-medium transition-colors focus:z-10',
-                                    activeWorkType === 'R-rework'
-                                        ? 'border-blue-600 bg-blue-600 text-white'
-                                        : 'border-blue-600 bg-transparent text-blue-600 hover:bg-blue-600 hover:text-white dark:border-blue-500 dark:text-blue-500',
-                                ]"
-                                @click="setWorkType('R-rework')"
-                            >
-                                R-rework
-                            </button>
-                            <button
-                                type="button"
-                                :class="[
-                                    'rounded-r-md border px-2 py-1 text-xs font-medium transition-colors focus:z-10',
-                                    activeWorkType === 'L-rework'
-                                        ? 'border-blue-600 bg-blue-600 text-white'
-                                        : 'border-blue-600 bg-transparent text-blue-600 hover:bg-blue-600 hover:text-white dark:border-blue-500 dark:text-blue-500',
-                                ]"
-                                @click="setWorkType('L-rework')"
-                            >
-                                L-rework
-                            </button>
-                        </div>
                     </div>
                     <div id="vi-column-chart" class="h-[300px] w-full"></div>
                 </div>
@@ -536,26 +893,44 @@
                     class="min-h-0 flex-1 overflow-x-auto overflow-y-auto"
                     style="scrollbar-gutter: stable"
                 >
-                    <table class="w-full min-w-[900px] table-fixed text-xs">
+                    <table class="w-full min-w-[1100px] table-fixed text-xs">
                         <colgroup>
                             <col class="w-[40px]" />
-                            <col class="w-[100px]" />
-                            <col class="w-[130px]" />
-                            <col class="w-[80px]" />
-                            <col class="w-[55px]" />
-                            <col class="w-[130px]" />
-                            <col class="w-[80px]" />
+                            <!-- No -->
                             <col class="w-[90px]" />
+                            <!-- Lot No -->
+                            <col class="w-[130px]" />
+                            <!-- Model -->
+                            <col class="w-[75px]" />
+                            <!-- Qty -->
+                            <col class="w-[50px]" />
+                            <!-- LIPAS -->
+                            <col class="w-[85px]" />
+                            <!-- WorkType -->
+                            <col class="w-[120px]" />
+                            <!-- Date Time -->
+                            <col class="w-[90px]" />
+                            <!-- Defect Code -->
                             <col class="w-[80px]" />
-                            <col class="w-[80px]" />
-                            <col class="w-[100px]" />
-                            <col class="w-[100px]" />
-                            <col class="w-[100px]" />
-                            <col class="w-[110px]" />
+                            <!-- Status -->
+                            <col class="w-[70px]" />
+                            <!-- Elapsed -->
+                            <col class="w-[85px]" />
+                            <!-- Created By -->
+                            <col class="w-[85px]" />
+                            <!-- Updated By -->
+                            <col class="w-[95px]" />
+                            <!-- Decision -->
+                            <col class="w-[120px]" />
+                            <!-- Completed -->
+                            <col class="w-[150px]" />
+                            <!-- Remarks -->
+                            <col class="w-[90px]" />
+                            <!-- Actions -->
                         </colgroup>
                         <thead class="sticky top-0 z-10">
                             <tr
-                                class="bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900"
+                                class="bg-gradient-to-r from-slate-700 to-slate-800 whitespace-nowrap dark:from-slate-800 dark:to-slate-900"
                             >
                                 <th
                                     class="border-r border-white/10 px-2 py-2.5 text-center text-[10px] font-bold tracking-widest text-slate-100 uppercase"
@@ -590,51 +965,67 @@
                                     }}</span>
                                 </th>
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('lipas_yn')"
                                 >
                                     LIPAS
+                                    <span class="opacity-60">{{
+                                        sortIcon('lipas_yn')
+                                    }}</span>
                                 </th>
                                 <th
                                     class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
-                                    @click="toggleSort('vi_techl_start')"
+                                    @click="toggleSort('work_type')"
+                                >
+                                    WorkType
+                                    <span class="opacity-60">{{
+                                        sortIcon('work_type')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('technical_start_at')"
                                 >
                                     Date Time
                                     <span class="opacity-60">{{
-                                        sortIcon('vi_techl_start')
+                                        sortIcon('technical_start_at')
                                     }}</span>
                                 </th>
                                 <th
                                     class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
-                                    @click="toggleSort('qc_result')"
-                                >
-                                    QC Result
-                                    <span class="opacity-60">{{
-                                        sortIcon('qc_result')
-                                    }}</span>
-                                </th>
-                                <th
-                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
-                                    @click="toggleSort('qc_defect')"
+                                    @click="toggleSort('defect_code')"
                                 >
                                     Defect Code
                                     <span class="opacity-60">{{
-                                        sortIcon('qc_defect')
+                                        sortIcon('defect_code')
                                     }}</span>
                                 </th>
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('technical_result')"
                                 >
                                     Status
+                                    <span class="opacity-60">{{
+                                        sortIcon('technical_result')
+                                    }}</span>
                                 </th>
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('technical_start_at')"
                                 >
                                     Elapsed
+                                    <span class="opacity-60">{{
+                                        sortIcon('technical_start_at')
+                                    }}</span>
                                 </th>
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('created_by')"
                                 >
                                     Created By
+                                    <span class="opacity-60">{{
+                                        sortIcon('created_by')
+                                    }}</span>
                                 </th>
                                 <th
                                     class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
@@ -646,9 +1037,33 @@
                                     }}</span>
                                 </th>
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('technical_result')"
                                 >
                                     Decision
+                                    <span class="opacity-60">{{
+                                        sortIcon('technical_result')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="
+                                        toggleSort('technical_completed_at')
+                                    "
+                                >
+                                    Completed
+                                    <span class="opacity-60">{{
+                                        sortIcon('technical_completed_at')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('remarks')"
+                                >
+                                    Remarks
+                                    <span class="opacity-60">{{
+                                        sortIcon('remarks')
+                                    }}</span>
                                 </th>
                                 <th
                                     class="px-2 py-2.5 text-center text-[10px] font-bold tracking-widest text-slate-100 uppercase"
@@ -661,9 +1076,8 @@
                             <tr
                                 v-for="(rec, index) in filteredRecords"
                                 :key="rec.id"
-                                class="cursor-pointer transition-colors"
+                                class="transition-colors"
                                 :class="rowClass(rec)"
-                                @click="selectedId = rec.id"
                             >
                                 <td
                                     class="px-2 py-2 text-center text-xs text-muted-foreground"
@@ -695,26 +1109,7 @@
                                                 ? 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400'
                                                 : 'bg-slate-50 text-slate-600 ring-slate-600/20'
                                         "
-                                    >
-                                        {{ rec.lipas_yn }}
-                                    </span>
-                                    <span v-else class="text-muted-foreground"
-                                        >—</span
-                                    >
-                                </td>
-                                <td
-                                    class="px-2 py-2 text-xs whitespace-nowrap text-muted-foreground"
-                                >
-                                    {{ formatDateTime(rec.vi_techl_start) }}
-                                </td>
-                                <td class="px-2 py-2">
-                                    <span
-                                        v-if="rec.qc_result"
-                                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
-                                        :class="
-                                            qcResultBadgeClass(rec.qc_result)
-                                        "
-                                        >{{ rec.qc_result }}</span
+                                        >{{ rec.lipas_yn }}</span
                                     >
                                     <span v-else class="text-muted-foreground"
                                         >—</span
@@ -722,45 +1117,50 @@
                                 </td>
                                 <td
                                     class="truncate px-2 py-2 text-xs text-foreground"
-                                    :title="rec.qc_defect ?? ''"
+                                    :title="rec.work_type ?? ''"
                                 >
-                                    {{ rec.qc_defect || '—' }}
+                                    {{ rec.work_type || '—' }}
+                                </td>
+                                <td
+                                    class="px-2 py-2 text-xs whitespace-nowrap text-muted-foreground"
+                                >
+                                    {{ fmt(rec.technical_start_at) }}
+                                </td>
+                                <td
+                                    class="truncate px-2 py-2 text-xs text-foreground"
+                                    :title="rec.defect_code ?? ''"
+                                >
+                                    {{ rec.defect_code || '—' }}
                                 </td>
                                 <td class="px-2 py-2">
                                     <span
                                         class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
                                         :class="statusBadgeClass(rec)"
+                                        >{{ statusLabel(rec) }}</span
                                     >
-                                        {{ statusLabel(rec) }}
-                                    </span>
                                 </td>
                                 <td class="px-2 py-2 text-xs whitespace-nowrap">
                                     <span
                                         v-if="
-                                            rec.vi_techl_result &&
-                                            rec.vi_techl_completed_at &&
-                                            rec.vi_techl_start
+                                            rec.technical_result &&
+                                            rec.technical_completed_at &&
+                                            rec.technical_start_at
                                         "
                                         class="text-muted-foreground"
-                                    >
-                                        {{
-                                            formatDuration(
-                                                Math.round(
-                                                    (new Date(
-                                                        rec.vi_techl_completed_at,
-                                                    ).getTime() -
-                                                        new Date(
-                                                            rec.vi_techl_start,
-                                                        ).getTime()) /
-                                                        60_000,
-                                                ),
+                                        >{{
+                                            elapsed(
+                                                rec.technical_start_at,
+                                                rec.technical_completed_at,
                                             )
-                                        }}
-                                    </span>
-                                    <ElapsedCell
-                                        v-else-if="rec.vi_techl_start"
-                                        :start="rec.vi_techl_start"
-                                    />
+                                        }}</span
+                                    >
+                                    <span
+                                        v-else-if="rec.technical_start_at"
+                                        class="font-medium text-amber-600 dark:text-amber-400"
+                                        >{{
+                                            elapsed(rec.technical_start_at)
+                                        }}</span
+                                    >
                                     <span v-else class="text-muted-foreground"
                                         >—</span
                                     >
@@ -780,58 +1180,70 @@
                                 <td class="px-2 py-2">
                                     <span
                                         v-if="
-                                            rec.vi_techl_result === 'Rework' ||
-                                            rec.vi_techl_result ===
-                                                'DRB Approval'
+                                            rec.technical_result === 'Proceed'
                                         "
-                                        class="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600"
-                                    >
-                                        <AlertCircle class="h-3 w-3" />{{
-                                            rec.vi_techl_result
-                                        }}
-                                    </span>
-                                    <span
-                                        v-else-if="rec.vi_techl_result"
                                         class="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600"
+                                        ><CheckCircle2 class="h-3 w-3" />{{
+                                            rec.technical_result
+                                        }}</span
                                     >
-                                        <CheckCircle2 class="h-3 w-3" />{{
-                                            rec.vi_techl_result
-                                        }}
-                                    </span>
                                     <span
-                                        v-else-if="rec.vi_techl_prog"
-                                        class="text-[10px] font-medium text-amber-600"
+                                        v-else-if="rec.technical_result"
+                                        class="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600"
+                                        ><AlertCircle class="h-3 w-3" />{{
+                                            rec.technical_result
+                                        }}</span
                                     >
-                                        {{ rec.vi_techl_prog }}
-                                    </span>
                                     <span v-else class="text-muted-foreground"
                                         >—</span
                                     >
+                                </td>
+                                <td
+                                    class="px-2 py-2 text-xs whitespace-nowrap text-muted-foreground tabular-nums"
+                                >
+                                    <span v-if="rec.technical_completed_at">{{
+                                        fmt(rec.technical_completed_at)
+                                    }}</span>
+                                    <span
+                                        v-else
+                                        class="text-muted-foreground/40"
+                                        >—</span
+                                    >
+                                </td>
+                                <td
+                                    class="max-w-[145px] truncate px-2 py-2 text-xs text-muted-foreground"
+                                    :title="rec.remarks ?? ''"
+                                >
+                                    {{ rec.remarks || '—' }}
                                 </td>
                                 <td class="px-2 py-2">
                                     <div
                                         class="flex items-center justify-center gap-1"
                                     >
                                         <button
-                                            v-if="!rec.vi_techl_result"
+                                            v-if="
+                                                !rec.technical_result ||
+                                                rec.technical_result ===
+                                                    'In Progress'
+                                            "
                                             class="h-7 rounded border border-primary/30 bg-primary/10 px-3 text-[10px] font-semibold text-primary hover:bg-primary/20"
                                             @click.stop="openModal(rec)"
                                         >
-                                            <ClipboardCheck
-                                                class="mr-1 inline h-3 w-3"
-                                            />Update Status
+                                            Update
                                         </button>
-                                        <span
+                                        <button
                                             v-else
-                                            class="text-[10px] text-muted-foreground"
-                                            >—</span
+                                            class="h-7 rounded border border-slate-300/50 bg-slate-100/60 px-3 text-[10px] font-semibold text-slate-500 hover:bg-slate-200/60 dark:border-slate-600/50 dark:bg-slate-800/40 dark:text-slate-400"
+                                            @click.stop="openModal(rec, true)"
                                         >
+                                            View
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
                             <tr v-if="filteredRecords.length === 0">
                                 <td
-                                    colspan="14"
+                                    colspan="16"
                                     class="py-12 text-center text-muted-foreground"
                                 >
                                     <CheckCircle2
@@ -849,326 +1261,12 @@
             </div>
         </div>
 
-        <MonitorResultModal
+        <ViTechnicalModal
             :open="showModal"
             :lot="modalLot"
-            mode="vi"
+            :readonly="modalReadonly"
             @update:open="showModal = $event"
             @submitted="fetchRecords"
         />
-        <QcOkUpdateModal
-            :open="showQcOkUpdateModal"
-            :lot="qcOkUpdateLot as any"
-            @update:open="showQcOkUpdateModal = $event"
-            @saved="fetchRecords"
-        />
     </AppLayout>
 </template>
-
-<script setup lang="ts">
-import AutoRefreshControl from '@/components/AutoRefreshControl.vue';
-import { useAutoRefresh } from '@/composables/useAutoRefresh';
-import { useElapsedTimer } from '@/composables/useElapsedTimer';
-import { useEndlineCharts } from '@/composables/useEndlineCharts';
-import {
-    formatDuration,
-    useMonitorPage,
-    type MonitorRecord,
-} from '@/composables/useMonitorPage';
-import { useTableSort } from '@/composables/useTableSort';
-import AppLayout from '@/layouts/AppLayout.vue';
-import MonitorResultModal from '@/pages/dashboards/subs/monitor-result-modal.vue';
-import QcOkUpdateModal from '@/pages/dashboards/subs/qc-ok-update-modal.vue';
-import {
-    AlertCircle,
-    CheckCircle2,
-    ClipboardCheck,
-    Clock,
-    Download,
-    Loader2,
-    Package,
-    Plus,
-    RefreshCw,
-    Search,
-    Timer,
-} from 'lucide-vue-next';
-import {
-    computed,
-    defineComponent,
-    h,
-    onBeforeUnmount,
-    onMounted,
-    ref,
-    watch,
-} from 'vue';
-
-const ElapsedCell = defineComponent({
-    props: { start: { type: String, required: true } },
-    setup(props) {
-        const startRef = ref(props.start);
-        const { elapsedMinutes } = useElapsedTimer(startRef);
-        return () =>
-            h(
-                'span',
-                { class: 'font-medium text-amber-600 dark:text-amber-400' },
-                formatDuration(elapsedMinutes.value),
-            );
-    },
-});
-
-const filterDate = ref(
-    new Date().toLocaleDateString('en-CA', { timeZone: 'Asia/Manila' }),
-);
-const filterShift = ref('');
-const filterCutoff = ref('');
-const filterWorktype = ref('');
-const filterLipas = ref('');
-const filterUnit = ref<'pcs' | 'Kpcs' | 'Mpcs'>(
-    (localStorage.getItem('endline_unit') as 'pcs' | 'Kpcs' | 'Mpcs') ?? 'Kpcs',
-);
-
-function setUnit(u: 'pcs' | 'Kpcs' | 'Mpcs') {
-    filterUnit.value = u;
-    localStorage.setItem('endline_unit', u);
-}
-
-function formatQty(qty: number): string {
-    if (filterUnit.value === 'Kpcs')
-        return (qty / 1000).toLocaleString(undefined, {
-            maximumFractionDigits: 1,
-        });
-    if (filterUnit.value === 'Mpcs')
-        return (qty / 1_000_000).toLocaleString(undefined, {
-            maximumFractionDigits: 2,
-        });
-    return qty.toLocaleString();
-}
-
-const statusFilter = ref<
-    'pending' | 'inprogress' | 'completed' | 'prevday' | null
->(null);
-
-const { records, loading, error, fetchRecords, summaryStats } = useMonitorPage({
-    apiUrl: '/api/endline-delay/vi-monitor',
-    mode: 'vi',
-    unit: filterUnit,
-    params: () => ({
-        date:
-            statusFilter.value === 'prevday' || tableSearch.value.trim()
-                ? undefined
-                : filterDate.value || undefined,
-        shift: filterShift.value || undefined,
-        cutoff: filterCutoff.value || undefined,
-        work_type: filterWorktype.value || undefined,
-        lipas_yn: filterLipas.value || undefined,
-        status_filter: statusFilter.value || undefined,
-    }),
-});
-
-const {
-    enabled: autoRefreshEnabled,
-    interval: autoRefreshInterval,
-    toggle: toggleAutoRefresh,
-    setInterval: setAutoRefreshInterval,
-} = useAutoRefresh(fetchRecords);
-
-const selectedId = ref<number | null>(null);
-const showModal = ref(false);
-const modalLot = ref<MonitorRecord | null>(null);
-const showQcOkUpdateModal = ref(false);
-const qcOkUpdateLot = ref<MonitorRecord | null>(null);
-
-function rowClass(rec: MonitorRecord) {
-    if (rec.vi_techl_result)
-        return 'bg-emerald-50/40 hover:bg-emerald-50/60 dark:bg-emerald-950/10';
-    if (rec.vi_techl_prog)
-        return 'bg-amber-50/60 hover:bg-amber-50/80 dark:bg-amber-950/20';
-    return 'hover:bg-muted/30';
-}
-
-function statusLabel(rec: MonitorRecord) {
-    if (rec.vi_techl_result) return 'Completed';
-    if (rec.vi_techl_prog) return 'In Progress';
-    return 'Pending';
-}
-
-function statusBadgeClass(rec: MonitorRecord) {
-    if (rec.vi_techl_result)
-        return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400';
-    if (rec.vi_techl_prog)
-        return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-400';
-    return 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950/30 dark:text-red-400';
-}
-
-function formatDateTime(dt: string | null) {
-    if (!dt) return '—';
-    return new Date(dt).toLocaleString('en-US', {
-        month: 'short',
-        day: '2-digit',
-        hour: '2-digit',
-        minute: '2-digit',
-    });
-}
-
-function qcResultBadgeClass(result: string): string {
-    const r = result.toUpperCase();
-    if (r === 'OK')
-        return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400';
-    if (r.includes('MAIN'))
-        return 'bg-blue-50 text-blue-700 ring-blue-600/20 dark:bg-blue-950/30 dark:text-blue-400';
-    if (r.includes('RR'))
-        return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-400';
-    if (r.includes('LY'))
-        return 'bg-violet-50 text-violet-700 ring-violet-600/20 dark:bg-violet-950/30 dark:text-violet-400';
-    return 'bg-slate-50 text-slate-600 ring-slate-600/20 dark:bg-slate-800/30 dark:text-slate-400';
-}
-
-function openModal(rec: MonitorRecord) {
-    modalLot.value = rec;
-    showModal.value = true;
-}
-
-function openQcOkUpdate(rec: MonitorRecord) {
-    qcOkUpdateLot.value = rec;
-    showQcOkUpdateModal.value = true;
-}
-
-const showExportPicker = ref(false);
-const tableSearch = ref('');
-const { sortKey, sortDir, toggleSort, sortIcon, applySort } =
-    useTableSort<MonitorRecord>();
-
-function toggleStatusFilter(
-    val: 'pending' | 'inprogress' | 'completed' | 'prevday',
-) {
-    statusFilter.value = statusFilter.value === val ? null : val;
-    fetchRecords();
-    fetchChartData();
-}
-
-const filteredRecords = computed(() => {
-    const q = tableSearch.value.trim().toLowerCase();
-    const bucket = activeWorkType.value;
-    const sf = statusFilter.value;
-    const todayStr = new Date().toLocaleDateString('en-CA', {
-        timeZone: 'Asia/Manila',
-    });
-
-    const base = records.value.filter((r) => {
-        if (
-            q &&
-            !(
-                r.lot_id?.toLowerCase().includes(q) ||
-                r.model?.toLowerCase().includes(q) ||
-                (r as any).defect_name?.toLowerCase().includes(q)
-            )
-        )
-            return false;
-
-        if (bucket !== 'All') {
-            const qcr = (r.qc_result ?? '').toLowerCase();
-            const hasMain = qcr.includes('main');
-            const hasRr = qcr.includes('rr');
-            const hasLy = qcr.includes('ly');
-            if (bucket === 'Mainlot' && !hasMain) return false;
-            if (bucket === 'R-rework' && (!hasRr || hasMain)) return false;
-            if (bucket === 'L-rework' && (!hasLy || hasRr || hasMain))
-                return false;
-        }
-
-        if (sf === 'pending') return !r.vi_techl_prog && !r.vi_techl_result;
-        if (sf === 'inprogress') return !!r.vi_techl_prog && !r.vi_techl_result;
-        if (sf === 'completed') return !!r.vi_techl_result;
-        if (sf === 'prevday') {
-            if (r.vi_techl_result) return false;
-            if (!r.vi_techl_start) return false;
-            return (
-                new Date(r.vi_techl_start).toLocaleDateString('en-CA', {
-                    timeZone: 'Asia/Manila',
-                }) < todayStr
-            );
-        }
-
-        return true;
-    });
-
-    const now = Date.now();
-    return applySort(base, (r: MonitorRecord) =>
-        r.vi_techl_start ? now - new Date(r.vi_techl_start).getTime() : 0,
-    );
-});
-
-function openAddModal() {
-    modalLot.value = null;
-    showModal.value = true;
-}
-
-const today = new Date().toLocaleDateString('en-CA', {
-    timeZone: 'Asia/Manila',
-});
-const exportDateFrom = ref(today);
-const exportDateTo = ref(today);
-
-function triggerExport() {
-    const p = new URLSearchParams();
-    if (exportDateFrom.value) p.set('date_from', exportDateFrom.value);
-    if (exportDateTo.value) p.set('date_to', exportDateTo.value);
-    p.set('defect_class', "Tech'l Verification");
-    window.location.href = `/api/endline-delay/export?${p.toString()}`;
-    showExportPicker.value = false;
-}
-
-function onKeydown(e: KeyboardEvent) {
-    if (e.key !== 'F2') return;
-    e.preventDefault();
-    openAddModal();
-}
-
-const {
-    activeWorkType,
-    activeCategory,
-    setWorkType,
-    setCategory,
-    fetchChartData,
-    initCharts,
-    destroyCharts,
-} = useEndlineCharts({
-    chartIdPrefix: 'vi',
-    defaultCategory: 'Technical',
-    getParams: () => ({
-        date:
-            statusFilter.value === 'prevday'
-                ? undefined
-                : filterDate.value || undefined,
-        shift: filterShift.value || undefined,
-        cutoff: filterCutoff.value || undefined,
-        work_type: filterWorktype.value || undefined,
-        lipas_yn: filterLipas.value || undefined,
-        status_filter: statusFilter.value || undefined,
-    }),
-});
-
-// Re-fetch charts whenever any page filter changes (Requirements 8.2, 8.3)
-watch(
-    [filterDate, filterShift, filterCutoff, filterWorktype, filterLipas],
-    () => fetchChartData(),
-);
-
-// Re-fetch records when search changes (drop date filter to search all dates)
-let searchTimer: ReturnType<typeof setTimeout> | null = null;
-watch(tableSearch, () => {
-    if (searchTimer) clearTimeout(searchTimer);
-    searchTimer = setTimeout(() => fetchRecords(), 350);
-});
-
-onMounted(() => {
-    fetchRecords();
-    initCharts();
-    fetchChartData();
-    document.addEventListener('keydown', onKeydown);
-});
-onBeforeUnmount(() => {
-    destroyCharts();
-    document.removeEventListener('keydown', onKeydown);
-});
-</script>

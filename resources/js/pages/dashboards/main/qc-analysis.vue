@@ -226,7 +226,13 @@
             <div class="flex gap-2">
                 <!-- Total -->
                 <div
-                    class="flex flex-1 items-center gap-2 rounded-lg border border-border/50 bg-gradient-to-br from-blue-50 to-blue-100/50 px-3 py-2 shadow dark:from-blue-950/30 dark:to-blue-900/20"
+                    class="flex flex-1 cursor-pointer items-center gap-2 rounded-lg border px-3 py-2 shadow transition-all dark:from-blue-950/30 dark:to-blue-900/20"
+                    :class="
+                        statusFilter === null
+                            ? 'border-blue-500 bg-blue-100 ring-2 ring-blue-400 dark:bg-blue-950/50'
+                            : 'border-border/50 bg-gradient-to-br from-blue-50 to-blue-100/50 hover:ring-1 hover:ring-blue-300'
+                    "
+                    @click="toggleStatusFilter('all' as any)"
                 >
                     <div
                         class="rounded-full bg-blue-500/10 p-1.5 ring-1 ring-blue-500/20"
@@ -433,7 +439,7 @@
                         class="mb-3 flex justify-center border-b border-sidebar-border/50 pb-2"
                     >
                         <h3 class="text-sm font-bold text-foreground">
-                            Summary of QC Analysis Delay
+                            Summary of QC Analysis Lots
                         </h3>
                     </div>
                     <div id="qc-pie-chart" class="h-[300px] w-full"></div>
@@ -443,7 +449,7 @@
                 >
                     <div class="mb-2 flex justify-center">
                         <h3 class="text-sm font-bold text-foreground">
-                            Per Size QC Analysis Delay
+                            Per Size QC Analysis Lots
                         </h3>
                     </div>
                     <div id="qc-bar-chart" class="h-[300px] w-full"></div>
@@ -453,7 +459,7 @@
                 >
                     <div class="mb-2 flex items-center justify-between">
                         <h3 class="text-sm font-bold text-foreground">
-                            Detailed QC Analysis Delay
+                            Detailed QC Analysis Lots
                         </h3>
                         <div
                             class="inline-flex rounded-md shadow-sm"
@@ -486,26 +492,14 @@
                             <button
                                 type="button"
                                 :class="[
-                                    'border border-x-0 px-2 py-1 text-xs font-medium transition-colors focus:z-10',
-                                    activeWorkType === 'R-rework'
-                                        ? 'border-blue-600 bg-blue-600 text-white'
-                                        : 'border-blue-600 bg-transparent text-blue-600 hover:bg-blue-600 hover:text-white dark:border-blue-500 dark:text-blue-500',
-                                ]"
-                                @click="setWorkType('R-rework')"
-                            >
-                                R-rework
-                            </button>
-                            <button
-                                type="button"
-                                :class="[
                                     'rounded-r-md border px-2 py-1 text-xs font-medium transition-colors focus:z-10',
-                                    activeWorkType === 'L-rework'
+                                    activeWorkType === 'RL-Rework'
                                         ? 'border-blue-600 bg-blue-600 text-white'
                                         : 'border-blue-600 bg-transparent text-blue-600 hover:bg-blue-600 hover:text-white dark:border-blue-500 dark:text-blue-500',
                                 ]"
-                                @click="setWorkType('L-rework')"
+                                @click="setWorkType('RL-Rework')"
                             >
-                                L-rework
+                                RL-Rework
                             </button>
                         </div>
                     </div>
@@ -534,27 +528,46 @@
                 <div
                     v-else
                     class="min-h-0 flex-1 overflow-x-auto overflow-y-auto"
+                    style="scrollbar-gutter: stable"
                 >
-                    <table class="w-full min-w-[900px] table-fixed text-xs">
+                    <table class="w-full min-w-[1100px] table-fixed text-xs">
                         <colgroup>
                             <col class="w-[40px]" />
-                            <col class="w-[100px]" />
-                            <col class="w-[130px]" />
-                            <col class="w-[80px]" />
-                            <col class="w-[55px]" />
-                            <col class="w-[130px]" />
-                            <col class="w-[80px]" />
+                            <!-- No -->
                             <col class="w-[90px]" />
+                            <!-- Lot No -->
+                            <col class="w-[130px]" />
+                            <!-- Model -->
+                            <col class="w-[75px]" />
+                            <!-- Qty -->
+                            <col class="w-[50px]" />
+                            <!-- LIPAS -->
+                            <col class="w-[85px]" />
+                            <!-- WorkType -->
+                            <col class="w-[120px]" />
+                            <!-- Date Time -->
+                            <col class="w-[90px]" />
+                            <!-- Defect Code -->
                             <col class="w-[80px]" />
-                            <col class="w-[80px]" />
-                            <col class="w-[100px]" />
-                            <col class="w-[100px]" />
-                            <col class="w-[100px]" />
-                            <col class="w-[110px]" />
+                            <!-- Status -->
+                            <col class="w-[70px]" />
+                            <!-- Elapsed -->
+                            <col class="w-[85px]" />
+                            <!-- Created By -->
+                            <col class="w-[85px]" />
+                            <!-- Updated By -->
+                            <col class="w-[95px]" />
+                            <!-- Decision -->
+                            <col class="w-[120px]" />
+                            <!-- Completed -->
+                            <col class="w-[150px]" />
+                            <!-- Remarks -->
+                            <col class="w-[90px]" />
+                            <!-- Actions -->
                         </colgroup>
                         <thead class="sticky top-0 z-10">
                             <tr
-                                class="bg-gradient-to-r from-slate-700 to-slate-800 dark:from-slate-800 dark:to-slate-900"
+                                class="bg-gradient-to-r from-slate-700 to-slate-800 whitespace-nowrap dark:from-slate-800 dark:to-slate-900"
                             >
                                 <th
                                     class="border-r border-white/10 px-2 py-2.5 text-center text-[10px] font-bold tracking-widest text-slate-100 uppercase"
@@ -589,51 +602,67 @@
                                     }}</span>
                                 </th>
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('lipas_yn')"
                                 >
                                     LIPAS
+                                    <span class="opacity-60">{{
+                                        sortIcon('lipas_yn')
+                                    }}</span>
                                 </th>
                                 <th
                                     class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
-                                    @click="toggleSort('qc_ana_start')"
+                                    @click="toggleSort('work_type')"
+                                >
+                                    WorkType
+                                    <span class="opacity-60">{{
+                                        sortIcon('work_type')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('analysis_start_at')"
                                 >
                                     Date Time
                                     <span class="opacity-60">{{
-                                        sortIcon('qc_ana_start')
+                                        sortIcon('analysis_start_at')
                                     }}</span>
                                 </th>
                                 <th
                                     class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
-                                    @click="toggleSort('qc_result')"
-                                >
-                                    QC Result
-                                    <span class="opacity-60">{{
-                                        sortIcon('qc_result')
-                                    }}</span>
-                                </th>
-                                <th
-                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
-                                    @click="toggleSort('qc_defect')"
+                                    @click="toggleSort('defect_code')"
                                 >
                                     Defect Code
                                     <span class="opacity-60">{{
-                                        sortIcon('qc_defect')
+                                        sortIcon('defect_code')
                                     }}</span>
                                 </th>
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('analysis_result')"
                                 >
                                     Status
+                                    <span class="opacity-60">{{
+                                        sortIcon('analysis_result')
+                                    }}</span>
                                 </th>
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('analysis_start_at')"
                                 >
                                     Elapsed
+                                    <span class="opacity-60">{{
+                                        sortIcon('analysis_start_at')
+                                    }}</span>
                                 </th>
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('created_by')"
                                 >
                                     Created By
+                                    <span class="opacity-60">{{
+                                        sortIcon('created_by')
+                                    }}</span>
                                 </th>
                                 <th
                                     class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
@@ -645,9 +674,31 @@
                                     }}</span>
                                 </th>
                                 <th
-                                    class="border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase"
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('analysis_result')"
                                 >
                                     Decision
+                                    <span class="opacity-60">{{
+                                        sortIcon('analysis_result')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('analysis_completed_at')"
+                                >
+                                    Completed
+                                    <span class="opacity-60">{{
+                                        sortIcon('analysis_completed_at')
+                                    }}</span>
+                                </th>
+                                <th
+                                    class="cursor-pointer border-r border-white/10 px-2 py-2.5 text-left text-[10px] font-bold tracking-widest text-slate-100 uppercase select-none hover:bg-white/10"
+                                    @click="toggleSort('remarks')"
+                                >
+                                    Remarks
+                                    <span class="opacity-60">{{
+                                        sortIcon('remarks')
+                                    }}</span>
                                 </th>
                                 <th
                                     class="px-2 py-2.5 text-center text-[10px] font-bold tracking-widest text-slate-100 uppercase"
@@ -702,28 +753,21 @@
                                     >
                                 </td>
                                 <td
+                                    class="truncate px-2 py-2 text-xs text-foreground"
+                                    :title="rec.work_type ?? ''"
+                                >
+                                    {{ rec.work_type || '—' }}
+                                </td>
+                                <td
                                     class="px-2 py-2 text-xs whitespace-nowrap text-muted-foreground"
                                 >
-                                    {{ formatDateTime(rec.qc_ana_start) }}
-                                </td>
-                                <td class="px-2 py-2">
-                                    <span
-                                        v-if="rec.qc_result"
-                                        class="inline-flex items-center rounded px-1.5 py-0.5 text-[10px] font-semibold ring-1 ring-inset"
-                                        :class="
-                                            qcResultBadgeClass(rec.qc_result)
-                                        "
-                                        >{{ rec.qc_result }}</span
-                                    >
-                                    <span v-else class="text-muted-foreground"
-                                        >—</span
-                                    >
+                                    {{ formatDateTime(rec.analysis_start_at) }}
                                 </td>
                                 <td
                                     class="truncate px-2 py-2 text-xs text-foreground"
-                                    :title="rec.qc_defect ?? ''"
+                                    :title="rec.defect_code ?? ''"
                                 >
-                                    {{ rec.qc_defect || '—' }}
+                                    {{ rec.defect_code || '—' }}
                                 </td>
                                 <td class="px-2 py-2">
                                     <span
@@ -736,9 +780,9 @@
                                 <td class="px-2 py-2 text-xs whitespace-nowrap">
                                     <span
                                         v-if="
-                                            rec.qc_ana_result &&
-                                            rec.qc_ana_completed_at &&
-                                            rec.qc_ana_start
+                                            rec.analysis_result &&
+                                            rec.analysis_completed_at &&
+                                            rec.analysis_start_at
                                         "
                                         class="text-muted-foreground"
                                     >
@@ -746,10 +790,10 @@
                                             formatDuration(
                                                 Math.round(
                                                     (new Date(
-                                                        rec.qc_ana_completed_at,
+                                                        rec.analysis_completed_at,
                                                     ).getTime() -
                                                         new Date(
-                                                            rec.qc_ana_start,
+                                                            rec.analysis_start_at,
                                                         ).getTime()) /
                                                         60_000,
                                                 ),
@@ -757,8 +801,8 @@
                                         }}
                                     </span>
                                     <ElapsedCell
-                                        v-else-if="rec.qc_ana_start"
-                                        :start="rec.qc_ana_start"
+                                        v-else-if="rec.analysis_start_at"
+                                        :start="rec.analysis_start_at"
                                     />
                                     <span v-else class="text-muted-foreground"
                                         >—</span
@@ -779,57 +823,90 @@
                                 <td class="px-2 py-2">
                                     <span
                                         v-if="
-                                            rec.qc_ana_result === 'Rework' ||
-                                            rec.qc_ana_result === 'DRB Approval'
+                                            rec.analysis_result === 'Rework' ||
+                                            rec.analysis_result ===
+                                                'DRB Approval'
                                         "
                                         class="inline-flex items-center gap-1 text-[10px] font-semibold text-rose-600"
                                     >
                                         <AlertCircle class="h-3 w-3" />{{
-                                            rec.qc_ana_result
+                                            rec.analysis_result
                                         }}
                                     </span>
                                     <span
-                                        v-else-if="rec.qc_ana_result"
+                                        v-else-if="rec.analysis_result"
                                         class="inline-flex items-center gap-1 text-[10px] font-semibold text-emerald-600"
                                     >
                                         <CheckCircle2 class="h-3 w-3" />{{
-                                            rec.qc_ana_result
+                                            rec.analysis_result
                                         }}
-                                    </span>
-                                    <span
-                                        v-else-if="rec.qc_ana_prog"
-                                        class="text-[10px] font-medium text-amber-600"
-                                    >
-                                        {{ rec.qc_ana_prog }}
                                     </span>
                                     <span v-else class="text-muted-foreground"
                                         >—</span
                                     >
+                                </td>
+                                <!-- Completed At -->
+                                <td
+                                    class="px-2 py-2 text-xs whitespace-nowrap text-muted-foreground tabular-nums"
+                                >
+                                    <span v-if="rec.analysis_completed_at">
+                                        {{
+                                            new Date(
+                                                rec.analysis_completed_at,
+                                            ).toLocaleString('en-US', {
+                                                month: 'short',
+                                                day: '2-digit',
+                                                hour: '2-digit',
+                                                minute: '2-digit',
+                                            })
+                                        }}
+                                    </span>
+                                    <span
+                                        v-else
+                                        class="text-muted-foreground/40"
+                                        >—</span
+                                    >
+                                </td>
+                                <td
+                                    class="max-w-[160px] truncate px-2 py-2 text-xs text-muted-foreground"
+                                    :title="rec.remarks ?? ''"
+                                >
+                                    {{ rec.remarks || '—' }}
                                 </td>
                                 <td class="px-2 py-2">
                                     <div
                                         class="flex items-center justify-center gap-1"
                                     >
                                         <button
-                                            v-if="!rec.qc_ana_result"
+                                            v-if="
+                                                !rec.analysis_result ||
+                                                rec.analysis_result ===
+                                                    'In Progress' ||
+                                                rec.analysis_result ===
+                                                    'For Decision'
+                                            "
                                             class="h-7 rounded border border-primary/30 bg-primary/10 px-3 text-[10px] font-semibold text-primary hover:bg-primary/20"
                                             @click.stop="openModal(rec)"
                                         >
                                             <ClipboardCheck
                                                 class="mr-1 inline h-3 w-3"
-                                            />Update Status
+                                            />Update
                                         </button>
-                                        <span
+                                        <button
                                             v-else
-                                            class="text-[10px] text-muted-foreground"
-                                            >—</span
+                                            class="h-7 rounded border border-slate-300/50 bg-slate-100/60 px-3 text-[10px] font-semibold text-slate-500 hover:bg-slate-200/60 dark:border-slate-600/50 dark:bg-slate-800/40 dark:text-slate-400 dark:hover:bg-slate-700/40"
+                                            @click.stop="openModal(rec, true)"
                                         >
+                                            <Eye
+                                                class="mr-1 inline h-3 w-3"
+                                            />View
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
                             <tr v-if="filteredRecords.length === 0">
                                 <td
-                                    colspan="14"
+                                    colspan="17"
                                     class="py-12 text-center text-muted-foreground"
                                 >
                                     <CheckCircle2
@@ -846,18 +923,12 @@
             </div>
         </div>
 
-        <MonitorResultModal
+        <QcAnalysisModal
             :open="showModal"
-            :lot="modalLot"
-            mode="qc"
+            :lot="modalLot as any"
+            :readonly="modalReadonly"
             @update:open="showModal = $event"
             @submitted="fetchRecords"
-        />
-        <QcOkUpdateModal
-            :open="showQcOkUpdateModal"
-            :lot="qcOkUpdateLot as any"
-            @update:open="showQcOkUpdateModal = $event"
-            @saved="fetchRecords"
         />
     </AppLayout>
 </template>
@@ -874,13 +945,15 @@ import {
 } from '@/composables/useMonitorPage';
 import { useTableSort } from '@/composables/useTableSort';
 import AppLayout from '@/layouts/AppLayout.vue';
-import MonitorResultModal from '@/pages/dashboards/subs/monitor-result-modal.vue';
+import QcAnalysisModal from '@/pages/dashboards/subs/qc-analysis-modal.vue';
+import axios from 'axios';
 import {
     AlertCircle,
     CheckCircle2,
     ClipboardCheck,
     Clock,
     Download,
+    Eye,
     Loader2,
     Package,
     Plus,
@@ -946,18 +1019,19 @@ const statusFilter = ref<
 >(null);
 
 const { records, loading, error, fetchRecords, summaryStats } = useMonitorPage({
-    apiUrl: '/api/endline-delay/qc-monitor',
-    mode: 'qc',
+    apiUrl: '/api/qc-analysis',
+    mode: 'qc_analysis',
     unit: filterUnit,
     params: () => ({
         date:
-            statusFilter.value === 'prevday' || tableSearch.value.trim()
+            statusFilter.value === 'prevday' ||
+            tableSearch.value.trim().length === 7
                 ? undefined
                 : filterDate.value || undefined,
-        shift: filterShift.value || undefined,
-        cutoff: filterCutoff.value || undefined,
         work_type: filterWorktype.value || undefined,
         lipas_yn: filterLipas.value || undefined,
+        shift: filterShift.value || undefined,
+        cutoff: filterCutoff.value || undefined,
         status_filter: statusFilter.value || undefined,
     }),
 });
@@ -972,28 +1046,30 @@ const {
 const selectedId = ref<number | null>(null);
 const showModal = ref(false);
 const modalLot = ref<MonitorRecord | null>(null);
-const showQcOkUpdateModal = ref(false);
-const qcOkUpdateLot = ref<MonitorRecord | null>(null);
+const modalReadonly = ref(false);
 
 function rowClass(rec: MonitorRecord) {
-    if (rec.qc_ana_result)
+    if (rec.analysis_result === 'In Progress')
+        return 'bg-amber-50/40 hover:bg-amber-50/60 dark:bg-amber-950/10';
+    if (rec.analysis_result && rec.analysis_result !== 'For Decision')
         return 'bg-emerald-50/40 hover:bg-emerald-50/60 dark:bg-emerald-950/10';
-    if (rec.qc_ana_prog)
-        return 'bg-amber-50/60 hover:bg-amber-50/80 dark:bg-amber-950/20';
     return 'hover:bg-muted/30';
 }
 
 function statusLabel(rec: MonitorRecord) {
-    if (rec.qc_ana_result) return 'Completed';
-    if (rec.qc_ana_prog) return 'In Progress';
+    if (rec.analysis_result === 'In Progress') return 'In Progress';
+    if (rec.analysis_result === 'For Decision') return 'Pending';
+    if (rec.analysis_result) return 'Completed';
     return 'Pending';
 }
 
 function statusBadgeClass(rec: MonitorRecord) {
-    if (rec.qc_ana_result)
-        return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400';
-    if (rec.qc_ana_prog)
+    if (rec.analysis_result === 'In Progress')
         return 'bg-amber-50 text-amber-700 ring-amber-600/20 dark:bg-amber-950/30 dark:text-amber-400';
+    if (rec.analysis_result === 'For Decision')
+        return 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950/30 dark:text-red-400';
+    if (rec.analysis_result)
+        return 'bg-emerald-50 text-emerald-700 ring-emerald-600/20 dark:bg-emerald-950/30 dark:text-emerald-400';
     return 'bg-red-50 text-red-700 ring-red-600/20 dark:bg-red-950/30 dark:text-red-400';
 }
 
@@ -1020,14 +1096,22 @@ function qcResultBadgeClass(result: string): string {
     return 'bg-slate-50 text-slate-600 ring-slate-600/20 dark:bg-slate-800/30 dark:text-slate-400';
 }
 
-function openModal(rec: MonitorRecord) {
-    modalLot.value = rec;
+function openModal(rec: MonitorRecord, readonly = false) {
+    modalReadonly.value = readonly;
+    // Pre-fill immediately so modal shows lot details right away
+    modalLot.value = rec as any;
     showModal.value = true;
-}
-
-function openQcOkUpdate(rec: MonitorRecord) {
-    qcOkUpdateLot.value = rec;
-    showQcOkUpdateModal.value = true;
+    // Then enrich with inspection bin results in the background
+    axios
+        .get<{ data: any }>('/api/qc-analysis/find-by-lot', {
+            params: { lot_id: rec.lot_id },
+        })
+        .then(({ data }) => {
+            modalLot.value = data.data;
+        })
+        .catch(() => {
+            // keep pre-filled data on error
+        });
 }
 
 const showExportPicker = ref(false);
@@ -1036,9 +1120,13 @@ const { sortKey, sortDir, toggleSort, sortIcon, applySort } =
     useTableSort<MonitorRecord>();
 
 function toggleStatusFilter(
-    val: 'pending' | 'inprogress' | 'completed' | 'prevday',
+    val: 'pending' | 'inprogress' | 'completed' | 'prevday' | 'all',
 ) {
-    statusFilter.value = statusFilter.value === val ? null : val;
+    if (val === 'all') {
+        statusFilter.value = null;
+    } else {
+        statusFilter.value = statusFilter.value === val ? null : val;
+    }
     fetchRecords();
     fetchChartData();
 }
@@ -1057,30 +1145,26 @@ const filteredRecords = computed(() => {
             !(
                 r.lot_id?.toLowerCase().includes(q) ||
                 r.model?.toLowerCase().includes(q) ||
-                (r as any).defect_name?.toLowerCase().includes(q)
+                r.defect_code?.toLowerCase().includes(q)
             )
         )
             return false;
 
-        if (bucket !== 'All') {
-            const qcr = (r.qc_result ?? '').toLowerCase();
-            const hasMain = qcr.includes('main');
-            const hasRr = qcr.includes('rr');
-            const hasLy = qcr.includes('ly');
-            if (bucket === 'Mainlot' && !hasMain) return false;
-            if (bucket === 'R-rework' && (!hasRr || hasMain)) return false;
-            if (bucket === 'L-rework' && (!hasLy || hasRr || hasMain))
-                return false;
-        }
-
-        if (sf === 'pending') return !r.qc_ana_prog && !r.qc_ana_result;
-        if (sf === 'inprogress') return !!r.qc_ana_prog && !r.qc_ana_result;
-        if (sf === 'completed') return !!r.qc_ana_result;
-        if (sf === 'prevday') {
-            if (r.qc_ana_result) return false;
-            if (!r.qc_ana_start) return false;
+        if (sf === 'pending')
+            return !r.analysis_result || r.analysis_result === 'For Decision';
+        if (sf === 'inprogress') return r.analysis_result === 'In Progress';
+        if (sf === 'completed')
             return (
-                new Date(r.qc_ana_start).toLocaleDateString('en-CA', {
+                !!r.analysis_result &&
+                r.analysis_result !== 'In Progress' &&
+                r.analysis_result !== 'For Decision'
+            );
+        if (sf === 'prevday') {
+            if (r.analysis_result && r.analysis_result !== 'In Progress')
+                return false;
+            if (!r.analysis_start_at) return false;
+            return (
+                new Date(r.analysis_start_at).toLocaleDateString('en-CA', {
                     timeZone: 'Asia/Manila',
                 }) < todayStr
             );
@@ -1090,9 +1174,44 @@ const filteredRecords = computed(() => {
     });
 
     const now = Date.now();
-    return applySort(base, (r) =>
-        r.qc_ana_start ? now - new Date(r.qc_ana_start).getTime() : 0,
+    const elapsedFn = (r: MonitorRecord) =>
+        r.analysis_start_at ? now - new Date(r.analysis_start_at).getTime() : 0;
+
+    // Auto-sort: pending/in-progress (highest elapsed first) → completed (most recent first)
+    const PENDING_STATUSES = [null, '', 'For Decision', 'In Progress'];
+    const pending = base.filter((r) =>
+        PENDING_STATUSES.includes(r.analysis_result ?? null),
     );
+    const completed = base.filter(
+        (r) =>
+            r.analysis_result && !PENDING_STATUSES.includes(r.analysis_result),
+    );
+
+    const byElapsedDesc = (a: MonitorRecord, b: MonitorRecord) => {
+        const aStart = a.analysis_start_at
+            ? new Date(a.analysis_start_at).getTime()
+            : 0;
+        const bStart = b.analysis_start_at
+            ? new Date(b.analysis_start_at).getTime()
+            : 0;
+        return aStart - bStart; // older start = higher elapsed = comes first
+    };
+
+    const sortedPending = [...pending].sort(byElapsedDesc);
+    const sortedCompleted = [...completed].sort((a, b) => {
+        const aT = a.analysis_completed_at
+            ? new Date(a.analysis_completed_at).getTime()
+            : 0;
+        const bT = b.analysis_completed_at
+            ? new Date(b.analysis_completed_at).getTime()
+            : 0;
+        return bT - aT;
+    });
+
+    // If user has applied a manual sort, respect it; otherwise use auto-sort
+    return sortKey.value
+        ? applySort(base, elapsedFn)
+        : [...sortedPending, ...sortedCompleted];
 });
 
 function openAddModal() {
@@ -1110,8 +1229,9 @@ function triggerExport() {
     const p = new URLSearchParams();
     if (exportDateFrom.value) p.set('date_from', exportDateFrom.value);
     if (exportDateTo.value) p.set('date_to', exportDateTo.value);
-    p.set('defect_class', 'QC Analysis');
-    window.location.href = `/api/endline-delay/export?${p.toString()}`;
+    if (filterWorktype.value) p.set('work_type', filterWorktype.value);
+    if (filterLipas.value) p.set('lipas_yn', filterLipas.value);
+    window.location.href = `/api/qc-analysis/export?${p.toString()}`;
     showExportPicker.value = false;
 }
 
@@ -1132,15 +1252,20 @@ const {
 } = useEndlineCharts({
     chartIdPrefix: 'qc',
     defaultCategory: 'QC Analysis',
+    chartDataUrl: '/api/qc-analysis/chart-data',
+    pieLabels: ['Pending', 'In Progress', 'Completed'],
+    pieColors: ['#ef4444', '#f59e0b', '#10b981'],
+    barSeriesNames: ['Pending', 'In Progress', 'Completed'],
+    barColors: ['#ef4444', '#f59e0b', '#10b981'],
     getParams: () => ({
         date:
             statusFilter.value === 'prevday'
                 ? undefined
                 : filterDate.value || undefined,
-        shift: filterShift.value || undefined,
-        cutoff: filterCutoff.value || undefined,
         work_type: filterWorktype.value || undefined,
         lipas_yn: filterLipas.value || undefined,
+        shift: filterShift.value || undefined,
+        cutoff: filterCutoff.value || undefined,
         status_filter: statusFilter.value || undefined,
     }),
 });

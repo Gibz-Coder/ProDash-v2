@@ -171,3 +171,6 @@ php artisan migrate --path=database/migrations/2026_04_03_000001_create_qc_inspe
 php artisan migrate --path=database/migrations/2026_04_03_000002_create_qc_analysis_table.php
 php artisan migrate --path=database/migrations/2026_04_03_000003_create_vi_technical_table.php
 php artisan migrate --path=database/migrations/2026_04_03_000004_create_qc_ok_table.php
+php artisan migrate --path=database/migrations/2026_04_05_000001_add_technical_completed_at_to_vi_technical_table.php
+php artisan migrate --path=database/migrations/2026_04_05_000002_add_defect_details_to_vi_technical_table.php
+php artisan migrate --path=database/migrations/2026_04_05_000003_drop_defect_images_from_vi_technical_table.php

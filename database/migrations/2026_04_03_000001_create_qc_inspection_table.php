@@ -19,11 +19,11 @@ return new class extends Migration
             $table->string('work_type')->nullable();
             $table->integer('inspection_times')->nullable();
             $table->integer('inspection_spl')->nullable();
-            $table->string('inspected_part')->nullable();
+            $table->string('inspected_bin')->nullable();
             $table->string('inspection_result')->nullable();
             $table->string('mainlot_result')->nullable();
-            $table->string('r_rework_result')->nullable();
-            $table->string('l_rework_result')->nullable();
+            $table->string('rr_result')->nullable();
+            $table->string('ly_result')->nullable();
             $table->string('defect_code')->nullable();
             $table->string('defect_flow')->nullable();
             $table->timestamp('analysis_start_at')->nullable();
@@ -32,7 +32,7 @@ return new class extends Migration
             $table->timestamp('technical_start_at')->nullable();
             $table->timestamp('technical_completd_at')->nullable();
             $table->string('technical_result')->nullable();
-            $table->timestamp('production_start')->nullable();
+            $table->timestamp('production_start_at')->nullable();
             $table->timestamp('production_completed_at')->nullable();
             $table->string('production_result')->nullable();
             $table->string('final_decision')->nullable();
